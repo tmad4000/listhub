@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}ListHub — Publish and share lists, notes, and knowledge{% endblock %}
+{% block content %}
+<div class="hero">
+    <h1>ListHub</h1>
+    <p>A publishing and sharing layer for notes, lists, and knowledge. Agent-native. Human-friendly.</p>
+    <div class="hero-actions">
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Get Started</a>
+        <a href="{{ url_for('auth.login') }}" class="btn">Login</a>
+    </div>
+</div>
+
+{% if items %}
+<h2 style="margin-bottom: 16px; font-size: 16px; color: var(--text-muted);">Public items</h2>
+<div class="item-list">
+    {% for item in items %}
+    <div class="item-card">
+        <div class="item-info">
+            <a href="/@{{ item.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
+            <div class="item-meta">
+                <span>@{{ item.username }}</span>
+                <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
+                <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

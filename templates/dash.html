@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ListHub{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <h1>Your Items</h1>
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <form class="search-box" method="get" action="{{ url_for('views.dashboard') }}">
+            <input type="text" name="q" placeholder="Search..." value="{{ q or '' }}">
+        </form>
+        <a href="{{ url_for('views.new_item') }}" class="btn btn-primary">New Item</a>
+    </div>
+</div>
+
+<div class="filter-tabs">
+    <a href="{{ url_for('views.dashboard') }}" class="filter-tab {% if not visibility_filter %}active{% endif %}">All</a>
+    <a href="{{ url_for('views.dashboard', visibility='public') }}" class="filter-tab {% if visibility_filter == 'public' %}active{% endif %}">Public</a>
+    <a href="{{ url_for('views.dashboard', visibility='shared') }}" class="filter-tab {% if visibility_filter == 'shared' %}active{% endif %}">Shared</a>
+    <a href="{{ url_for('views.dashboard', visibility='private') }}" class="filter-tab {% if visibility_filter == 'private' %}active{% endif %}">Private</a>
+</div>
+
+{% if items %}
+<div class="item-list">
+    {% for item in items %}
+    <div class="item-card">
+        <div class="item-info">
+            <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="item-title">{{ item.title or item.slug }}</a>
+            <div class="item-meta">
+                <span class="badge badge-{{ item.visibility }}">{{ item.visibility }}</span>
+                <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
+                {% for tag in item.tags %}
+                    <span class="tag">{{ tag }}</span>
+                {% endfor %}
+                <span>{{ item.updated_at[:16] if item.updated_at else '' }}</span>
+                <span>rev {{ item.revision }}</span>
+            </div>
+        </div>
+        <div class="item-actions">
+            {% if item.visibility == 'public' %}
+                <a href="/@{{ current_user.username }}/{{ item.slug }}" class="btn btn-sm">View</a>
+            {% endif %}
+            <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="btn btn-sm">Edit</a>
+            <form method="post" action="{{ url_for('views.delete_item', item_id=item.id) }}" style="display: inline;" onsubmit="return confirm('Delete this item?')">
+                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No items yet. Create your first one!</p>
+    <a href="{{ url_for('views.new_item') }}" class="btn btn-primary">New Item</a>
+</div>
+{% endif %}
+{% endblock %}

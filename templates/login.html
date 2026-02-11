@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Login — ListHub{% endblock %}
+{% block content %}
+<div class="auth-card">
+    <h1>Login</h1>
+    <form method="post">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+    </form>
+    <p style="text-align: center; margin-top: 16px; font-size: 14px; color: var(--text-muted);">
+        Don't have an account? <a href="{{ url_for('auth.register') }}">Sign up</a>
+    </p>
+
+    <div style="border-top: 1px solid var(--border); margin-top: 24px; padding-top: 20px;">
+        <p style="text-align: center; font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Quick login as demo user:</p>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+            <button type="button" class="btn btn-sm" onclick="quickLogin('jacob','testpass123')">jacob</button>
+            <button type="button" class="btn btn-sm" onclick="quickLogin('clawd','clawd123')">clawd</button>
+            <button type="button" class="btn btn-sm" onclick="quickLogin('alice','alice123')">alice</button>
+            <button type="button" class="btn btn-sm" onclick="quickLogin('demo','demo1234')">demo</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function quickLogin(user, pass) {
+    document.getElementById('username').value = user;
+    document.getElementById('password').value = pass;
+    document.querySelector('form').submit();
+}
+</script>
+{% endblock %}

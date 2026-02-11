@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}@{{ profile_user.username }} — ListHub{% endblock %}
+{% block content %}
+<div class="profile-header">
+    <h1>{{ profile_user.display_name or profile_user.username }}</h1>
+    <div class="username">@{{ profile_user.username }}</div>
+</div>
+
+{% if items %}
+<div class="item-list">
+    {% for item in items %}
+    <div class="item-card">
+        <div class="item-info">
+            <a href="/@{{ profile_user.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
+            <div class="item-meta">
+                <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
+                {% for tag in item.tags %}
+                    <span class="tag">{{ tag }}</span>
+                {% endfor %}
+                <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No public items yet.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Sign Up — ListHub{% endblock %}
+{% block content %}
+<div class="auth-card">
+    <h1>Sign Up</h1>
+    <form method="post">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus pattern="[a-zA-Z0-9]+" minlength="2">
+            <div class="form-help">Alphanumeric, used in your public URL: /@username</div>
+        </div>
+        <div class="form-group">
+            <label for="display_name">Display Name</label>
+            <input type="text" id="display_name" name="display_name">
+        </div>
+        <div class="form-group">
+            <label for="email">Email <span style="color: var(--text-muted);">(optional)</span></label>
+            <input type="email" id="email" name="email">
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required minlength="8">
+            <div class="form-help">Minimum 8 characters</div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+    </form>
+    <p style="text-align: center; margin-top: 16px; font-size: 14px; color: var(--text-muted);">
+        Already have an account? <a href="{{ url_for('auth.login') }}">Login</a>
+    </p>
+</div>
+{% endblock %}

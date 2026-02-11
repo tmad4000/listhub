@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title or item.slug }} — @{{ profile_user.username }} — ListHub{% endblock %}
+{% block content %}
+<div class="item-header">
+    <h1>{{ item.title or item.slug }}</h1>
+    <div class="item-header-meta">
+        <a href="/@{{ profile_user.username }}">@{{ profile_user.username }}</a>
+        <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
+        {% for tag in tags %}
+            <span class="tag">{{ tag }}</span>
+        {% endfor %}
+        <span>Updated {{ item.updated_at[:10] if item.updated_at else '' }}</span>
+    </div>
+</div>
+
+<div class="content-body">
+    {{ rendered_content|safe }}
+</div>
+{% endblock %}

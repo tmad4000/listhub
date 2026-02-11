@@ -1,0 +1,6 @@
+flask==3.1.0
+flask-login==0.6.3
+bcrypt==4.2.1
+gunicorn==23.0.0
+markdown==3.7
+nanoid==2.0.0
