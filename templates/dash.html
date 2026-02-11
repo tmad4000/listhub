@@ -27,39 +27,61 @@
 
 {% if items %}
 
-{% if view_mode == 'folders' %}
-{# ── Folder view ── #}
-<div class="item-list">
-    {% for folder, folder_items in folder_tree.items() %}
-    <div class="folder-group">
-        <div class="folder-header" onclick="this.parentElement.classList.toggle('collapsed')">
-            <span class="folder-icon">{% if folder == '/' %}📄{% else %}📁{% endif %}</span>
-            <span class="folder-name">{% if folder == '/' %}/{% else %}{{ folder }}/{% endif %}</span>
-            <span class="folder-count">{{ folder_items|length }}</span>
+{% if view_mode == 'folders' and folder_tree is not none %}
+{# ── Tree view ── #}
+<div class="tree-view">
+    {% for node in folder_tree %}
+        {% if node.type == 'folder' %}
+        <div class="tree-folder" style="padding-left: {{ node.depth * 20 }}px;" data-depth="{{ node.depth }}">
+            <div class="tree-folder-header" onclick="toggleFolder(this)">
+                <span class="tree-arrow">&#9660;</span>
+                <span class="tree-folder-icon">&#128193;</span>
+                <span class="tree-folder-name">{{ node.name }}/</span>
+                <span class="tree-folder-count">{{ node.count }}</span>
+            </div>
         </div>
-        <div class="folder-contents">
-            {% for item in folder_items %}
-            <div class="item-card item-card-nested">
-                <div class="item-info">
-                    <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="item-title">{{ item.title or item.slug }}</a>
-                    <div class="item-meta">
-                        <span class="badge badge-{{ item.visibility }}">{{ item.visibility }}</span>
-                        <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
-                        {% for tag in item.tags %}
-                            <span class="tag">{{ tag }}</span>
-                        {% endfor %}
-                    </div>
+        {% else %}
+        <div class="tree-file" style="padding-left: {{ node.depth * 20 + 24 }}px;" data-depth="{{ node.depth }}">
+            <div class="tree-file-row">
+                <div class="tree-file-info">
+                    <span class="tree-file-icon">&#128196;</span>
+                    <a href="{{ url_for('views.edit_item', item_id=node.item.id) }}" class="tree-file-name">{{ node.item.title or node.item.slug }}</a>
+                    <span class="badge badge-{{ node.item.visibility }}">{{ node.item.visibility }}</span>
+                    <span class="badge badge-{{ node.item.item_type }}">{{ node.item.item_type }}</span>
+                    {% for tag in node.item.tags %}
+                        <span class="tag">{{ tag }}</span>
+                    {% endfor %}
                 </div>
-                <div class="item-actions">
-                    <a href="/@{{ current_user.username }}/{{ item.slug }}" class="btn btn-sm">View</a>
-                    <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="btn btn-sm">Edit</a>
+                <div class="tree-file-actions">
+                    <a href="/@{{ current_user.username }}/{{ node.item.slug }}" class="btn btn-sm">View</a>
+                    <a href="{{ url_for('views.edit_item', item_id=node.item.id) }}" class="btn btn-sm">Edit</a>
                 </div>
             </div>
-            {% endfor %}
         </div>
-    </div>
+        {% endif %}
     {% endfor %}
 </div>
+
+<script>
+function toggleFolder(header) {
+    const folderDiv = header.parentElement;
+    const depth = parseInt(folderDiv.dataset.depth);
+    const arrow = header.querySelector('.tree-arrow');
+    const isCollapsing = !folderDiv.classList.contains('collapsed');
+
+    folderDiv.classList.toggle('collapsed');
+    arrow.style.transform = isCollapsing ? 'rotate(-90deg)' : '';
+
+    // Toggle all following siblings until we hit same or lower depth
+    let next = folderDiv.nextElementSibling;
+    while (next) {
+        const nextDepth = parseInt(next.dataset.depth);
+        if (nextDepth <= depth) break;
+        next.style.display = isCollapsing ? 'none' : '';
+        next = next.nextElementSibling;
+    }
+}
+</script>
 
 {% else %}
 {# ── List view (default) ── #}
