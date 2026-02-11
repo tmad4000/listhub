@@ -14,6 +14,8 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     
     # Content Security Policy
+    # Note: 'unsafe-inline' is used for compatibility with existing inline scripts/styles
+    # For production, consider refactoring to use nonces or external files
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
         "style-src 'self' 'unsafe-inline'; "

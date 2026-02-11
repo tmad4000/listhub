@@ -204,11 +204,15 @@ def edit_item(item_id):
 def delete_item(item_id):
     db = get_db()
     item = db.execute("SELECT *, rowid FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id)).fetchone()
-    if item:
-        # Delete FTS entry before deleting item
-        db.execute("DELETE FROM item_fts WHERE rowid = ?", (item['rowid'],))
-        db.execute("DELETE FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id))
-        db.commit()
+    if not item:
+        flash('Item not found or you do not have permission to delete it.', 'error')
+        return redirect(url_for('views.dashboard'))
+    
+    # Delete FTS entry before deleting item
+    db.execute("DELETE FROM item_fts WHERE rowid = ?", (item['rowid'],))
+    db.execute("DELETE FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id))
+    db.commit()
+    flash('Item deleted successfully.', 'success')
     return redirect(url_for('views.dashboard'))
 
 

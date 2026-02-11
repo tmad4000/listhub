@@ -233,7 +233,13 @@ def create_item():
 
     item = db.execute("SELECT * FROM item WHERE id = ?", (item_id,)).fetchone()
     d = item_to_dict(item)
-    d['tags'] = [t.strip().lower() for t in tags if t.strip() and len(t.strip()) <= 50]
+    # Filter tags properly
+    filtered_tags = []
+    for tag in tags:
+        tag_stripped = tag.strip().lower()
+        if tag_stripped and len(tag_stripped) <= 50:
+            filtered_tags.append(tag_stripped)
+    d['tags'] = filtered_tags
     return jsonify(d), 201
 
 
@@ -294,7 +300,7 @@ def delete_item(item_id):
 
     # Delete FTS entry before deleting item
     db.execute("DELETE FROM item_fts WHERE rowid = ?", (item['rowid'],))
-    db.execute("DELETE FROM item WHERE id = ?", (item_id,))
+    db.execute("DELETE FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id))
     db.commit()
 
     return jsonify({"ok": True})
