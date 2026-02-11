@@ -1,5 +1,6 @@
 flask==3.1.0
 flask-login==0.6.3
+flask-wtf==1.2.2
 bcrypt==4.2.1
 gunicorn==23.0.0
 markdown==3.7

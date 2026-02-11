@@ -3,6 +3,7 @@ import secrets
 
 from flask import Flask
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 
 from db import init_db, get_db, close_db
 from models import User
@@ -11,11 +12,18 @@ from api import api_bp
 from views import views_bp
 from git_backend import git_bp
 
+csrf = CSRFProtect()
+
 
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get('LISTHUB_SECRET', secrets.token_hex(32))
     app.config['REMEMBER_COOKIE_DURATION'] = 30 * 24 * 60 * 60  # 30 days
+
+    # CSRF protection (exempts API and git blueprints)
+    csrf.init_app(app)
+    csrf.exempt(api_bp)
+    csrf.exempt(git_bp)
 
     # Login manager
     login_manager = LoginManager()
