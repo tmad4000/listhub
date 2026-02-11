@@ -351,6 +351,51 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     border: 1px solid var(--orange);
 }
 
+/* View toggle */
+.view-toggle { display: flex; gap: 2px; }
+.btn-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+.btn-active:hover { background: var(--accent-hover); color: #fff; }
+
+/* Folder view */
+.folder-group { margin-bottom: 2px; }
+.folder-group.collapsed .folder-contents { display: none; }
+.folder-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    user-select: none;
+}
+.folder-header:hover { background: #30363d; }
+.folder-icon { font-size: 14px; }
+.folder-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.folder-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--bg);
+    padding: 0 6px;
+    border-radius: 10px;
+}
+.folder-contents { padding-left: 24px; }
+.item-card-nested {
+    border-left: 2px solid var(--border);
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+.item-card-nested:first-child { margin-top: 2px; }
+
 /* Empty state */
 .empty-state {
     text-align: center;

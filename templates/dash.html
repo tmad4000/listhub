@@ -6,19 +6,63 @@
     <div style="display: flex; gap: 12px; align-items: center;">
         <form class="search-box" method="get" action="{{ url_for('views.dashboard') }}">
             <input type="text" name="q" placeholder="Search..." value="{{ q or '' }}">
+            {% if view_mode == 'folders' %}<input type="hidden" name="view" value="folders">{% endif %}
         </form>
         <a href="{{ url_for('views.new_item') }}" class="btn btn-primary">New Item</a>
     </div>
 </div>
 
-<div class="filter-tabs">
-    <a href="{{ url_for('views.dashboard') }}" class="filter-tab {% if not visibility_filter %}active{% endif %}">All</a>
-    <a href="{{ url_for('views.dashboard', visibility='public') }}" class="filter-tab {% if visibility_filter == 'public' %}active{% endif %}">Public</a>
-    <a href="{{ url_for('views.dashboard', visibility='shared') }}" class="filter-tab {% if visibility_filter == 'shared' %}active{% endif %}">Shared</a>
-    <a href="{{ url_for('views.dashboard', visibility='private') }}" class="filter-tab {% if visibility_filter == 'private' %}active{% endif %}">Private</a>
+<div style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="filter-tabs">
+        <a href="{{ url_for('views.dashboard', view=view_mode) }}" class="filter-tab {% if not visibility_filter %}active{% endif %}">All</a>
+        <a href="{{ url_for('views.dashboard', visibility='public', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'public' %}active{% endif %}">Public</a>
+        <a href="{{ url_for('views.dashboard', visibility='shared', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'shared' %}active{% endif %}">Shared</a>
+        <a href="{{ url_for('views.dashboard', visibility='private', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'private' %}active{% endif %}">Private</a>
+    </div>
+    <div class="view-toggle">
+        <a href="{{ url_for('views.dashboard', visibility=visibility_filter, q=q) }}" class="btn btn-sm {% if view_mode != 'folders' %}btn-active{% endif %}" title="List view">List</a>
+        <a href="{{ url_for('views.dashboard', view='folders', visibility=visibility_filter, q=q) }}" class="btn btn-sm {% if view_mode == 'folders' %}btn-active{% endif %}" title="Folder view">Folders</a>
+    </div>
 </div>
 
 {% if items %}
+
+{% if view_mode == 'folders' %}
+{# ── Folder view ── #}
+<div class="item-list">
+    {% for folder, folder_items in folder_tree.items() %}
+    <div class="folder-group">
+        <div class="folder-header" onclick="this.parentElement.classList.toggle('collapsed')">
+            <span class="folder-icon">{% if folder == '/' %}📄{% else %}📁{% endif %}</span>
+            <span class="folder-name">{% if folder == '/' %}/{% else %}{{ folder }}/{% endif %}</span>
+            <span class="folder-count">{{ folder_items|length }}</span>
+        </div>
+        <div class="folder-contents">
+            {% for item in folder_items %}
+            <div class="item-card item-card-nested">
+                <div class="item-info">
+                    <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="item-title">{{ item.title or item.slug }}</a>
+                    <div class="item-meta">
+                        <span class="badge badge-{{ item.visibility }}">{{ item.visibility }}</span>
+                        <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
+                        {% for tag in item.tags %}
+                            <span class="tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="item-actions">
+                    <a href="/@{{ current_user.username }}/{{ item.slug }}" class="btn btn-sm">View</a>
+                    <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="btn btn-sm">Edit</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+{# ── List view (default) ── #}
 <div class="item-list">
     {% for item in items %}
     <div class="item-card">
@@ -45,6 +89,8 @@
     </div>
     {% endfor %}
 </div>
+{% endif %}
+
 {% else %}
 <div class="empty-state">
     <p>No items yet. Create your first one!</p>

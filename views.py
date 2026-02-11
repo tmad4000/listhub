@@ -100,7 +100,21 @@ def dashboard():
         except Exception:
             flash('Invalid search query.', 'error')
 
-    return render_template('dash.html', items=items_with_tags, q=q, visibility_filter=visibility_filter)
+    # Build folder tree for folder view
+    view_mode = request.args.get('view', 'list')
+    folder_tree = {}
+    if view_mode == 'folders':
+        for item in items_with_tags:
+            path = item.get('file_path') or f"{item['slug']}.md"
+            parts = path.rsplit('/', 1)
+            folder = parts[0] if len(parts) > 1 else '/'
+            folder_tree.setdefault(folder, []).append(item)
+        # Sort folders: root first, then alphabetical
+        folder_tree = dict(sorted(folder_tree.items(), key=lambda x: (x[0] != '/', x[0])))
+
+    return render_template('dash.html', items=items_with_tags, q=q,
+                           visibility_filter=visibility_filter, view_mode=view_mode,
+                           folder_tree=folder_tree)
 
 
 @views_bp.route('/dash/new', methods=['GET', 'POST'])
