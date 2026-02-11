@@ -135,7 +135,7 @@ def dashboard():
             flash('Invalid search query.', 'error')
 
     # Build nested folder tree for folder view
-    view_mode = request.args.get('view', 'list')
+    view_mode = request.args.get('view', 'folders')
     folder_tree = None
     if view_mode == 'folders':
         folder_tree = build_folder_tree(items_with_tags)
@@ -258,7 +258,13 @@ def edit_item(item_id):
 @login_required
 def delete_item(item_id):
     db = get_db()
-    db.execute("DELETE FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id))
+    # Get rowid for FTS cleanup before deleting
+    row = db.execute("SELECT rowid FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id)).fetchone()
+    if row:
+        db.execute("DELETE FROM item_fts WHERE rowid = ?", (row['rowid'],))
+        db.execute("DELETE FROM item_tag WHERE item_id = ?", (item_id,))
+        db.execute("DELETE FROM item_version WHERE item_id = ?", (item_id,))
+        db.execute("DELETE FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id))
     db.commit()
     return redirect(url_for('views.dashboard'))
 
@@ -284,23 +290,31 @@ def user_profile(username):
     if not user:
         abort(404)
 
-    items = db.execute(
-        "SELECT * FROM item WHERE owner_id = ? AND visibility = 'public' ORDER BY updated_at DESC",
-        (user.id,)
-    ).fetchall()
+    is_owner = current_user.is_authenticated and current_user.id == user.id
+
+    if is_owner:
+        items = db.execute(
+            "SELECT * FROM item WHERE owner_id = ? ORDER BY updated_at DESC",
+            (user.id,)
+        ).fetchall()
+    else:
+        items = db.execute(
+            "SELECT * FROM item WHERE owner_id = ? AND visibility = 'public' ORDER BY updated_at DESC",
+            (user.id,)
+        ).fetchall()
 
     items_with_tags = []
     for item in items:
         tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
         items_with_tags.append({**dict(item), 'tags': [t['tag'] for t in tags]})
 
-    view_mode = request.args.get('view', 'list')
+    view_mode = request.args.get('view', 'folders')
     folder_tree = None
     if view_mode == 'folders':
         folder_tree = build_folder_tree(items_with_tags)
 
     return render_template('profile.html', profile_user=user, items=items_with_tags,
-                           view_mode=view_mode, folder_tree=folder_tree)
+                           view_mode=view_mode, folder_tree=folder_tree, is_owner=is_owner)
 
 
 @views_bp.route('/@<username>/<slug>')
@@ -337,13 +351,15 @@ def public_item(username, slug):
 
     tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
     rendered_content = render_md(item['content'])
+    is_owner = current_user.is_authenticated and current_user.id == user.id
 
     return render_template(
         'item.html',
         item=item,
         profile_user=user,
         tags=[t['tag'] for t in tags],
-        rendered_content=rendered_content
+        rendered_content=rendered_content,
+        is_owner=is_owner
     )
 
 

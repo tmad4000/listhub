@@ -6,7 +6,7 @@
     <div style="display: flex; gap: 12px; align-items: center;">
         <form class="search-box" method="get" action="{{ url_for('views.dashboard') }}">
             <input type="text" name="q" placeholder="Search..." value="{{ q or '' }}">
-            {% if view_mode == 'folders' %}<input type="hidden" name="view" value="folders">{% endif %}
+            <input type="hidden" name="view" value="{{ view_mode }}">
         </form>
         <a href="{{ url_for('views.new_item') }}" class="btn btn-primary">New Item</a>
     </div>
@@ -20,7 +20,7 @@
         <a href="{{ url_for('views.dashboard', visibility='private', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'private' %}active{% endif %}">Private</a>
     </div>
     <div class="view-toggle">
-        <a href="{{ url_for('views.dashboard', visibility=visibility_filter, q=q) }}" class="btn btn-sm {% if view_mode != 'folders' %}btn-active{% endif %}" title="List view">List</a>
+        <a href="{{ url_for('views.dashboard', view='list', visibility=visibility_filter, q=q) }}" class="btn btn-sm {% if view_mode == 'list' %}btn-active{% endif %}" title="List view">List</a>
         <a href="{{ url_for('views.dashboard', view='folders', visibility=visibility_filter, q=q) }}" class="btn btn-sm {% if view_mode == 'folders' %}btn-active{% endif %}" title="Folder view">Folders</a>
     </div>
 </div>

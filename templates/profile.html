@@ -10,7 +10,7 @@
 
 <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
     <div class="view-toggle">
-        <a href="/@{{ profile_user.username }}" class="btn btn-sm {% if view_mode != 'folders' %}btn-active{% endif %}" title="List view">List</a>
+        <a href="/@{{ profile_user.username }}?view=list" class="btn btn-sm {% if view_mode == 'list' %}btn-active{% endif %}" title="List view">List</a>
         <a href="/@{{ profile_user.username }}?view=folders" class="btn btn-sm {% if view_mode == 'folders' %}btn-active{% endif %}" title="Folder view">Folders</a>
     </div>
 </div>
@@ -18,18 +18,23 @@
 {% if view_mode == 'folders' and folder_tree is not none %}
 {# ── Tree view ── #}
 {% set tree_owner = profile_user.username %}
-{% set tree_editable = false %}
+{% set tree_editable = is_owner %}
 {% include 'tree.html' %}
 <script src="{{ url_for('static', filename='tree.js') }}"></script>
 
 {% else %}
-{# ── List view (default) ── #}
+{# ── List view ── #}
 <div class="item-list">
     {% for item in items %}
     <div class="item-card">
         <div class="item-info">
             <a href="/@{{ profile_user.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
             <div class="item-meta">
+                {% if is_owner %}
+                <span class="badge badge-{{ item.visibility }}" title="{{ item.visibility }}">
+                    {% if item.visibility == 'public' %}&#127760;{% elif item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
+                </span>
+                {% endif %}
                 <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
                 {% for tag in item.tags %}
                     <span class="tag">{{ tag }}</span>
@@ -37,6 +42,12 @@
                 <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
             </div>
         </div>
+        {% if is_owner %}
+        <div class="item-actions">
+            <a href="/@{{ profile_user.username }}/{{ item.slug }}" class="btn btn-sm">View</a>
+            <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="btn btn-sm">Edit</a>
+        </div>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
@@ -44,7 +55,7 @@
 
 {% else %}
 <div class="empty-state">
-    <p>No public items yet.</p>
+    <p>No {% if not is_owner %}public {% endif %}items yet.</p>
 </div>
 {% endif %}
 {% endblock %}

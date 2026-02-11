@@ -282,6 +282,12 @@ def delete_item(item_id):
     if not item:
         return jsonify({"error": "Not found"}), 404
 
+    # Clean up FTS, tags, versions before deleting
+    row = db.execute("SELECT rowid FROM item WHERE id = ?", (item_id,)).fetchone()
+    if row:
+        db.execute("DELETE FROM item_fts WHERE rowid = ?", (row['rowid'],))
+    db.execute("DELETE FROM item_tag WHERE item_id = ?", (item_id,))
+    db.execute("DELETE FROM item_version WHERE item_id = ?", (item_id,))
     db.execute("DELETE FROM item WHERE id = ?", (item_id,))
     db.commit()
 
