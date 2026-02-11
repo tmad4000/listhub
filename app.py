@@ -60,7 +60,6 @@ def create_app():
     # Health check endpoint
     @app.route('/health')
     def health_check():
-        from flask import jsonify
         try:
             # Test database connection
             db = get_db()

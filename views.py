@@ -203,7 +203,7 @@ def edit_item(item_id):
 @csrf_protect
 def delete_item(item_id):
     db = get_db()
-    item = db.execute("SELECT * FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id)).fetchone()
+    item = db.execute("SELECT *, rowid FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id)).fetchone()
     if item:
         # Delete FTS entry before deleting item
         db.execute("DELETE FROM item_fts WHERE rowid = ?", (item['rowid'],))

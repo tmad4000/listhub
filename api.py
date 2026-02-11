@@ -288,7 +288,7 @@ def delete_item(item_id):
     user = get_current_api_user()
     db = get_db()
 
-    item = db.execute("SELECT * FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id)).fetchone()
+    item = db.execute("SELECT *, rowid FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id)).fetchone()
     if not item:
         return jsonify({"error": "Not found"}), 404
 
