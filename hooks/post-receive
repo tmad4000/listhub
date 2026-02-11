@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""
+ListHub post-receive hook.
+
+Installed automatically into each user's bare git repo by init_user_repo().
+When a push lands, this script:
+  1. Reads the ref updates from stdin (old-sha new-sha refname)
+  2. Finds all .md files that changed in each push
+  3. Reads the current content of each .md file from the repo
+  4. Creates or updates the corresponding ListHub item via the API
+
+Configuration is read from hooks/listhub.conf (written by init_user_repo).
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.request
+import urllib.error
+
+
+def read_config():
+    """Read the listhub.conf file adjacent to this hook."""
+    conf_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'listhub.conf')
+    config = {}
+    if os.path.isfile(conf_path):
+        with open(conf_path) as f:
+            for line in f:
+                line = line.strip()
+                if '=' in line and not line.startswith('#'):
+                    key, val = line.split('=', 1)
+                    config[key.strip()] = val.strip()
+    return config
+
+
+def get_changed_files(old_sha, new_sha, repo_dir):
+    """Get list of files changed between two commits."""
+    # If old_sha is all zeros, this is a new branch -- list all files in new_sha
+    null_sha = '0' * 40
+    if old_sha == null_sha:
+        result = subprocess.run(
+            ['git', 'ls-tree', '-r', '--name-only', new_sha],
+            capture_output=True, text=True, cwd=repo_dir
+        )
+    elif new_sha == null_sha:
+        # Branch deletion -- nothing to sync
+        return []
+    else:
+        result = subprocess.run(
+            ['git', 'diff', '--name-only', old_sha, new_sha],
+            capture_output=True, text=True, cwd=repo_dir
+        )
+
+    if result.returncode != 0:
+        return []
+
+    return [f.strip() for f in result.stdout.strip().split('\n') if f.strip()]
+
+
+def get_deleted_files(old_sha, new_sha, repo_dir):
+    """Get list of files deleted between two commits."""
+    null_sha = '0' * 40
+    if old_sha == null_sha or new_sha == null_sha:
+        return []
+
+    result = subprocess.run(
+        ['git', 'diff', '--name-only', '--diff-filter=D', old_sha, new_sha],
+        capture_output=True, text=True, cwd=repo_dir
+    )
+    if result.returncode != 0:
+        return []
+
+    return [f.strip() for f in result.stdout.strip().split('\n') if f.strip()]
+
+
+def read_file_content(sha, filepath, repo_dir):
+    """Read a file's content from a specific commit in the repo."""
+    result = subprocess.run(
+        ['git', 'show', f'{sha}:{filepath}'],
+        capture_output=True, text=True, cwd=repo_dir
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def extract_frontmatter(content):
+    """
+    Extract YAML-ish frontmatter from markdown content.
+    Returns (metadata_dict, body_without_frontmatter).
+    Supports a simple key: value format between --- delimiters.
+    """
+    metadata = {}
+    body = content
+
+    if content.startswith('---'):
+        parts = content.split('---', 2)
+        if len(parts) >= 3:
+            frontmatter = parts[1].strip()
+            body = parts[2].strip()
+            for line in frontmatter.split('\n'):
+                line = line.strip()
+                if ':' in line:
+                    key, val = line.split(':', 1)
+                    metadata[key.strip().lower()] = val.strip()
+
+    return metadata, body
+
+
+def slug_from_filename(filepath):
+    """
+    Derive a slug from a .md filename.
+    e.g. "notes/my-cool-note.md" -> "my-cool-note"
+         "hello-world.md" -> "hello-world"
+    """
+    basename = os.path.basename(filepath)
+    name = os.path.splitext(basename)[0]
+    # Clean up to a valid slug
+    slug = re.sub(r'[^\w\s-]', '', name.lower())
+    slug = re.sub(r'[\s_]+', '-', slug)
+    slug = re.sub(r'-+', '-', slug).strip('-')
+    return slug or 'untitled'
+
+
+def api_request(base_url, path, method, data, admin_token, username=None):
+    """Make an authenticated API request to ListHub."""
+    url = f'{base_url}{path}'
+    body = json.dumps(data).encode('utf-8')
+
+    req = urllib.request.Request(url, data=body, method=method)
+    req.add_header('Content-Type', 'application/json')
+    req.add_header('Authorization', f'Bearer {admin_token}')
+    if username:
+        req.add_header('X-ListHub-User', username)
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode()), resp.status
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode() if e.fp else ''
+        return {'error': error_body}, e.code
+    except Exception as e:
+        return {'error': str(e)}, 0
+
+
+def find_existing_item(base_url, admin_token, slug, username=None):
+    """
+    Search for an existing item by slug.
+    Uses the GET /api/v1/items endpoint and filters client-side.
+    """
+    url = f'{base_url}/api/v1/items'
+    req = urllib.request.Request(url)
+    req.add_header('Authorization', f'Bearer {admin_token}')
+    if username:
+        req.add_header('X-ListHub-User', username)
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            items = json.loads(resp.read().decode())
+            for item in items:
+                if item.get('slug') == slug:
+                    return item
+    except Exception:
+        pass
+
+    return None
+
+
+def sync_file(filepath, content, base_url, admin_token, username=None):
+    """Create or update a ListHub item from a .md file."""
+    metadata, body = extract_frontmatter(content)
+
+    slug = metadata.get('slug') or slug_from_filename(filepath)
+    title = metadata.get('title') or slug.replace('-', ' ').title()
+    visibility = metadata.get('visibility', 'private')
+    item_type = metadata.get('type', 'note')
+
+    if visibility not in ('private', 'shared', 'public'):
+        visibility = 'private'
+    if item_type not in ('note', 'list', 'document'):
+        item_type = 'note'
+
+    # Parse tags from frontmatter
+    tags = []
+    if 'tags' in metadata:
+        raw_tags = metadata['tags'].strip('[]')
+        tags = [t.strip().strip('"').strip("'") for t in raw_tags.split(',') if t.strip()]
+
+    # Check if item already exists
+    existing = find_existing_item(base_url, admin_token, slug, username)
+
+    if existing:
+        result, status = api_request(
+            base_url,
+            f'/api/v1/items/{existing["id"]}/edit',
+            'POST',
+            {'content': body},
+            admin_token,
+            username
+        )
+        if status in (200, 201):
+            print(f'  Updated: {filepath} -> {slug}')
+        else:
+            print(f'  FAILED to update {filepath}: {result}', file=sys.stderr)
+    else:
+        result, status = api_request(
+            base_url,
+            '/api/v1/items/new',
+            'POST',
+            {
+                'title': title,
+                'content': body,
+                'slug': slug,
+                'item_type': item_type,
+                'visibility': visibility,
+                'tags': tags,
+                'file_path': filepath,
+            },
+            admin_token,
+            username
+        )
+        if status in (200, 201):
+            print(f'  Created: {filepath} -> {slug}')
+        else:
+            print(f'  FAILED to create {filepath}: {result}', file=sys.stderr)
+
+
+def main():
+    config = read_config()
+    base_url = config.get('LISTHUB_BASE_URL', 'http://localhost:3200')
+    admin_token = config.get('LISTHUB_ADMIN_TOKEN', '')
+    username = config.get('LISTHUB_USERNAME', '')
+
+    if not admin_token:
+        print('WARNING: No LISTHUB_ADMIN_TOKEN configured. '
+              'Push accepted but items will not sync to database.',
+              file=sys.stderr)
+        sys.exit(0)
+
+    # The repo directory is the parent of hooks/
+    repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # Read ref updates from stdin
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+
+        old_sha, new_sha, refname = parts[0], parts[1], parts[2]
+
+        # Only process pushes to main/master
+        if refname not in ('refs/heads/main', 'refs/heads/master'):
+            continue
+
+        print(f'Syncing push to {refname}...')
+
+        # Find changed .md files
+        changed = get_changed_files(old_sha, new_sha, repo_dir)
+        deleted = get_deleted_files(old_sha, new_sha, repo_dir)
+        md_files = [f for f in changed if f.endswith('.md') and f not in deleted]
+
+        if not md_files:
+            print('  No .md files changed.')
+            continue
+
+        print(f'  {len(md_files)} .md file(s) to sync:')
+        for filepath in md_files:
+            content = read_file_content(new_sha, filepath, repo_dir)
+            if content is not None:
+                sync_file(filepath, content, base_url, admin_token, username)
+            else:
+                print(f'  Could not read {filepath} from {new_sha[:8]}', file=sys.stderr)
+
+    print('Sync complete.')
+
+
+if __name__ == '__main__':
+    main()

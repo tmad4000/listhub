@@ -1,5 +1,6 @@
 import functools
 import hashlib
+import os
 
 import bcrypt
 from flask import Blueprint, request, redirect, url_for, render_template, flash, jsonify
@@ -11,6 +12,8 @@ from models import User
 
 auth_bp = Blueprint('auth', __name__)
 
+ADMIN_TOKEN = os.environ.get('LISTHUB_ADMIN_TOKEN', '')
+
 
 def hash_api_key(raw_key):
     """Hash an API key with SHA-256 for fast lookup."""
@@ -18,7 +21,7 @@ def hash_api_key(raw_key):
 
 
 def require_api_auth(f):
-    """Decorator: authenticate via Bearer token or session."""
+    """Decorator: authenticate via Bearer token, admin token, or session."""
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         if current_user.is_authenticated:
@@ -27,11 +30,26 @@ def require_api_auth(f):
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
             raw_key = auth_header[7:]
-            key_h = hash_api_key(raw_key)
             db = get_db()
+
+            # Check admin token (used by post-receive hooks)
+            # Admin token requires X-ListHub-User header to identify the user
+            if ADMIN_TOKEN and raw_key == ADMIN_TOKEN:
+                target_user = request.headers.get('X-ListHub-User', '')
+                if target_user:
+                    user = User.get_by_username(db, target_user)
+                else:
+                    # For backwards compat, try JSON body
+                    user = None
+                if user:
+                    request._api_user = user
+                    request._api_scopes = ['read', 'write', 'sync']
+                    return f(*args, **kwargs)
+
+            # Check API key
+            key_h = hash_api_key(raw_key)
             user = User.get_by_api_key(db, key_h)
             if user:
-                # Attach scopes from the key
                 row = db.execute(
                     "SELECT scopes FROM api_key WHERE key_hash = ?", (key_h,)
                 ).fetchone()
@@ -126,6 +144,13 @@ def register():
             (user_id, username, display_name or username, email or None, pw_hash)
         )
         db.commit()
+
+        # Create git repo for the new user
+        try:
+            from git_backend import init_user_repo
+            init_user_repo(username)
+        except Exception:
+            pass  # Non-fatal if git setup fails
 
         user = User.get(db, user_id)
         login_user(user, remember=True)

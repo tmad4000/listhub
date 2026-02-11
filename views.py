@@ -30,6 +30,38 @@ def landing():
     return render_template('landing.html', items=public_items)
 
 
+@views_bp.route('/explore')
+def explore():
+    db = get_db()
+    q = request.args.get('q', '').strip()
+
+    public_items = db.execute(
+        "SELECT i.*, u.username FROM item i JOIN user u ON i.owner_id = u.id "
+        "WHERE i.visibility = 'public' ORDER BY i.updated_at DESC LIMIT 50"
+    ).fetchall()
+
+    items = []
+    for item in public_items:
+        tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
+        items.append({**dict(item), 'tags': [t['tag'] for t in tags]})
+
+    if q:
+        try:
+            fts_rows = db.execute(
+                "SELECT rowid FROM item_fts WHERE item_fts MATCH ?", (q,)
+            ).fetchall()
+            fts_ids = set()
+            for row in fts_rows:
+                real = db.execute("SELECT id FROM item WHERE rowid = ?", (row['rowid'],)).fetchone()
+                if real:
+                    fts_ids.add(real['id'])
+            items = [i for i in items if i['id'] in fts_ids]
+        except Exception:
+            flash('Invalid search query.', 'error')
+
+    return render_template('explore.html', items=items, q=q)
+
+
 @views_bp.route('/dash')
 @login_required
 def dashboard():

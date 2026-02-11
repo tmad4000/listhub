@@ -13,6 +13,7 @@
             <nav class="header-nav">
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('views.dashboard') }}">Dashboard</a>
+                    <a href="{{ url_for('views.explore') }}">Explore</a>
                     <a href="{{ url_for('views.settings') }}">Settings</a>
                     <a href="/@{{ current_user.username }}">@{{ current_user.username }}</a>
                     <a href="{{ url_for('auth.logout') }}">Logout</a>

@@ -9,6 +9,7 @@ from models import User
 from auth import auth_bp
 from api import api_bp
 from views import views_bp
+from git_backend import git_bp
 
 
 def create_app():
@@ -30,6 +31,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(views_bp)
+    app.register_blueprint(git_bp)
 
     # Teardown
     app.teardown_appcontext(close_db)
