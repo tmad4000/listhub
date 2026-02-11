@@ -8,6 +8,7 @@
 <h1 style="margin-bottom: 24px;">{% if item %}Edit Item{% else %}New Item{% endif %}</h1>
 
 <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row">
         <div class="form-group">
             <label for="title">Title</label>

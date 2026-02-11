@@ -8,6 +8,8 @@ from nanoid import generate as nanoid
 
 from db import get_db
 from models import User
+from csrf import csrf_protect
+from security import validate_username, validate_password
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -60,6 +62,7 @@ def api_has_scope(scope):
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@csrf_protect
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('views.dashboard'))
@@ -89,6 +92,7 @@ def logout():
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
+@csrf_protect
 def register():
     if request.method == 'POST':
         username = request.form.get('username', '').strip().lower()
@@ -96,16 +100,26 @@ def register():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
 
-        if not username or not password:
-            flash('Username and password are required.', 'error')
+        # Validate username
+        is_valid, error = validate_username(username)
+        if not is_valid:
+            flash(error, 'error')
             return render_template('register.html')
 
-        if len(username) < 2 or not username.isalnum():
-            flash('Username must be at least 2 alphanumeric characters.', 'error')
+        # Validate password
+        is_valid, error = validate_password(password)
+        if not is_valid:
+            flash(error, 'error')
             return render_template('register.html')
-
-        if len(password) < 8:
-            flash('Password must be at least 8 characters.', 'error')
+        
+        # Validate display name length
+        if display_name and len(display_name) > 100:
+            flash('Display name must be 100 characters or less.', 'error')
+            return render_template('register.html')
+        
+        # Validate email length
+        if email and len(email) > 255:
+            flash('Email must be 255 characters or less.', 'error')
             return render_template('register.html')
 
         db = get_db()

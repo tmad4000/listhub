@@ -5,6 +5,8 @@ from nanoid import generate as nanoid
 
 from db import get_db, reindex_item
 from api import slugify
+from csrf import csrf_protect
+from security import validate_item_input
 
 views_bp = Blueprint('views', __name__)
 
@@ -73,6 +75,7 @@ def dashboard():
 
 @views_bp.route('/dash/new', methods=['GET', 'POST'])
 @login_required
+@csrf_protect
 def new_item():
     if request.method == 'POST':
         title = request.form.get('title', '').strip() or 'Untitled'
@@ -81,6 +84,12 @@ def new_item():
         item_type = request.form.get('item_type', 'note')
         visibility = request.form.get('visibility', 'private')
         tags_str = request.form.get('tags', '')
+
+        # Validate inputs
+        is_valid, error = validate_item_input(title, content, slug)
+        if not is_valid:
+            flash(error, 'error')
+            return render_template('edit.html', item=None)
 
         db = get_db()
 
@@ -105,7 +114,7 @@ def new_item():
         # Tags
         for tag in tags_str.split(','):
             tag = tag.strip().lower()
-            if tag:
+            if tag and len(tag) <= 50:  # Limit tag length
                 db.execute("INSERT OR IGNORE INTO item_tag (item_id, tag) VALUES (?, ?)", (item_id, tag))
 
         # Initial version
@@ -125,6 +134,7 @@ def new_item():
 
 @views_bp.route('/dash/edit/<item_id>', methods=['GET', 'POST'])
 @login_required
+@csrf_protect
 def edit_item(item_id):
     db = get_db()
     item = db.execute("SELECT * FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id)).fetchone()
@@ -138,6 +148,14 @@ def edit_item(item_id):
         item_type = request.form.get('item_type', 'note')
         visibility = request.form.get('visibility', 'private')
         tags_str = request.form.get('tags', '')
+
+        # Validate inputs
+        is_valid, error = validate_item_input(title, content, slug)
+        if not is_valid:
+            flash(error, 'error')
+            tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item_id,)).fetchall()
+            tags_str = ', '.join(t['tag'] for t in tags)
+            return render_template('edit.html', item=item, tags_str=tags_str)
 
         # Ensure unique slug (excluding self)
         existing = db.execute(
@@ -165,7 +183,7 @@ def edit_item(item_id):
         db.execute("DELETE FROM item_tag WHERE item_id = ?", (item_id,))
         for tag in tags_str.split(','):
             tag = tag.strip().lower()
-            if tag:
+            if tag and len(tag) <= 50:  # Limit tag length
                 db.execute("INSERT OR IGNORE INTO item_tag (item_id, tag) VALUES (?, ?)", (item_id, tag))
 
         db.commit()
@@ -182,10 +200,19 @@ def edit_item(item_id):
 
 @views_bp.route('/dash/delete/<item_id>', methods=['POST'])
 @login_required
+@csrf_protect
 def delete_item(item_id):
     db = get_db()
+    item = db.execute("SELECT *, rowid FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id)).fetchone()
+    if not item:
+        flash('Item not found or you do not have permission to delete it.', 'error')
+        return redirect(url_for('views.dashboard'))
+    
+    # Delete FTS entry before deleting item
+    db.execute("DELETE FROM item_fts WHERE rowid = ?", (item['rowid'],))
     db.execute("DELETE FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id))
     db.commit()
+    flash('Item deleted successfully.', 'success')
     return redirect(url_for('views.dashboard'))
 
 

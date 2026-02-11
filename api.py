@@ -7,6 +7,7 @@ from nanoid import generate as nanoid
 
 from db import get_db, reindex_item
 from auth import require_api_auth, get_current_api_user, api_has_scope, hash_api_key
+from security import validate_item_input
 
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
@@ -159,7 +160,7 @@ def update_item_metadata(item_id):
         db.execute("DELETE FROM item_tag WHERE item_id = ?", (item_id,))
         for tag in data['tags']:
             tag = tag.strip().lower()
-            if tag:
+            if tag and len(tag) <= 50:  # Limit tag length
                 db.execute("INSERT OR IGNORE INTO item_tag (item_id, tag) VALUES (?, ?)", (item_id, tag))
 
     db.commit()
@@ -188,6 +189,11 @@ def create_item():
     tags = data.get('tags', [])
     file_path = data.get('file_path', f"{slug}.md")
 
+    # Validate inputs
+    is_valid, error = validate_item_input(title, content, slug)
+    if not is_valid:
+        return jsonify({"error": error}), 400
+
     if item_type not in ('note', 'list', 'document'):
         item_type = 'note'
     if visibility not in ('private', 'shared', 'public'):
@@ -212,7 +218,7 @@ def create_item():
 
     for tag in tags:
         tag = tag.strip().lower()
-        if tag:
+        if tag and len(tag) <= 50:  # Limit tag length
             db.execute("INSERT OR IGNORE INTO item_tag (item_id, tag) VALUES (?, ?)", (item_id, tag))
 
     # Save initial version
@@ -227,7 +233,13 @@ def create_item():
 
     item = db.execute("SELECT * FROM item WHERE id = ?", (item_id,)).fetchone()
     d = item_to_dict(item)
-    d['tags'] = tags
+    # Filter tags properly
+    filtered_tags = []
+    for tag in tags:
+        tag_stripped = tag.strip().lower()
+        if tag_stripped and len(tag_stripped) <= 50:
+            filtered_tags.append(tag_stripped)
+    d['tags'] = filtered_tags
     return jsonify(d), 201
 
 
@@ -248,6 +260,10 @@ def edit_item_content(item_id):
     content = data.get('content')
     if content is None:
         return jsonify({"error": "content field required"}), 400
+
+    # Validate content size
+    if len(content) > 1_000_000:
+        return jsonify({"error": "Content must be 1MB or less"}), 400
 
     new_revision = item['revision'] + 1
 
@@ -278,11 +294,13 @@ def delete_item(item_id):
     user = get_current_api_user()
     db = get_db()
 
-    item = db.execute("SELECT * FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id)).fetchone()
+    item = db.execute("SELECT *, rowid FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id)).fetchone()
     if not item:
         return jsonify({"error": "Not found"}), 404
 
-    db.execute("DELETE FROM item WHERE id = ?", (item_id,))
+    # Delete FTS entry before deleting item
+    db.execute("DELETE FROM item_fts WHERE rowid = ?", (item['rowid'],))
+    db.execute("DELETE FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id))
     db.commit()
 
     return jsonify({"ok": True})
