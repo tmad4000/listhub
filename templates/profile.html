@@ -7,6 +7,78 @@
 </div>
 
 {% if items %}
+
+<div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+    <div class="view-toggle">
+        <a href="/@{{ profile_user.username }}" class="btn btn-sm {% if view_mode != 'folders' %}btn-active{% endif %}" title="List view">List</a>
+        <a href="/@{{ profile_user.username }}?view=folders" class="btn btn-sm {% if view_mode == 'folders' %}btn-active{% endif %}" title="Folder view">Folders</a>
+    </div>
+</div>
+
+{% if view_mode == 'folders' and folder_tree is not none %}
+{# ── Tree view ── #}
+<div class="tree-view">
+    {% for node in folder_tree %}
+        {% if node.type == 'folder' %}
+        <div class="tree-folder" data-depth="{{ node.depth }}">
+            <div class="tree-folder-header" onclick="toggleFolder(this)">
+                {% for i in range(node.depth) %}<div class="tree-indent"></div>{% endfor %}
+                <span class="tree-arrow">&#9660;</span>
+                <span class="tree-folder-icon">&#128193;</span>
+                <span class="tree-folder-name">{{ node.name }}/</span>
+                <span class="tree-folder-count">{{ node.count }}</span>
+            </div>
+        </div>
+        {% if node.count == 0 %}
+        <div class="tree-file empty-folder-placeholder" data-depth="{{ node.depth + 1 }}">
+            <div class="tree-file-row" style="min-height: 32px;">
+                {% for i in range(node.depth + 1) %}<div class="tree-indent"></div>{% endfor %}
+                <div class="tree-file-info" style="padding-left: 24px; color: var(--text-dim); font-style: italic; font-size: 12px;">
+                    Empty folder
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="tree-file" data-depth="{{ node.depth }}">
+            <div class="tree-file-row">
+                {% for i in range(node.depth) %}<div class="tree-indent"></div>{% endfor %}
+                <div class="tree-file-info" style="padding-left: 24px;">
+                    <span class="tree-file-icon">&#128196;</span>
+                    <a href="/@{{ profile_user.username }}/{{ node.item.slug }}" class="tree-file-name">{{ node.item.title or node.item.slug }}</a>
+                    <span class="badge badge-{{ node.item.item_type }}">{{ node.item.item_type }}</span>
+                    {% for tag in node.item.tags %}
+                        <span class="tag">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<script>
+function toggleFolder(header) {
+    const folderDiv = header.parentElement;
+    const depth = parseInt(folderDiv.dataset.depth);
+    const arrow = header.querySelector('.tree-arrow');
+    const isCollapsing = !folderDiv.classList.contains('collapsed');
+
+    folderDiv.classList.toggle('collapsed');
+    arrow.style.transform = isCollapsing ? 'rotate(-90deg)' : '';
+
+    let next = folderDiv.nextElementSibling;
+    while (next) {
+        const nextDepth = parseInt(next.dataset.depth);
+        if (nextDepth <= depth) break;
+        next.style.display = isCollapsing ? 'none' : '';
+        next = next.nextElementSibling;
+    }
+}
+</script>
+
+{% else %}
+{# ── List view (default) ── #}
 <div class="item-list">
     {% for item in items %}
     <div class="item-card">
@@ -23,6 +95,8 @@
     </div>
     {% endfor %}
 </div>
+{% endif %}
+
 {% else %}
 <div class="empty-state">
     <p>No public items yet.</p>

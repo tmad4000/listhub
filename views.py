@@ -9,6 +9,40 @@ from api import slugify
 views_bp = Blueprint('views', __name__)
 
 
+def build_folder_tree(items_list):
+    """Build a nested tree from items based on file_path, then flatten for rendering."""
+    root = {'name': '', 'files': [], 'children': {}}
+    for item in items_list:
+        path = item.get('file_path') or f"{item['slug']}.md"
+        parts = path.split('/')
+        dirs = parts[:-1]
+        node = root
+        for d in dirs:
+            if d not in node['children']:
+                node['children'][d] = {'name': d, 'files': [], 'children': {}}
+            node = node['children'][d]
+        node['files'].append(item)
+
+    def count_files(node):
+        total = len(node['files'])
+        for child in node['children'].values():
+            total += count_files(child)
+        return total
+
+    def tree_to_list(node, depth=0):
+        result = []
+        for name in sorted(node['children'].keys()):
+            child = node['children'][name]
+            file_count = count_files(child)
+            result.append({'type': 'folder', 'name': name, 'depth': depth, 'count': file_count})
+            result.extend(tree_to_list(child, depth + 1))
+        for f in node['files']:
+            result.append({'type': 'file', 'item': f, 'depth': depth})
+        return result
+
+    return tree_to_list(root)
+
+
 def render_md(text):
     return markdown.markdown(
         text or '',
@@ -104,45 +138,7 @@ def dashboard():
     view_mode = request.args.get('view', 'list')
     folder_tree = None
     if view_mode == 'folders':
-        def build_tree(items_list):
-            """Build a nested tree: {name, files: [...], children: {subdir: tree}}"""
-            root = {'name': '', 'files': [], 'children': {}}
-            for item in items_list:
-                path = item.get('file_path') or f"{item['slug']}.md"
-                parts = path.split('/')
-                filename = parts[-1]
-                dirs = parts[:-1]
-                node = root
-                for d in dirs:
-                    if d not in node['children']:
-                        node['children'][d] = {'name': d, 'files': [], 'children': {}}
-                    node = node['children'][d]
-                node['files'].append(item)
-            return root
-
-        def tree_to_list(node, depth=0):
-            """Flatten tree into a render-friendly list of dicts."""
-            result = []
-            # Sort children alphabetically
-            for name in sorted(node['children'].keys()):
-                child = node['children'][name]
-                file_count = count_files(child)
-                result.append({'type': 'folder', 'name': name, 'depth': depth, 'count': file_count})
-                result.extend(tree_to_list(child, depth + 1))
-            # Then files in this folder
-            for f in node['files']:
-                result.append({'type': 'file', 'item': f, 'depth': depth})
-            return result
-
-        def count_files(node):
-            """Count all files recursively in a tree node."""
-            total = len(node['files'])
-            for child in node['children'].values():
-                total += count_files(child)
-            return total
-
-        tree = build_tree(items_with_tags)
-        folder_tree = tree_to_list(tree)
+        folder_tree = build_folder_tree(items_with_tags)
 
     return render_template('dash.html', items=items_with_tags, q=q,
                            visibility_filter=visibility_filter, view_mode=view_mode,
@@ -298,7 +294,13 @@ def user_profile(username):
         tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
         items_with_tags.append({**dict(item), 'tags': [t['tag'] for t in tags]})
 
-    return render_template('profile.html', profile_user=user, items=items_with_tags)
+    view_mode = request.args.get('view', 'list')
+    folder_tree = None
+    if view_mode == 'folders':
+        folder_tree = build_folder_tree(items_with_tags)
+
+    return render_template('profile.html', profile_user=user, items=items_with_tags,
+                           view_mode=view_mode, folder_tree=folder_tree)
 
 
 @views_bp.route('/@<username>/<slug>')
