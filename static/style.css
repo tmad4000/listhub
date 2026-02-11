@@ -371,14 +371,22 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     border-bottom: 1px solid var(--border);
 }
 .tree-folder:last-child, .tree-file:last-child { border-bottom: none; }
+.tree-indent {
+    width: 20px;
+    flex-shrink: 0;
+    align-self: stretch;
+    border-right: 1px dotted var(--border);
+}
+
 .tree-folder-header {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
+    padding: 0 12px;
     cursor: pointer;
     user-select: none;
     transition: background 0.1s;
+    min-height: 36px;
 }
 .tree-folder-header:hover { background: var(--bg-tertiary); }
 .tree-arrow {
@@ -388,6 +396,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     display: inline-block;
     width: 14px;
     text-align: center;
+    margin-left: 6px;
 }
 .tree-folder-icon { font-size: 14px; }
 .tree-folder-name {
@@ -405,9 +414,10 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 12px;
+    padding: 0 12px;
     transition: background 0.1s;
     flex-wrap: nowrap;
+    min-height: 32px;
 }
 .tree-file-row:hover { background: rgba(88,166,255,0.04); }
 .tree-file-info {
@@ -433,7 +443,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     gap: 6px;
     flex-shrink: 0;
     margin-left: 12px;
-    opacity: 0.5;
+    opacity: 0;
     transition: opacity 0.15s;
 }
 .tree-file-row:hover .tree-file-actions { opacity: 1; }

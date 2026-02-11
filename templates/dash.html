@@ -32,21 +32,35 @@
 <div class="tree-view">
     {% for node in folder_tree %}
         {% if node.type == 'folder' %}
-        <div class="tree-folder" style="padding-left: {{ node.depth * 20 }}px;" data-depth="{{ node.depth }}">
+        <div class="tree-folder" data-depth="{{ node.depth }}">
             <div class="tree-folder-header" onclick="toggleFolder(this)">
+                {% for i in range(node.depth) %}<div class="tree-indent"></div>{% endfor %}
                 <span class="tree-arrow">&#9660;</span>
                 <span class="tree-folder-icon">&#128193;</span>
                 <span class="tree-folder-name">{{ node.name }}/</span>
                 <span class="tree-folder-count">{{ node.count }}</span>
             </div>
         </div>
+        {% if node.count == 0 %}
+        <div class="tree-file empty-folder-placeholder" data-depth="{{ node.depth + 1 }}">
+            <div class="tree-file-row" style="min-height: 32px;">
+                {% for i in range(node.depth + 1) %}<div class="tree-indent"></div>{% endfor %}
+                <div class="tree-file-info" style="padding-left: 24px; color: var(--text-dim); font-style: italic; font-size: 12px;">
+                    Empty folder
+                </div>
+            </div>
+        </div>
+        {% endif %}
         {% else %}
-        <div class="tree-file" style="padding-left: {{ node.depth * 20 + 24 }}px;" data-depth="{{ node.depth }}">
+        <div class="tree-file" data-depth="{{ node.depth }}">
             <div class="tree-file-row">
-                <div class="tree-file-info">
+                {% for i in range(node.depth) %}<div class="tree-indent"></div>{% endfor %}
+                <div class="tree-file-info" style="padding-left: 24px;">
                     <span class="tree-file-icon">&#128196;</span>
-                    <a href="{{ url_for('views.edit_item', item_id=node.item.id) }}" class="tree-file-name">{{ node.item.title or node.item.slug }}</a>
-                    <span class="badge badge-{{ node.item.visibility }}">{{ node.item.visibility }}</span>
+                    <a href="/@{{ current_user.username }}/{{ node.item.slug }}" class="tree-file-name">{{ node.item.title or node.item.slug }}</a>
+                    <span class="badge badge-{{ node.item.visibility }}" title="{{ node.item.visibility }}">
+                        {% if node.item.visibility == 'public' %}&#127760;{% elif node.item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
+                    </span>
                     <span class="badge badge-{{ node.item.item_type }}">{{ node.item.item_type }}</span>
                     {% for tag in node.item.tags %}
                         <span class="tag">{{ tag }}</span>
@@ -89,9 +103,11 @@ function toggleFolder(header) {
     {% for item in items %}
     <div class="item-card">
         <div class="item-info">
-            <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="item-title">{{ item.title or item.slug }}</a>
+            <a href="/@{{ current_user.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
             <div class="item-meta">
-                <span class="badge badge-{{ item.visibility }}">{{ item.visibility }}</span>
+                <span class="badge badge-{{ item.visibility }}" title="{{ item.visibility }}">
+                    {% if item.visibility == 'public' %}&#127760;{% elif item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
+                </span>
                 <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
                 {% for tag in item.tags %}
                     <span class="tag">{{ tag }}</span>

@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{% if item %}Edit — {{ item.title or item.slug }}{% else %}New Item{% endif %} — ListHub{% endblock %}
 {% block content %}
-<div style="margin-bottom: 16px;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
     <a href="{{ url_for('views.dashboard') }}">&larr; Back to dashboard</a>
+    {% if item %}
+    <a href="/@{{ current_user.username }}/{{ item.slug }}" class="btn btn-sm">Preview</a>
+    {% endif %}
 </div>
 
 <h1 style="margin-bottom: 24px;">{% if item %}Edit Item{% else %}New Item{% endif %}</h1>
