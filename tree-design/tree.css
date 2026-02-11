@@ -1,0 +1,270 @@
+/* ═══════════════════════════════════════════════════
+   ListHub — Tree View Component
+   Precision file-tree with aligned guides & smooth
+   chevron rotation. Integrates with existing theme
+   via CSS custom properties.
+   ═══════════════════════════════════════════════════ */
+
+.tree-container {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+/* ── Row ────────────────────────────────────────── */
+
+.tree-row {
+  display: flex;
+  align-items: stretch;          /* guides stretch to full row height */
+  height: 34px;
+  padding-left: 12px;
+  padding-right: 8px;
+  border-bottom: 1px solid rgba(48, 54, 61, 0.4);
+  animation: treeEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 10ms);
+}
+
+.tree-row:last-child {
+  border-bottom: none;
+}
+
+@keyframes treeEnter {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.tree-row--folder {
+  cursor: pointer;
+}
+
+.tree-row--folder:hover {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.tree-row--file:hover,
+.tree-row--empty:hover {
+  background: rgba(88, 166, 255, 0.03);
+}
+
+.tree-row.tree-hidden {
+  display: none !important;
+}
+
+/* ── Indent Guides ─────────────────────────────── */
+/*
+   Each guide is exactly 20px wide (matching chevron
+   width) so the 1px center line aligns perfectly
+   with the parent folder's chevron center.
+*/
+
+.tree-guide {
+  width: 20px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.tree-guide::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - 0.5px);       /* pixel-perfect center */
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  opacity: 0.45;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.tree-row:hover .tree-guide::after {
+  opacity: 0.9;
+  background: rgba(88, 166, 255, 0.2);
+}
+
+/* ── Inner Content ─────────────────────────────── */
+
+.tree-row-inner {
+  display: flex;
+  align-items: center;            /* vertical centering */
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Chevron ───────────────────────────────────── */
+
+.tree-chevron {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+
+.tree-row--folder:hover .tree-chevron {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tree-chevron svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform: rotate(90deg);      /* expanded = pointing down */
+}
+
+.tree-row--folder.collapsed .tree-chevron svg {
+  transform: rotate(0deg);       /* collapsed = pointing right */
+}
+
+/* Invisible spacer for files — matches chevron width */
+.tree-spacer {
+  width: 20px;
+  flex-shrink: 0;
+}
+
+/* ── Icons ─────────────────────────────────────── */
+
+.tree-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.tree-icon--folder { color: #e3b341; }
+.tree-icon--file   { color: var(--text-muted); }
+
+.tree-row--folder.collapsed .tree-icon--folder {
+  opacity: 0.65;
+}
+
+/* ── Labels ────────────────────────────────────── */
+
+.tree-name {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.tree-row--folder .tree-name {
+  font-weight: 600;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.tree-row--file .tree-name a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.tree-row--file .tree-name a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.tree-count {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-left: 8px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── File Metadata ─────────────────────────────── */
+
+.tree-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.tree-vis {
+  font-size: 12px;
+  opacity: 0.5;
+  line-height: 1;
+}
+
+.tree-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 9px;
+  border: 1px solid;
+  letter-spacing: 0.02em;
+}
+
+.tree-badge--note     { color: var(--accent); border-color: rgba(88, 166, 255, 0.25); }
+.tree-badge--list     { color: var(--orange); border-color: rgba(210, 153, 34, 0.25); }
+.tree-badge--document { color: var(--green);  border-color: rgba(63, 185, 80, 0.25); }
+
+.tree-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
+  background: rgba(88, 166, 255, 0.07);
+  color: var(--accent);
+  border-radius: 4px;
+}
+
+/* ── Hover Actions ─────────────────────────────── */
+
+.tree-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  padding-left: 12px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.tree-row:hover .tree-actions {
+  opacity: 1;
+}
+
+.tree-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  text-decoration: none;
+  transition: color 0.1s, background 0.1s, border-color 0.1s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tree-btn:hover {
+  color: var(--text);
+  background: #30363d;
+  border-color: #484f58;
+  text-decoration: none;
+}
+
+/* ── Empty Folder ──────────────────────────────── */
+
+.tree-empty-msg {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+}

@@ -1,0 +1,60 @@
+{# ── ListHub Tree View Component ──────────────────
+   Variables expected:
+     folder_tree  — flat list of {type, depth, name, count, item}
+     tree_owner   — username string for URL construction
+     tree_editable — bool, whether to show Edit buttons
+   ────────────────────────────────────────────────── #}
+<div class="tree-container">
+  {% for node in folder_tree %}
+    {% if node.type == 'folder' %}
+    {# ── Folder Row ── #}
+    <div class="tree-row tree-row--folder" data-depth="{{ node.depth }}" style="--i:{{ loop.index0 }}">
+      {% for _ in range(node.depth) %}<span class="tree-guide"></span>{% endfor %}
+      <div class="tree-row-inner">
+        <span class="tree-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+        </span>
+        <span class="tree-icon tree-icon--folder">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+        </span>
+        <span class="tree-name">{{ node.name }}</span>
+        <span class="tree-count">{{ node.count }}</span>
+      </div>
+    </div>
+    {% if node.count == 0 %}
+    {# ── Empty Folder Placeholder ── #}
+    <div class="tree-row tree-row--empty" data-depth="{{ node.depth + 1 }}" style="--i:{{ loop.index0 }}">
+      {% for _ in range(node.depth + 1) %}<span class="tree-guide"></span>{% endfor %}
+      <div class="tree-row-inner">
+        <span class="tree-spacer"></span>
+        <span class="tree-empty-msg">Empty</span>
+      </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# ── File Row ── #}
+    <div class="tree-row tree-row--file" data-depth="{{ node.depth }}" style="--i:{{ loop.index0 }}">
+      {% for _ in range(node.depth) %}<span class="tree-guide"></span>{% endfor %}
+      <div class="tree-row-inner">
+        <span class="tree-spacer"></span>
+        <span class="tree-icon tree-icon--file">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>
+        </span>
+        <span class="tree-name"><a href="/@{{ tree_owner }}/{{ node.item.slug }}">{{ node.item.title or node.item.slug }}</a></span>
+        <div class="tree-meta">
+          <span class="tree-vis" title="{{ node.item.visibility }}">{% if node.item.visibility == 'private' %}&#128274;{% elif node.item.visibility == 'public' %}&#127760;{% else %}&#128279;{% endif %}</span>
+          <span class="tree-badge tree-badge--{{ node.item.item_type }}">{{ node.item.item_type }}</span>
+          {% for tag in node.item.tags %}<span class="tree-tag">{{ tag }}</span>{% endfor %}
+        </div>
+        {% if tree_editable %}
+        <div class="tree-actions">
+          <a href="/@{{ tree_owner }}/{{ node.item.slug }}" class="tree-btn">View</a>
+          <a href="{{ url_for('views.edit_item', item_id=node.item.id) }}" class="tree-btn">Edit</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
