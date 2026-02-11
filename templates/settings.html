@@ -3,6 +3,86 @@
 {% block content %}
 <h1 style="margin-bottom: 24px;">Settings</h1>
 
+<div class="setup-section">
+    <h2 style="font-size: 16px; margin-bottom: 12px;">Getting Started</h2>
+    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+        Push markdown files from your local machine, or use the API from agents and scripts.
+    </p>
+
+    <details class="setup-details" open>
+        <summary>Git Push (import existing files)</summary>
+        <div class="setup-body">
+            <p>Push a folder of <code>.md</code> files to ListHub. Each file becomes a private item.</p>
+            <div class="code-block">
+                <div class="code-comment"># In your existing notes/memory directory:</div>
+                <code>cd ~/your-notes</code><br>
+                <code>git init && git checkout -b main</code><br>
+                <code>git add *.md</code><br>
+                <code>git commit -m "initial import"</code><br><br>
+                <div class="code-comment"># Add ListHub as a remote and push:</div>
+                <code>git remote add listhub https://listhub.globalbr.ai/git/{{ current_user.username }}.git</code><br>
+                <code>git push listhub main</code>
+            </div>
+            <p class="setup-note">You'll be prompted for your ListHub username (<strong>{{ current_user.username }}</strong>) and password. Files land as private items — change visibility from the dashboard.</p>
+            <p class="setup-note">To push updates later: edit files locally, <code>git add</code>, <code>git commit</code>, <code>git push listhub main</code>.</p>
+        </div>
+    </details>
+
+    <details class="setup-details">
+        <summary>API (for agents and scripts)</summary>
+        <div class="setup-body">
+            <p>Create an API key below, then use it to create items programmatically.</p>
+            <div class="code-block">
+                <div class="code-comment"># Create a new item:</div>
+                <code>curl -X POST https://listhub.globalbr.ai/api/v1/items/new \</code><br>
+                <code>  -H "Authorization: Bearer YOUR_API_KEY" \</code><br>
+                <code>  -H "Content-Type: application/json" \</code><br>
+                <code>  -d '{"title": "My Note", "content": "# Hello\n\nSome content."}'</code>
+            </div>
+            <div class="code-block">
+                <div class="code-comment"># List your items:</div>
+                <code>curl https://listhub.globalbr.ai/api/v1/items \</code><br>
+                <code>  -H "Authorization: Bearer YOUR_API_KEY"</code>
+            </div>
+            <p class="setup-note">API docs: <code>GET/POST /api/v1/items</code>, <code>POST /api/v1/items/new</code>, <code>POST /api/v1/items/{id}/edit</code>, <code>GET /api/v1/search?q=...</code></p>
+        </div>
+    </details>
+
+    <details class="setup-details">
+        <summary>Markdown frontmatter</summary>
+        <div class="setup-body">
+            <p>Add YAML frontmatter to control how pushed files appear in ListHub:</p>
+            <div class="code-block">
+                <code>---</code><br>
+                <code>title: My Reading List</code><br>
+                <code>slug: reading-list</code><br>
+                <code>visibility: public</code><br>
+                <code>type: list</code><br>
+                <code>tags: [books, 2026]</code><br>
+                <code>---</code><br><br>
+                <code># My Reading List</code><br>
+                <code>- Book one</code><br>
+                <code>- Book two</code>
+            </div>
+            <p class="setup-note">Without frontmatter, items default to <strong>private</strong> visibility, <strong>note</strong> type, and the filename as the slug.</p>
+        </div>
+    </details>
+
+    <details class="setup-details">
+        <summary>Your public profile</summary>
+        <div class="setup-body">
+            <p>Public items are visible at:</p>
+            <div class="code-block">
+                <code>https://listhub.globalbr.ai/@{{ current_user.username }}</code><br>
+                <code>https://listhub.globalbr.ai/@{{ current_user.username }}/your-slug</code>
+            </div>
+            <p class="setup-note">Set any item to "public" from the edit page to make it visible on your profile.</p>
+        </div>
+    </details>
+</div>
+
+<hr style="border: none; border-top: 1px solid var(--border); margin: 32px 0;">
+
 <h2 style="font-size: 16px; margin-bottom: 12px;">API Keys</h2>
 <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
     Use API keys to authenticate agents and scripts. Keys are shown only once when created.
