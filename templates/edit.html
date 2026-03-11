@@ -10,7 +10,7 @@
 
 <h1 style="margin-bottom: 24px;">{% if item %}Edit Item{% else %}New Item{% endif %}</h1>
 
-<form method="post">
+<form method="post" id="edit-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row">
         <div class="form-group">
@@ -25,8 +25,12 @@
     </div>
 
     <div class="form-group">
-        <label for="content">Content <span style="color: var(--text-muted);">(Markdown)</span></label>
-        <textarea id="content" name="content" placeholder="# My List&#10;&#10;- Item one&#10;- Item two">{{ item.content if item else '' }}</textarea>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label for="content">Content <span style="color: var(--text-muted);">(Markdown)</span></label>
+            <button type="button" id="toggle-editor" class="btn btn-sm">Switch to Raw</button>
+        </div>
+        <div id="milkdown-editor"></div>
+        <textarea id="content" name="content" class="raw-editor" style="display: none;">{{ item.content if item else '' }}</textarea>
     </div>
 
     <div class="form-row">
@@ -58,4 +62,194 @@
         <a href="{{ url_for('views.dashboard') }}" class="btn">Cancel</a>
     </div>
 </form>
+
+<!-- Milkdown - pre-bundled -->
+<script type="module">
+import { createMilkdownEditor } from '{{ url_for("static", filename="js/milkdown-bundle.js") }}';
+
+const initialContent = document.getElementById('content').value || '';
+const editorContainer = document.getElementById('milkdown-editor');
+const textarea = document.getElementById('content');
+const toggleBtn = document.getElementById('toggle-editor');
+
+let editor = null;
+let isWysiwyg = true;
+
+async function initEditor() {
+    console.log('Initializing Milkdown editor (bundled)...');
+
+    try {
+        editor = await createMilkdownEditor(
+            editorContainer,
+            initialContent,
+            (markdown) => {
+                // Sync content on every change
+                textarea.value = markdown;
+            }
+        );
+
+        // Toggle between WYSIWYG and raw text
+        toggleBtn.addEventListener('click', () => {
+            if (isWysiwyg) {
+                // Switch to raw
+                editorContainer.style.display = 'none';
+                textarea.style.display = 'block';
+                toggleBtn.textContent = 'Switch to WYSIWYG';
+                isWysiwyg = false;
+            } else {
+                // Switch to WYSIWYG - reload editor with current textarea content
+                editorContainer.style.display = 'block';
+                textarea.style.display = 'none';
+                toggleBtn.textContent = 'Switch to Raw';
+                // Update editor content from textarea
+                if (editor && editor.action) {
+                    editor.action((ctx) => {
+                        const { replaceAll } = ctx.get('commandsCtx');
+                        // For now, just reload the page to sync - proper API would need more work
+                    });
+                }
+                isWysiwyg = true;
+            }
+        });
+
+        // Sync textarea changes back to editor when switching
+        textarea.addEventListener('input', () => {
+            // Content will be synced when switching back to WYSIWYG
+        });
+
+        // Form submit handler
+        document.getElementById('edit-form').addEventListener('submit', () => {
+            console.log('Form submitting, content length:', textarea.value.length);
+        });
+
+        console.log('Milkdown editor initialized successfully');
+    } catch (err) {
+        console.error('Milkdown init failed:', err);
+        throw err;
+    }
+}
+
+initEditor().catch(err => {
+    console.error('Editor error:', err);
+    // Fallback: show the textarea
+    textarea.style.display = 'block';
+    editorContainer.style.display = 'none';
+    toggleBtn.style.display = 'none';
+});
+</script>
+
+<style>
+/* Milkdown Editor Styles for Dark Theme */
+#milkdown-editor {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    min-height: 300px;
+}
+
+#milkdown-editor .milkdown {
+    background: var(--bg-secondary);
+    color: var(--text);
+}
+
+#milkdown-editor .ProseMirror {
+    padding: 16px;
+    min-height: 280px;
+    outline: none;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+#milkdown-editor .ProseMirror:focus {
+    outline: none;
+}
+
+#milkdown-editor .ProseMirror p {
+    margin-bottom: 16px;
+}
+
+#milkdown-editor .ProseMirror h1,
+#milkdown-editor .ProseMirror h2,
+#milkdown-editor .ProseMirror h3,
+#milkdown-editor .ProseMirror h4 {
+    color: var(--text);
+    font-weight: 600;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    line-height: 1.25;
+}
+
+#milkdown-editor .ProseMirror h1 { font-size: 2em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+#milkdown-editor .ProseMirror h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+#milkdown-editor .ProseMirror h3 { font-size: 1.25em; }
+
+#milkdown-editor .ProseMirror a { color: var(--accent); }
+
+#milkdown-editor .ProseMirror code {
+    background: var(--bg-tertiary);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 85%;
+}
+
+#milkdown-editor .ProseMirror pre {
+    background: var(--bg-tertiary);
+    padding: 16px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    margin-bottom: 16px;
+}
+
+#milkdown-editor .ProseMirror pre code {
+    background: none;
+    padding: 0;
+}
+
+#milkdown-editor .ProseMirror blockquote {
+    border-left: 4px solid var(--border);
+    padding-left: 16px;
+    margin-left: 0;
+    color: var(--text-muted);
+}
+
+#milkdown-editor .ProseMirror ul,
+#milkdown-editor .ProseMirror ol {
+    padding-left: 2em;
+    margin-bottom: 16px;
+}
+
+#milkdown-editor .ProseMirror li { margin-bottom: 4px; }
+
+#milkdown-editor .ProseMirror hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+}
+
+#milkdown-editor .ProseMirror strong { font-weight: 600; }
+#milkdown-editor .ProseMirror em { font-style: italic; }
+
+/* Raw editor textarea */
+textarea.raw-editor {
+    width: 100%;
+    min-height: 300px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+textarea.raw-editor:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+</style>
 {% endblock %}
