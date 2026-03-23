@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+{% block title %}API Documentation — ListHub{% endblock %}
+
+{% block content %}
+<div class="content-body">
+
+<h1>ListHub API Documentation</h1>
+<p style="color: var(--text-muted); margin-bottom: 24px;">
+    Base URL: <code>https://listhub.globalbr.ai/api/v1</code>
+</p>
+
+<h2>Design Philosophy</h2>
+
+<p>ListHub is a personal knowledge and list management system built around three access layers:</p>
+
+<ul>
+    <li><strong>Web UI</strong> — for humans browsing, creating, and editing items in the browser</li>
+    <li><strong>REST API</strong> — for programmatic access by assistants, scripts, and integrations</li>
+    <li><strong>Git</strong> — for file-based workflows: clone your data as markdown, edit locally, push changes back</li>
+</ul>
+
+<p>All three layers read and write the same underlying data. Changes made through any layer are immediately visible to the others. Items created via the API appear in git on the next pull. Files pushed via git appear in the web UI and API instantly.</p>
+
+<p>Items are markdown documents with metadata (title, tags, visibility, type). They're stored as structured data in the database but mirrored to git as <code>.md</code> files with YAML frontmatter, so they're always human-readable and portable.</p>
+
+<p>The design favors simplicity: SQLite for storage, bare git repos with plumbing commands for sync, plain Bearer tokens for auth. No external dependencies beyond git itself.</p>
+
+<h2>Authentication</h2>
+
+<p>Most API endpoints require authentication via one of:</p>
+
+<ul>
+    <li><strong>API Key</strong> — pass as a Bearer token in the <code>Authorization</code> header</li>
+    <li><strong>Session cookie</strong> — if logged in via the web UI</li>
+</ul>
+
+<div class="code-block"><code>Authorization: Bearer mem_your_api_key_here</code></div>
+
+<p>API keys can be created from <a href="/dash/settings">Settings</a>, via the token endpoint below, or via the key management endpoints. Keys have scopes (<code>read</code>, <code>write</code>) that control access. The raw key is shown only once at creation time.</p>
+
+<h3>Noos SSO</h3>
+<p>ListHub supports single sign-on via <a href="https://globalbr.ai">Noos</a>. Click "Sign in with Noos" on the login page to authenticate with your Noos account. On first login, a ListHub account is automatically created and linked to your Noos identity.</p>
+<p>Noos-authenticated users don't have a local password. For git access (clone/push), create an API key in Settings and use it as your git password:</p>
+<div class="code-block"><code>git clone https://yourname:mem_your_api_key@listhub.globalbr.ai/git/yourname.git</code></div>
+
+<h3>Get API key (token endpoint)</h3>
+<p><code>POST /api/v1/auth/token</code> — no authentication required</p>
+<p>Exchange a username and password for a new API key. This is the recommended way for assistants and integrations to bootstrap themselves.</p>
+
+<div class="code-block"><code>curl -X POST -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "...", "name": "my-assistant"}' \
+  https://listhub.globalbr.ai/api/v1/auth/token</code></div>
+
+<p><strong>Fields:</strong></p>
+<ul>
+    <li><code>username</code> — ListHub username (required)</li>
+    <li><code>password</code> — account password (required)</li>
+    <li><code>name</code> — label for the key (default: "api-token")</li>
+    <li><code>scopes</code> — comma-separated scopes (default: "read,write")</li>
+</ul>
+
+<p><strong>Response:</strong> <code>201</code></p>
+<div class="code-block"><code>{
+  "id": "key-id",
+  "key": "mem_abc123...",
+  "name": "my-assistant",
+  "scopes": "read,write",
+  "username": "alice"
+}</code></div>
+
+<p>Save the <code>key</code> value — it cannot be retrieved again.</p>
+
+<h2>Items</h2>
+
+<h3>List items</h3>
+<p><code>GET /api/v1/items</code></p>
+<p>Returns all items owned by the authenticated user.</p>
+<p><strong>Query parameters:</strong></p>
+<ul>
+    <li><code>q</code> — full-text search query</li>
+    <li><code>tag</code> — filter by tag</li>
+    <li><code>type</code> — filter by item type (<code>note</code>, <code>list</code>, <code>document</code>)</li>
+    <li><code>visibility</code> — filter by visibility (<code>private</code>, <code>shared</code>, <code>public</code>)</li>
+</ul>
+
+<div class="code-block"><code><span class="code-comment"># List all items</span>
+curl -H "Authorization: Bearer $KEY" \
+  https://listhub.globalbr.ai/api/v1/items
+
+<span class="code-comment"># Search for items containing "recipe"</span>
+curl -H "Authorization: Bearer $KEY" \
+  "https://listhub.globalbr.ai/api/v1/items?q=recipe"
+
+<span class="code-comment"># Filter by tag</span>
+curl -H "Authorization: Bearer $KEY" \
+  "https://listhub.globalbr.ai/api/v1/items?tag=reading"</code></div>
+
+<p><strong>Response:</strong> Array of item objects (without content). Each item includes <code>id</code>, <code>slug</code>, <code>title</code>, <code>item_type</code>, <code>visibility</code>, <code>revision</code>, <code>tags</code>, <code>created_at</code>, <code>updated_at</code>.</p>
+
+<h3>Get item</h3>
+<p><code>GET /api/v1/items/:id</code></p>
+<p>Returns a single item with full content.</p>
+
+<div class="code-block"><code>curl -H "Authorization: Bearer $KEY" \
+  https://listhub.globalbr.ai/api/v1/items/abc123</code></div>
+
+<p><strong>Response:</strong></p>
+<div class="code-block"><code>{
+  "id": "abc123",
+  "slug": "my-note",
+  "title": "My Note",
+  "content": "The full markdown content...",
+  "item_type": "note",
+  "visibility": "private",
+  "revision": 3,
+  "tags": ["tag1", "tag2"],
+  "created_at": "2026-02-11 10:00:00",
+  "updated_at": "2026-02-11 12:30:00"
+}</code></div>
+
+<h3>Create item</h3>
+<p><code>POST /api/v1/items/new</code> — requires <code>write</code> scope</p>
+
+<div class="code-block"><code>curl -X POST -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "My New Note",
+    "content": "Hello world",
+    "visibility": "private",
+    "item_type": "note",
+    "tags": ["example"]
+  }' \
+  https://listhub.globalbr.ai/api/v1/items/new</code></div>
+
+<p><strong>Fields:</strong></p>
+<ul>
+    <li><code>title</code> — item title (default: "Untitled")</li>
+    <li><code>content</code> — markdown content (default: "")</li>
+    <li><code>slug</code> — URL slug (auto-generated from title if omitted)</li>
+    <li><code>item_type</code> — <code>note</code>, <code>list</code>, or <code>document</code> (default: "note")</li>
+    <li><code>visibility</code> — <code>private</code>, <code>shared</code>, or <code>public</code> (default: "private")</li>
+    <li><code>tags</code> — array of tag strings</li>
+    <li><code>file_path</code> — git repo file path (default: <code>{slug}.md</code>)</li>
+</ul>
+
+<p><strong>Response:</strong> <code>201</code> with the created item object.</p>
+
+<h3>Edit content</h3>
+<p><code>POST /api/v1/items/:id/edit</code> — requires <code>write</code> scope</p>
+<p>Replaces the item's content and bumps the revision.</p>
+
+<div class="code-block"><code>curl -X POST -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Updated content here"}' \
+  https://listhub.globalbr.ai/api/v1/items/abc123/edit</code></div>
+
+<h3>Update metadata</h3>
+<p><code>PUT /api/v1/items/:id</code> — requires <code>write</code> scope</p>
+<p>Update title, slug, visibility, item_type, or tags without changing content.</p>
+
+<div class="code-block"><code>curl -X PUT -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "New Title",
+    "visibility": "public",
+    "tags": ["updated", "tags"]
+  }' \
+  https://listhub.globalbr.ai/api/v1/items/abc123</code></div>
+
+<h3>Delete item</h3>
+<p><code>DELETE /api/v1/items/:id</code> — requires <code>write</code> scope</p>
+
+<div class="code-block"><code>curl -X DELETE -H "Authorization: Bearer $KEY" \
+  https://listhub.globalbr.ai/api/v1/items/abc123</code></div>
+
+<p><strong>Response:</strong> <code>{"ok": true}</code></p>
+
+<h3>Append to list</h3>
+<p><code>POST /api/v1/items/:id/append</code> — requires <code>write</code> scope</p>
+<p>Appends a bullet point to an item's content. Useful for list-type items.</p>
+
+<div class="code-block"><code>curl -X POST -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"entry": "Buy milk"}' \
+  https://listhub.globalbr.ai/api/v1/items/abc123/append</code></div>
+
+<p>This appends <code>- Buy milk</code> as a new line to the item's content.</p>
+
+<h2>Slug-Based Access</h2>
+
+<p>These endpoints let you create, read, update, and delete items by slug instead of by ID. Useful for integrations that know the item's slug but not its internal ID.</p>
+
+<h3>Get item by slug</h3>
+<p><code>GET /api/v1/items/by-slug/:slug</code></p>
+<p>Returns the full item matching the slug for the authenticated user.</p>
+
+<div class="code-block"><code>curl -H "Authorization: Bearer $KEY" \
+  https://listhub.globalbr.ai/api/v1/items/by-slug/grocery-list</code></div>
+
+<h3>Upsert item by slug</h3>
+<p><code>PUT /api/v1/items/by-slug/:slug</code> — requires <code>write</code> scope</p>
+<p>Creates or updates an item by slug. If an item with this slug exists for the authenticated user, it updates the content (bumps revision, adds version). If not, it creates a new item with this exact slug (no auto-incrementing like <code>-1</code>, <code>-2</code>).</p>
+
+<div class="code-block"><code>curl -X PUT -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Grocery List",
+    "content": "- Milk\n- Eggs",
+    "visibility": "private"
+  }' \
+  https://listhub.globalbr.ai/api/v1/items/by-slug/grocery-list</code></div>
+
+<p><strong>Fields:</strong></p>
+<ul>
+    <li><code>title</code> — item title (default: derived from slug)</li>
+    <li><code>content</code> — markdown content</li>
+    <li><code>item_type</code> — <code>note</code>, <code>list</code>, or <code>document</code> (default: "note")</li>
+    <li><code>visibility</code> — <code>private</code>, <code>shared</code>, or <code>public</code> (default: "private")</li>
+    <li><code>tags</code> — array of tag strings</li>
+</ul>
+
+<p><strong>Response:</strong> <code>200</code> if updated, <code>201</code> if created. Returns the item object.</p>
+
+<h3>Delete item by slug</h3>
+<p><code>DELETE /api/v1/items/by-slug/:slug</code> — requires <code>write</code> scope</p>
+
+<div class="code-block"><code>curl -X DELETE -H "Authorization: Bearer $KEY" \
+  https://listhub.globalbr.ai/api/v1/items/by-slug/grocery-list</code></div>
+
+<p><strong>Response:</strong> <code>{"ok": true}</code></p>
+
+<h2>Search</h2>
+
+<p><code>GET /api/v1/search?q=:query</code></p>
+<p>Full-text search across all your items using SQLite FTS5.</p>
+
+<div class="code-block"><code>curl -H "Authorization: Bearer $KEY" \
+  "https://listhub.globalbr.ai/api/v1/search?q=python+flask"</code></div>
+
+<h2>Sharing</h2>
+
+<h3>Share item</h3>
+<p><code>POST /api/v1/items/:id/share</code> — requires <code>write</code> scope</p>
+
+<div class="code-block"><code>curl -X POST -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"shared_with": "alice", "permission": "read"}' \
+  https://listhub.globalbr.ai/api/v1/items/abc123/share</code></div>
+
+<p><code>permission</code> can be <code>read</code> or <code>edit</code>. Automatically sets item visibility to <code>shared</code>.</p>
+
+<h3>Revoke share</h3>
+<p><code>DELETE /api/v1/items/:id/share/:username</code> — requires <code>write</code> scope</p>
+
+<div class="code-block"><code>curl -X DELETE -H "Authorization: Bearer $KEY" \
+  https://listhub.globalbr.ai/api/v1/items/abc123/share/alice</code></div>
+
+<h2>API Keys</h2>
+
+<p>These endpoints require session authentication (logged in via web UI). For programmatic key creation, use the <code>/api/v1/auth/token</code> endpoint above instead.</p>
+
+<h3>List keys</h3>
+<p><code>GET /api/v1/keys</code></p>
+
+<h3>Create key</h3>
+<p><code>POST /api/v1/keys</code></p>
+
+<div class="code-block"><code>curl -X POST -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"name": "my-app", "scopes": "read,write"}' \
+  https://listhub.globalbr.ai/api/v1/keys</code></div>
+
+<p><strong>Response:</strong> includes the raw API key (shown only once):</p>
+<div class="code-block"><code>{"id": "...", "key": "mem_abc123...", "name": "my-app", "scopes": "read,write"}</code></div>
+
+<h3>Delete key</h3>
+<p><code>DELETE /api/v1/keys/:id</code></p>
+
+<h2>Git Access</h2>
+
+<p>Each user gets a bare git repo. Items are mirrored as markdown files with YAML frontmatter. Changes flow both ways:</p>
+
+<ul>
+    <li><strong>Web/API → Git:</strong> Creating or editing items via the web UI or API automatically commits to the git repo. Pull to get changes.</li>
+    <li><strong>Git → DB:</strong> Pushing <code>.md</code> files to the repo creates or updates items in the database via a post-receive hook.</li>
+</ul>
+
+<div class="code-block"><code><span class="code-comment"># Clone your repo</span>
+git clone https://username:password@listhub.globalbr.ai/git/username.git
+
+<span class="code-comment"># Pull latest changes (after creating/editing items via web or API)</span>
+git pull
+
+<span class="code-comment"># Push local changes (creates/updates items in the database)</span>
+git add . && git commit -m "update notes" && git push</code></div>
+
+<p>Authentication uses your ListHub username and password (or an API key as the password).</p>
+
+<h3>File format</h3>
+<p>Items are stored as markdown with YAML frontmatter:</p>
+
+<div class="code-block"><code>---
+title: My Note
+slug: my-note
+visibility: private
+type: note
+tags: [tag1, tag2]
+---
+
+Your markdown content here...</code></div>
+
+<p>Files without frontmatter are also accepted on push — metadata will be inferred from the filename. After a sync cycle, all files will have explicit frontmatter.</p>
+
+<h2>Assistant Integration Guide</h2>
+
+<p>ListHub is designed to be used by AI assistants as a persistent knowledge store. Here's the recommended workflow.</p>
+
+<h3>1. Bootstrap: get an API key</h3>
+
+<p>Call the token endpoint with the user's credentials. Do this once, then store the key for future use.</p>
+
+<div class="code-block"><code>curl -X POST -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "...", "name": "my-assistant"}' \
+  https://listhub.globalbr.ai/api/v1/auth/token
+
+<span class="code-comment"># Response: {"key": "mem_abc123...", ...}</span></code></div>
+
+<h3>2. Use the API for reads and writes</h3>
+
+<p>The API is the recommended interface for assistants. It's stateless, returns immediate confirmation, and handles all business logic (slugs, versioning, search indexing, git sync).</p>
+
+<p><strong>Core operations:</strong></p>
+<ul>
+    <li><strong>Save a note:</strong> <code>POST /api/v1/items/new</code> with title, content, tags</li>
+    <li><strong>Append to a list:</strong> <code>POST /api/v1/items/:id/append</code> with an entry</li>
+    <li><strong>Search:</strong> <code>GET /api/v1/search?q=...</code> to find relevant items</li>
+    <li><strong>Read:</strong> <code>GET /api/v1/items/:id</code> to retrieve full content</li>
+    <li><strong>Update:</strong> <code>POST /api/v1/items/:id/edit</code> to replace content</li>
+</ul>
+
+<h3>3. Example tool definitions</h3>
+
+<p>If your assistant framework uses tool/function calling (OpenAI, Anthropic, etc.), here are recommended tool definitions:</p>
+
+<div class="code-block"><code>{
+  "name": "listhub_create",
+  "description": "Create a new item in the user's ListHub. Use for saving notes, starting lists, or storing any information the user wants to keep.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "title":      {"type": "string", "description": "Item title"},
+      "content":    {"type": "string", "description": "Markdown content"},
+      "item_type":  {"type": "string", "enum": ["note", "list", "document"]},
+      "visibility": {"type": "string", "enum": ["private", "shared", "public"]},
+      "tags":       {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["title", "content"]
+  }
+}
+
+{
+  "name": "listhub_append",
+  "description": "Append an entry to an existing list item.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "item_id": {"type": "string", "description": "The item ID to append to"},
+      "entry":   {"type": "string", "description": "The text to append as a bullet point"}
+    },
+    "required": ["item_id", "entry"]
+  }
+}
+
+{
+  "name": "listhub_search",
+  "description": "Search the user's ListHub items by keyword.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {"type": "string", "description": "Search query"}
+    },
+    "required": ["query"]
+  }
+}
+
+{
+  "name": "listhub_read",
+  "description": "Read the full content of a ListHub item.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "item_id": {"type": "string", "description": "The item ID to read"}
+    },
+    "required": ["item_id"]
+  }
+}</code></div>
+
+<h3>4. If you want local files too</h3>
+
+<p>For assistants that also need file-system access to the user's data, the recommended pattern is:</p>
+
+<ul>
+    <li><strong>Write via the API</strong> — the API is the source of truth for all mutations</li>
+    <li><strong>Read via git pull</strong> — clone the repo once, then <code>git pull</code> periodically to get the latest files</li>
+</ul>
+
+<p>This avoids merge conflicts from multiple writers. The API handles all the complexity (deduplication, versioning, indexing), and git provides a clean read-only mirror as markdown files.</p>
+
+<div class="code-block"><code><span class="code-comment"># One-time setup</span>
+git clone https://user:key@listhub.globalbr.ai/git/user.git ~/listhub-data
+
+<span class="code-comment"># Periodic sync (cron, timer, or after API writes)</span>
+git -C ~/listhub-data pull --ff-only</code></div>
+
+<h2>Community Directory</h2>
+
+<p>ListHub hosts a shared <strong>Community Directory</strong> — a curated, hierarchical index of lists and collections, browsable at <a href="/directory">/directory</a>. The directory is a git repo that any authenticated user can contribute to.</p>
+
+<h3>How it works</h3>
+<ul>
+    <li>The directory lives in a shared bare git repo at <code>/git/directory.git</code></li>
+    <li>The folder structure in git is the browsable tree hierarchy on the web</li>
+    <li>Each folder has an <code>index.md</code> with content and links to ListHub items</li>
+    <li>Any authenticated user can clone, edit, and push — no pull requests needed</li>
+    <li>Edit history comes free from git (every push is a commit)</li>
+</ul>
+
+<h3>Contributing</h3>
+
+<div class="code-block"><code><span class="code-comment"># Clone the directory</span>
+git clone https://username:password@listhub.globalbr.ai/git/directory.git
+
+<span class="code-comment"># Add a new category</span>
+mkdir music
+cat > music/index.md << 'EOF'
+---
+title: Music
+---
+
+# Music
+
+Playlists, albums, and music recommendations.
+
+- [My Playlist](/@alice/playlist)
+EOF
+
+<span class="code-comment"># Or add a link to an existing category</span>
+echo "- [My Reading List](/@alice/reading-list)" >> reading/index.md
+
+<span class="code-comment"># Push changes</span>
+git add . && git commit -m "add music category" && git push</code></div>
+
+<h3>Directory structure</h3>
+<p>Folders are categories, <code>index.md</code> files are the content displayed for each category. Links use the format <code>/@username/item-slug</code> to point to ListHub items.</p>
+
+<div class="code-block"><code>directory/
+├── index.md              ← root page
+├── tech/
+│   └── index.md          ← "- [AI Tools](/@jacob/ai-tools)"
+├── cooking/
+│   └── index.md
+└── reading/
+    └── index.md</code></div>
+
+<h3>For assistants</h3>
+<p>Assistants can contribute to the directory by cloning and pushing, just like a human user. Use git HTTP Basic Auth with the user's credentials or API key as the password.</p>
+
+<div class="code-block"><code><span class="code-comment"># Clone with API key as password</span>
+git clone https://alice:mem_abc123...@listhub.globalbr.ai/git/directory.git</code></div>
+
+<h2>Errors</h2>
+
+<p>Error responses return JSON with an <code>error</code> field:</p>
+
+<div class="code-block"><code>{"error": "Not found"}               <span class="code-comment"># 404</span>
+{"error": "Authentication required"}  <span class="code-comment"># 401</span>
+{"error": "Invalid credentials"}      <span class="code-comment"># 401 (token endpoint)</span>
+{"error": "Write scope required"}     <span class="code-comment"># 403</span>
+{"error": "Slug already in use"}      <span class="code-comment"># 409</span></code></div>
+
+</div>
+{% endblock %}

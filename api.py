@@ -1,12 +1,15 @@
 import re
 import secrets
 
+import bcrypt
 from flask import Blueprint, request, jsonify
 from flask_login import current_user, login_required
 from nanoid import generate as nanoid
 
 from db import get_db, reindex_item
+from models import User
 from auth import require_api_auth, get_current_api_user, api_has_scope, hash_api_key
+from git_sync import sync_item_to_repo, remove_from_repo
 
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
@@ -166,6 +169,11 @@ def update_item_metadata(item_id):
     reindex_item(db, item_id)
     db.commit()
 
+    try:
+        sync_item_to_repo(user.username, item_id)
+    except Exception:
+        pass
+
     updated = db.execute("SELECT * FROM item WHERE id = ?", (item_id,)).fetchone()
     return jsonify(item_to_dict(updated))
 
@@ -225,6 +233,11 @@ def create_item():
     reindex_item(db, item_id)
     db.commit()
 
+    try:
+        sync_item_to_repo(user.username, item_id)
+    except Exception:
+        pass
+
     item = db.execute("SELECT * FROM item WHERE id = ?", (item_id,)).fetchone()
     d = item_to_dict(item)
     d['tags'] = tags
@@ -265,6 +278,11 @@ def edit_item_content(item_id):
     reindex_item(db, item_id)
     db.commit()
 
+    try:
+        sync_item_to_repo(user.username, item_id)
+    except Exception:
+        pass
+
     updated = db.execute("SELECT * FROM item WHERE id = ?", (item_id,)).fetchone()
     return jsonify(item_to_dict(updated))
 
@@ -282,6 +300,8 @@ def delete_item(item_id):
     if not item:
         return jsonify({"error": "Not found"}), 404
 
+    file_path = item['file_path'] or f"{item['slug']}.md"
+
     # Clean up FTS, tags, versions before deleting
     row = db.execute("SELECT rowid FROM item WHERE id = ?", (item_id,)).fetchone()
     if row:
@@ -290,6 +310,11 @@ def delete_item(item_id):
     db.execute("DELETE FROM item_version WHERE item_id = ?", (item_id,))
     db.execute("DELETE FROM item WHERE id = ?", (item_id,))
     db.commit()
+
+    try:
+        remove_from_repo(user.username, file_path)
+    except Exception:
+        pass
 
     return jsonify({"ok": True})
 
@@ -330,6 +355,11 @@ def append_to_list(item_id):
     db.commit()
     reindex_item(db, item_id)
     db.commit()
+
+    try:
+        sync_item_to_repo(user.username, item_id)
+    except Exception:
+        pass
 
     updated = db.execute("SELECT * FROM item WHERE id = ?", (item_id,)).fetchone()
     return jsonify(item_to_dict(updated))
@@ -387,6 +417,161 @@ def revoke_share(item_id, who):
     return jsonify({"ok": True})
 
 
+@api_bp.route('/items/by-slug/<slug>', methods=['GET'])
+@require_api_auth
+def get_item_by_slug(slug):
+    user = get_current_api_user()
+    db = get_db()
+
+    item = db.execute("SELECT * FROM item WHERE owner_id = ? AND slug = ?", (user.id, slug)).fetchone()
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+
+    d = item_to_dict(item)
+    tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
+    d['tags'] = [t['tag'] for t in tags]
+    return jsonify(d)
+
+
+@api_bp.route('/items/by-slug/<slug>', methods=['PUT'])
+@require_api_auth
+def upsert_item_by_slug(slug):
+    if not api_has_scope('write'):
+        return jsonify({"error": "Write scope required"}), 403
+
+    user = get_current_api_user()
+    db = get_db()
+    data = request.get_json(silent=True) or {}
+
+    existing = db.execute("SELECT * FROM item WHERE owner_id = ? AND slug = ?", (user.id, slug)).fetchone()
+
+    if existing:
+        # Update existing item
+        item_id = existing['id']
+        content = data.get('content', existing['content'])
+        new_revision = existing['revision'] + 1
+
+        updates = ["content = ?", "revision = ?", "updated_at = CURRENT_TIMESTAMP"]
+        params = [content, new_revision]
+
+        if 'title' in data:
+            updates.append("title = ?")
+            params.append(data['title'])
+        if 'visibility' in data and data['visibility'] in ('private', 'shared', 'public'):
+            updates.append("visibility = ?")
+            params.append(data['visibility'])
+        if 'item_type' in data and data['item_type'] in ('note', 'list', 'document'):
+            updates.append("item_type = ?")
+            params.append(data['item_type'])
+
+        params.extend([item_id, user.id])
+        db.execute(
+            f"UPDATE item SET {', '.join(updates)} WHERE id = ? AND owner_id = ?",
+            params
+        )
+
+        db.execute(
+            "INSERT INTO item_version (item_id, content, revision) VALUES (?, ?, ?)",
+            (item_id, content, new_revision)
+        )
+
+        if 'tags' in data:
+            db.execute("DELETE FROM item_tag WHERE item_id = ?", (item_id,))
+            for tag in data['tags']:
+                tag = tag.strip().lower()
+                if tag:
+                    db.execute("INSERT OR IGNORE INTO item_tag (item_id, tag) VALUES (?, ?)", (item_id, tag))
+
+        db.commit()
+        reindex_item(db, item_id)
+        db.commit()
+
+        try:
+            sync_item_to_repo(user.username, item_id)
+        except Exception:
+            pass
+
+        updated = db.execute("SELECT * FROM item WHERE id = ?", (item_id,)).fetchone()
+        return jsonify(item_to_dict(updated))
+    else:
+        # Create new item with explicit slug
+        title = data.get('title', slug.replace('-', ' ').title())
+        content = data.get('content', '')
+        item_type = data.get('item_type', 'note')
+        visibility = data.get('visibility', 'private')
+        tags = data.get('tags', [])
+        file_path = data.get('file_path', f"{slug}.md")
+
+        if item_type not in ('note', 'list', 'document'):
+            item_type = 'note'
+        if visibility not in ('private', 'shared', 'public'):
+            visibility = 'private'
+
+        item_id = nanoid()
+
+        db.execute(
+            "INSERT INTO item (id, owner_id, slug, title, content, file_path, item_type, visibility) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (item_id, user.id, slug, title, content, file_path, item_type, visibility)
+        )
+
+        for tag in tags:
+            tag = tag.strip().lower()
+            if tag:
+                db.execute("INSERT OR IGNORE INTO item_tag (item_id, tag) VALUES (?, ?)", (item_id, tag))
+
+        db.execute(
+            "INSERT INTO item_version (item_id, content, revision) VALUES (?, ?, 1)",
+            (item_id, content)
+        )
+
+        db.commit()
+        reindex_item(db, item_id)
+        db.commit()
+
+        try:
+            sync_item_to_repo(user.username, item_id)
+        except Exception:
+            pass
+
+        item = db.execute("SELECT * FROM item WHERE id = ?", (item_id,)).fetchone()
+        d = item_to_dict(item)
+        d['tags'] = tags
+        return jsonify(d), 201
+
+
+@api_bp.route('/items/by-slug/<slug>', methods=['DELETE'])
+@require_api_auth
+def delete_item_by_slug(slug):
+    if not api_has_scope('write'):
+        return jsonify({"error": "Write scope required"}), 403
+
+    user = get_current_api_user()
+    db = get_db()
+
+    item = db.execute("SELECT * FROM item WHERE owner_id = ? AND slug = ?", (user.id, slug)).fetchone()
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+
+    item_id = item['id']
+    file_path = item['file_path'] or f"{item['slug']}.md"
+
+    row = db.execute("SELECT rowid FROM item WHERE id = ?", (item_id,)).fetchone()
+    if row:
+        db.execute("DELETE FROM item_fts WHERE rowid = ?", (row['rowid'],))
+    db.execute("DELETE FROM item_tag WHERE item_id = ?", (item_id,))
+    db.execute("DELETE FROM item_version WHERE item_id = ?", (item_id,))
+    db.execute("DELETE FROM item WHERE id = ?", (item_id,))
+    db.commit()
+
+    try:
+        remove_from_repo(user.username, file_path)
+    except Exception:
+        pass
+
+    return jsonify({"ok": True})
+
+
 @api_bp.route('/search', methods=['GET'])
 @require_api_auth
 def search():
@@ -417,6 +602,54 @@ def search():
             results.append(d)
 
     return jsonify(results)
+
+
+# --- Auth ---
+
+@api_bp.route('/auth/token', methods=['POST'])
+def get_token():
+    """
+    Exchange username + password for an API key.
+    Allows assistants and integrations to bootstrap without a browser session.
+    """
+    data = request.get_json(silent=True) or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    key_name = data.get('name', 'api-token')
+    scopes = data.get('scopes', 'read,write')
+
+    if not username or not password:
+        return jsonify({"error": "username and password required"}), 400
+
+    db = get_db()
+    user = User.get_by_username(db, username)
+    if not user:
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    try:
+        if not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
+            return jsonify({"error": "Invalid credentials"}), 401
+    except Exception:
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    # Generate a new API key
+    raw_key = f"mem_{secrets.token_urlsafe(32)}"
+    key_id = nanoid()
+    key_h = hash_api_key(raw_key)
+
+    db.execute(
+        "INSERT INTO api_key (id, user_id, key_hash, name, scopes) VALUES (?, ?, ?, ?, ?)",
+        (key_id, user.id, key_h, key_name, scopes)
+    )
+    db.commit()
+
+    return jsonify({
+        "id": key_id,
+        "key": raw_key,
+        "name": key_name,
+        "scopes": scopes,
+        "username": username,
+    }), 201
 
 
 # --- API Key Management ---

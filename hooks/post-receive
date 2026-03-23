@@ -229,6 +229,12 @@ def sync_file(filepath, content, base_url, admin_token, username=None):
 
 def main():
     config = read_config()
+
+    # Shared repos (e.g. directory) don't sync to DB
+    if config.get('LISTHUB_SHARED') == 'true':
+        print('Shared repo push accepted.')
+        sys.exit(0)
+
     base_url = config.get('LISTHUB_BASE_URL', 'http://localhost:3200')
     admin_token = config.get('LISTHUB_ADMIN_TOKEN', '')
     username = config.get('LISTHUB_USERNAME', '')

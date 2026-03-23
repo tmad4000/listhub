@@ -8,6 +8,7 @@ class User(UserMixin):
         self.display_name = row['display_name']
         self.email = row['email']
         self.password_hash = row['password_hash']
+        self.noos_id = row['noos_id'] if 'noos_id' in row.keys() else None
         self.created_at = row['created_at']
 
     @staticmethod
@@ -23,6 +24,11 @@ class User(UserMixin):
     @staticmethod
     def get_by_email(db, email):
         row = db.execute("SELECT * FROM user WHERE email = ?", (email,)).fetchone()
+        return User(row) if row else None
+
+    @staticmethod
+    def get_by_noos_id(db, noos_id):
+        row = db.execute("SELECT * FROM user WHERE noos_id = ?", (noos_id,)).fetchone()
         return User(row) if row else None
 
     @staticmethod

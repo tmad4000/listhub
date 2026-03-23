@@ -102,6 +102,22 @@ def _require_auth(username):
     return user
 
 
+def _require_any_auth():
+    """
+    Enforce that the request has valid Basic Auth for any ListHub user.
+    Used for shared repos where any authenticated user can access.
+    Returns the User on success or a 401 Response.
+    """
+    user = _check_basic_auth()
+    if not user:
+        return Response(
+            'Authentication required\n',
+            status=401,
+            headers={'WWW-Authenticate': 'Basic realm="ListHub Git"'}
+        )
+    return user
+
+
 # ---------------------------------------------------------------------------
 # Repo management
 # ---------------------------------------------------------------------------
@@ -178,6 +194,55 @@ def _install_hook(repo_path, username):
         f.write(f'LISTHUB_USERNAME={username}\n')
         f.write(f'LISTHUB_BASE_URL={BASE_URL}\n')
         f.write(f'LISTHUB_ADMIN_TOKEN={ADMIN_TOKEN}\n')
+
+
+def init_shared_repo(name):
+    """
+    Create a shared bare git repo that any authenticated user can push to.
+    Used for community repos like the directory.
+    Returns the repo path.
+    """
+    safe = ''.join(c for c in name if c.isalnum())
+    repo = os.path.join(REPO_ROOT, f'{safe}.git')
+
+    if not os.path.isdir(repo):
+        os.makedirs(repo, exist_ok=True)
+        subprocess.run(
+            ['git', 'init', '--bare', repo],
+            check=True, capture_output=True
+        )
+        subprocess.run(
+            ['git', 'symbolic-ref', 'HEAD', 'refs/heads/main'],
+            cwd=repo, check=True, capture_output=True
+        )
+        subprocess.run(
+            ['git', 'config', 'http.receivepack', 'true'],
+            cwd=repo, check=True, capture_output=True
+        )
+
+    # Install hook with shared flag
+    hooks_dir = os.path.join(repo, 'hooks')
+    os.makedirs(hooks_dir, exist_ok=True)
+
+    hook_src = os.path.join(HOOK_DIR, 'post-receive')
+    hook_dst = os.path.join(hooks_dir, 'post-receive')
+    shutil.copy2(hook_src, hook_dst)
+    st = os.stat(hook_dst)
+    os.chmod(hook_dst, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+    config_path = os.path.join(hooks_dir, 'listhub.conf')
+    with open(config_path, 'w') as f:
+        f.write(f'LISTHUB_SHARED=true\n')
+        f.write(f'LISTHUB_BASE_URL={BASE_URL}\n')
+        f.write(f'LISTHUB_ADMIN_TOKEN={ADMIN_TOKEN}\n')
+
+    return repo
+
+
+def _shared_repo_path(name):
+    """Return the filesystem path for a shared bare repo."""
+    safe = ''.join(c for c in name if c.isalnum())
+    return os.path.join(REPO_ROOT, f'{safe}.git')
 
 
 # ---------------------------------------------------------------------------
@@ -311,3 +376,77 @@ def _run_git_service(cmd, repo, content_type):
             'Cache-Control': 'no-cache',
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Shared repo routes (any authenticated user can access)
+# ---------------------------------------------------------------------------
+
+SHARED_REPOS = ('directory',)
+
+
+@git_bp.route('/directory.git/info/refs')
+def shared_info_refs():
+    """Smart HTTP discovery for the shared directory repo."""
+    auth_result = _require_any_auth()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    service = request.args.get('service', '')
+    if service not in ('git-upload-pack', 'git-receive-pack'):
+        abort(400)
+
+    repo = _shared_repo_path('directory')
+    if not os.path.isdir(repo):
+        init_shared_repo('directory')
+
+    cmd = _git_command_path(service)
+    proc = subprocess.Popen(
+        [cmd, '--stateless-rpc', '--advertise-refs', repo],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    stdout, stderr = proc.communicate()
+
+    if proc.returncode != 0:
+        return Response(f'Git error: {stderr.decode()}\n', status=500)
+
+    service_line = f'# service={service}\n'
+    pkt_len = len(service_line) + 4
+    pkt = f'{pkt_len:04x}{service_line}'
+    body = pkt.encode() + b'0000' + stdout
+
+    return Response(
+        body, status=200,
+        content_type=f'application/x-{service}-advertisement',
+        headers={'Cache-Control': 'no-cache'}
+    )
+
+
+@git_bp.route('/directory.git/git-upload-pack', methods=['POST'])
+def shared_upload_pack():
+    """Handle git clone/fetch/pull for the shared directory repo."""
+    auth_result = _require_any_auth()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    repo = _shared_repo_path('directory')
+    if not os.path.isdir(repo):
+        abort(404)
+
+    cmd = _git_command_path('git-upload-pack')
+    return _run_git_service(cmd, repo, 'application/x-git-upload-pack-result')
+
+
+@git_bp.route('/directory.git/git-receive-pack', methods=['POST'])
+def shared_receive_pack():
+    """Handle git push for the shared directory repo."""
+    auth_result = _require_any_auth()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    repo = _shared_repo_path('directory')
+    if not os.path.isdir(repo):
+        init_shared_repo('directory')
+
+    cmd = _git_command_path('git-receive-pack')
+    return _run_git_service(cmd, repo, 'application/x-git-receive-pack-result')

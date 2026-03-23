@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}People — ListHub{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <h1>People</h1>
+</div>
+
+{% if users %}
+<div class="item-list">
+    {% for user in users %}
+    <div class="item-card">
+        <div class="item-info">
+            <a href="/@{{ user.username }}" class="item-title">{{ user.display_name or user.username }}</a>
+            <div class="item-meta">
+                <span>@{{ user.username }}</span>
+                {% if user.public_count > 0 %}
+                    <span>{{ user.public_count }} public item{{ 's' if user.public_count != 1 }}</span>
+                {% else %}
+                    <span>No public items</span>
+                {% endif %}
+                <span>joined {{ user.created_at[:10] if user.created_at else '' }}</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No users yet.</p>
+</div>
+{% endif %}
+{% endblock %}

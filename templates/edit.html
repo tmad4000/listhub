@@ -75,46 +75,56 @@ const toggleBtn = document.getElementById('toggle-editor');
 let editor = null;
 let isWysiwyg = true;
 
+async function createEditor(content) {
+    // Clear any existing editor
+    editorContainer.innerHTML = '';
+
+    editor = await createMilkdownEditor(
+        editorContainer,
+        content,
+        (markdown) => {
+            // Sync content on every change
+            textarea.value = markdown;
+        }
+    );
+    return editor;
+}
+
 async function initEditor() {
     console.log('Initializing Milkdown editor (bundled)...');
 
     try {
-        editor = await createMilkdownEditor(
-            editorContainer,
-            initialContent,
-            (markdown) => {
-                // Sync content on every change
-                textarea.value = markdown;
-            }
-        );
+        await createEditor(initialContent);
 
         // Toggle between WYSIWYG and raw text
-        toggleBtn.addEventListener('click', () => {
+        toggleBtn.addEventListener('click', async () => {
             if (isWysiwyg) {
-                // Switch to raw
+                // Switch to raw - destroy editor to free resources
+                if (editor) {
+                    try { editor.destroy(); } catch (e) { /* ignore */ }
+                    editor = null;
+                }
                 editorContainer.style.display = 'none';
                 textarea.style.display = 'block';
                 toggleBtn.textContent = 'Switch to WYSIWYG';
                 isWysiwyg = false;
             } else {
-                // Switch to WYSIWYG - reload editor with current textarea content
+                // Switch to WYSIWYG - recreate editor with current textarea content
                 editorContainer.style.display = 'block';
                 textarea.style.display = 'none';
                 toggleBtn.textContent = 'Switch to Raw';
-                // Update editor content from textarea
-                if (editor && editor.action) {
-                    editor.action((ctx) => {
-                        const { replaceAll } = ctx.get('commandsCtx');
-                        // For now, just reload the page to sync - proper API would need more work
-                    });
+                try {
+                    await createEditor(textarea.value);
+                } catch (err) {
+                    console.error('Failed to recreate editor:', err);
+                    // Fall back to raw mode
+                    editorContainer.style.display = 'none';
+                    textarea.style.display = 'block';
+                    toggleBtn.textContent = 'Switch to WYSIWYG';
+                    return;
                 }
                 isWysiwyg = true;
             }
-        });
-
-        // Sync textarea changes back to editor when switching
-        textarea.addEventListener('input', () => {
-            // Content will be synced when switching back to WYSIWYG
         });
 
         // Form submit handler

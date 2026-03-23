@@ -94,6 +94,13 @@ def init_db():
         );
         """)
 
+    # Schema migrations
+    # Add noos_id column for Noos OAuth linking
+    try:
+        conn.execute("ALTER TABLE user ADD COLUMN noos_id TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
     conn.commit()
     conn.close()
 

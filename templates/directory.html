@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Directory — ListHub{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <div class="directory-breadcrumbs">
+        <a href="{{ url_for('views.directory') }}">Directory</a>
+        {% for crumb in breadcrumbs %}
+            <span style="color: var(--text-muted);"> / </span>
+            <a href="{{ url_for('views.directory', subpath=crumb.path) }}">{{ crumb.name }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+{% if empty %}
+<div class="empty-state">
+    <h2>Community Directory</h2>
+    <p>The shared directory hasn't been set up yet.</p>
+    {% if current_user.is_authenticated %}
+    <div style="margin-top: 16px; padding: 16px; background: var(--bg-secondary); border-radius: var(--radius); border: 1px solid var(--border);">
+        <p style="color: var(--text-muted); font-size: 14px;">Clone and seed it:</p>
+        <code style="display: block; margin-top: 8px; padding: 8px; background: var(--bg-tertiary); border-radius: var(--radius); font-size: 13px;">git clone https://{{ current_user.username }}:&lt;password&gt;@listhub.globalbr.ai/git/directory.git</code>
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+
+<div class="directory-layout">
+    <nav class="directory-nav">
+        <div class="dir-tree">
+            {% macro render_tree(nodes, depth=0) %}
+                {% for node in nodes %}
+                    {% if node.type == 'folder' %}
+                        {% set is_active = subpath == node.path %}
+                        {% set is_ancestor = subpath and subpath.startswith(node.path + '/') %}
+                        <div class="dir-node" data-path="{{ node.path }}">
+                            <div class="dir-row {% if is_active %}dir-active{% endif %}" style="padding-left: {{ 12 + depth * 16 }}px;">
+                                {% if node.children %}<span class="dir-toggle {% if is_active or is_ancestor %}dir-open{% endif %}" onclick="toggleDir(this)"></span>{% else %}<span class="dir-toggle-spacer"></span>{% endif %}
+                                <a href="{{ url_for('views.directory', subpath=node.path) }}" class="dir-link">
+                                    {{ node.name }}
+                                </a>
+                                {% if node.count > 0 %}
+                                    <span class="dir-count">{{ node.count }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="dir-children {% if is_active or is_ancestor %}dir-expanded{% endif %}">
+                                {{ render_tree(node.children, depth + 1) }}
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="dir-row" style="padding-left: {{ 12 + depth * 16 }}px;">
+                            <span class="dir-toggle-spacer"></span>
+                            <a href="{{ url_for('views.directory', subpath=node.path) }}" class="dir-link dir-file-link">
+                                {{ node.name }}
+                            </a>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endmacro %}
+            {{ render_tree(full_tree) }}
+        </div>
+    </nav>
+
+    <div class="directory-content">
+        {% if content_html %}
+            <div class="rendered-content">{{ content_html | safe }}</div>
+        {% else %}
+            <p style="color: var(--text-muted);">Select a category from the tree to view its contents.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if current_user.is_authenticated %}
+<div style="margin-top: 32px; padding: 16px; background: var(--bg-secondary); border-radius: var(--radius); border: 1px solid var(--border);">
+    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Contribute to this directory:</p>
+    <code style="display: block; padding: 8px; background: var(--bg-tertiary); border-radius: var(--radius); font-size: 13px;">git clone https://{{ current_user.username }}:&lt;password&gt;@listhub.globalbr.ai/git/directory.git</code>
+    <p style="font-size: 13px; color: var(--text-dim); margin-top: 8px;">Add folders for categories, <code>index.md</code> files for content. Push to publish.</p>
+</div>
+{% endif %}
+
+{% endif %}
+
+<style>
+.directory-breadcrumbs {
+    font-size: 16px;
+    font-weight: 600;
+}
+.directory-breadcrumbs a { color: var(--accent); }
+
+.directory-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.directory-nav {
+    min-width: 220px;
+    max-width: 260px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-secondary);
+    padding: 8px 0;
+    position: sticky;
+    top: 16px;
+}
+
+.dir-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 12px;
+    font-size: 14px;
+    gap: 4px;
+    border-radius: 3px;
+    margin: 0 4px;
+}
+.dir-row:hover {
+    background: var(--bg-tertiary);
+}
+.dir-active {
+    background: var(--bg-tertiary);
+}
+
+.dir-toggle {
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 10px;
+    user-select: none;
+}
+.dir-toggle-spacer {
+    width: 16px;
+    flex-shrink: 0;
+}
+.dir-toggle::before {
+    content: "\25B6"; /* right triangle */
+}
+.dir-toggle.dir-open::before {
+    content: "\25BC"; /* down triangle */
+}
+
+.dir-link {
+    color: var(--text);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dir-link:hover {
+    color: var(--accent);
+    text-decoration: none;
+}
+.dir-file-link {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.dir-count {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg-tertiary);
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.dir-children {
+    display: none;
+}
+.dir-children.dir-expanded {
+    display: block;
+}
+
+.directory-content {
+    flex: 1;
+    min-width: 0;
+}
+.directory-content .rendered-content a { color: var(--accent); }
+.directory-content .rendered-content ul,
+.directory-content .rendered-content ol { padding-left: 24px; margin: 8px 0; }
+.directory-content .rendered-content li { margin: 4px 0; }
+.directory-content .rendered-content h1 { font-size: 24px; margin-bottom: 12px; }
+.directory-content .rendered-content h2 { font-size: 20px; margin: 16px 0 8px; }
+.directory-content .rendered-content h3 { font-size: 16px; margin: 12px 0 6px; }
+.directory-content .rendered-content p { margin: 8px 0; }
+
+@media (max-width: 640px) {
+    .directory-layout { flex-direction: column; }
+    .directory-nav { max-width: 100%; min-width: 100%; position: static; }
+}
+</style>
+
+<script>
+function toggleDir(el) {
+    el.classList.toggle('dir-open');
+    var children = el.closest('.dir-node').querySelector('.dir-children');
+    if (children) children.classList.toggle('dir-expanded');
+}
+</script>
+{% endblock %}

@@ -1,3 +1,6 @@
+import os
+import subprocess
+
 import markdown
 from flask import Blueprint, render_template, redirect, url_for, request, flash, abort
 from flask_login import login_required, current_user
@@ -5,6 +8,7 @@ from nanoid import generate as nanoid
 
 from db import get_db, reindex_item
 from api import slugify
+from git_sync import sync_item_to_repo, remove_from_repo
 
 views_bp = Blueprint('views', __name__)
 
@@ -50,6 +54,11 @@ def render_md(text):
     )
 
 
+@views_bp.route('/api/docs')
+def api_docs():
+    return render_template('api_docs.html')
+
+
 @views_bp.route('/')
 def landing():
     if current_user.is_authenticated:
@@ -62,6 +71,19 @@ def landing():
     ).fetchall()
 
     return render_template('landing.html', items=public_items)
+
+
+@views_bp.route('/people')
+def people():
+    db = get_db()
+    users = db.execute(
+        "SELECT u.id, u.username, u.display_name, u.created_at, "
+        "COUNT(CASE WHEN i.visibility = 'public' THEN 1 END) as public_count, "
+        "COUNT(i.id) as total_count "
+        "FROM user u LEFT JOIN item i ON i.owner_id = u.id "
+        "GROUP BY u.id ORDER BY public_count DESC, u.created_at ASC"
+    ).fetchall()
+    return render_template('people.html', users=[dict(u) for u in users])
 
 
 @views_bp.route('/explore')
@@ -192,6 +214,11 @@ def new_item():
         reindex_item(db, item_id)
         db.commit()
 
+        try:
+            sync_item_to_repo(current_user.username, item_id)
+        except Exception:
+            pass
+
         return redirect(url_for('views.dashboard'))
 
     return render_template('edit.html', item=None)
@@ -246,6 +273,11 @@ def edit_item(item_id):
         reindex_item(db, item_id)
         db.commit()
 
+        try:
+            sync_item_to_repo(current_user.username, item_id)
+        except Exception:
+            pass
+
         return redirect(url_for('views.dashboard'))
 
     tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item_id,)).fetchall()
@@ -258,14 +290,25 @@ def edit_item(item_id):
 @login_required
 def delete_item(item_id):
     db = get_db()
-    # Get rowid for FTS cleanup before deleting
-    row = db.execute("SELECT rowid FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id)).fetchone()
-    if row:
-        db.execute("DELETE FROM item_fts WHERE rowid = ?", (row['rowid'],))
+    # Get item details for git sync before deleting
+    item = db.execute(
+        "SELECT rowid, file_path, slug FROM item WHERE id = ? AND owner_id = ?",
+        (item_id, current_user.id)
+    ).fetchone()
+    if item:
+        file_path = item['file_path'] or f"{item['slug']}.md"
+        db.execute("DELETE FROM item_fts WHERE rowid = ?", (item['rowid'],))
         db.execute("DELETE FROM item_tag WHERE item_id = ?", (item_id,))
         db.execute("DELETE FROM item_version WHERE item_id = ?", (item_id,))
         db.execute("DELETE FROM item WHERE id = ? AND owner_id = ?", (item_id, current_user.id))
-    db.commit()
+        db.commit()
+
+        try:
+            remove_from_repo(current_user.username, file_path)
+        except Exception:
+            pass
+    else:
+        db.commit()
     return redirect(url_for('views.dashboard'))
 
 
@@ -361,6 +404,164 @@ def public_item(username, slug):
         rendered_content=rendered_content,
         is_owner=is_owner
     )
+
+
+# --- Directory (shared community repo) ---
+
+REPO_ROOT = os.environ.get('LISTHUB_REPO_ROOT', '/home/ubuntu/listhub/repos')
+
+
+def _directory_repo():
+    """Return path to the shared directory bare repo."""
+    return os.path.join(REPO_ROOT, 'directory.git')
+
+
+def _git_read(repo, *args):
+    """Run a read-only git command on a bare repo. Returns stdout or None."""
+    result = subprocess.run(
+        ['git'] + list(args),
+        cwd=repo, capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _build_full_tree(all_files):
+    """
+    Build a full recursive tree from file paths.
+    Returns a list of nodes, each with:
+      type: 'folder' or 'file'
+      name: display name
+      path: full path for URL
+      count: number of non-index .md files in this folder (recursive)
+      children: list of child nodes (folders only)
+    """
+    # Build raw nested dict
+    raw = {}
+    for filepath in all_files:
+        parts = filepath.strip().split('/')
+        node = raw
+        for part in parts[:-1]:
+            if part not in node:
+                node[part] = {'__files': []}
+            node = node[part]
+        filename = parts[-1]
+        if '__files' not in node:
+            node['__files'] = []
+        node['__files'].append(filename)
+
+    def _count_items(node):
+        """Count .md files recursively (including index.md as page content)."""
+        count = sum(1 for f in node.get('__files', []) if f.endswith('.md'))
+        for key, val in node.items():
+            if key == '__files':
+                continue
+            count += _count_items(val)
+        return count
+
+    def _to_nodes(node, prefix=''):
+        items = []
+        # Folders first, sorted
+        folders = sorted(k for k in node if k != '__files' and isinstance(node[k], dict))
+        for folder in folders:
+            path = f'{prefix}{folder}' if prefix else folder
+            child_node = node[folder]
+            count = _count_items(child_node)
+            children = _to_nodes(child_node, path + '/')
+            items.append({
+                'type': 'folder',
+                'name': folder,
+                'path': path,
+                'count': count,
+                'children': children,
+            })
+        # Files (non-index .md)
+        for f in sorted(node.get('__files', [])):
+            if f == 'index.md':
+                continue
+            path = f'{prefix}{f}' if prefix else f
+            items.append({
+                'type': 'file',
+                'name': f,
+                'path': path,
+            })
+        return items
+
+    return _to_nodes(raw)
+
+
+def _extract_frontmatter(content):
+    """Extract YAML-ish frontmatter. Returns (metadata, body)."""
+    metadata = {}
+    body = content
+    if content.startswith('---'):
+        parts = content.split('---', 2)
+        if len(parts) >= 3:
+            for line in parts[1].strip().split('\n'):
+                if ':' in line:
+                    key, val = line.split(':', 1)
+                    metadata[key.strip().lower()] = val.strip()
+            body = parts[2].strip()
+    return metadata, body
+
+
+@views_bp.route('/directory')
+@views_bp.route('/directory/<path:subpath>')
+def directory(subpath=''):
+    repo = _directory_repo()
+    if not os.path.isdir(repo):
+        return render_template('directory.html', content_html=None,
+                               nav_items=[], breadcrumbs=[], subpath='',
+                               title='Directory', empty=True)
+
+    # Check if repo has commits
+    head = _git_read(repo, 'rev-parse', '--verify', 'HEAD')
+    if not head:
+        return render_template('directory.html', content_html=None,
+                               nav_items=[], breadcrumbs=[], subpath='',
+                               title='Directory', empty=True)
+
+    # Get full file listing
+    ls_output = _git_read(repo, 'ls-tree', '-r', '--name-only', 'HEAD')
+    all_files = [f for f in (ls_output or '').strip().split('\n') if f]
+
+    # Build breadcrumbs
+    breadcrumbs = []
+    if subpath:
+        parts = subpath.strip('/').split('/')
+        for i, part in enumerate(parts):
+            breadcrumbs.append({
+                'name': part,
+                'path': '/'.join(parts[:i+1])
+            })
+
+    # Build full tree for sidebar
+    full_tree = _build_full_tree(all_files)
+
+    # Try to load index.md for this path
+    prefix = (subpath.strip('/') + '/') if subpath else ''
+    index_path = f'{prefix}index.md' if prefix else 'index.md'
+    raw_content = _git_read(repo, 'show', f'HEAD:{index_path}')
+
+    content_html = None
+    title = subpath.split('/')[-1].replace('-', ' ').title() if subpath else 'Directory'
+
+    if raw_content:
+        metadata, body = _extract_frontmatter(raw_content)
+        title = metadata.get('title', title)
+        content_html = render_md(body)
+    elif subpath and subpath.endswith('.md'):
+        # Direct file view (not index.md)
+        raw = _git_read(repo, 'show', f'HEAD:{subpath}')
+        if raw:
+            metadata, body = _extract_frontmatter(raw)
+            title = metadata.get('title', subpath.split('/')[-1])
+            content_html = render_md(body)
+
+    return render_template('directory.html', content_html=content_html,
+                           full_tree=full_tree, breadcrumbs=breadcrumbs,
+                           subpath=subpath, title=title, empty=False)
 
 
 @views_bp.route('/i/<item_id>')
