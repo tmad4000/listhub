@@ -117,3 +117,27 @@ ssh -i ~/.ssh/lightsail-noos.pem ubuntu@3.216.129.34 "cd /home/ubuntu/listhub &&
 - `LISTHUB_BASE_URL` — Base URL for hook API calls (default: `http://localhost:3200`)
 - `LISTHUB_PUBLIC_URL` — Public-facing URL for OAuth callbacks (default: `https://listhub.globalbr.ai`)
 - `NOOS_AUTH_URL` — Noos OAuth provider URL (default: `https://globalbr.ai`)
+
+## Deploy Workflow (git pull)
+
+Production now has a git repo tracking `origin/main`. Deploy with:
+
+```bash
+# From Mac mini (develop + push):
+cd /Users/Jacob/listhub && git push origin main
+
+# On production (deploy):
+ssh noos-prod "cd /home/ubuntu/listhub && git pull origin main && sudo systemctl restart listhub"
+
+# One-liner from Mac mini:
+ssh noos-prod "cd /home/ubuntu/listhub && git pull origin main && sudo systemctl restart listhub"
+```
+
+**No more SCP.** All code changes go through git.
+
+### Production Server
+- **Host:** AWS Lightsail (3.216.129.34)
+- **SSH:** `ssh noos-prod`
+- **Code:** `/home/ubuntu/listhub/`
+- **Service:** `listhub` (systemd)
+- **Git remote:** `https://github.com/tmad4000/listhub.git` (main branch)
