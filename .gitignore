@@ -7,3 +7,4 @@ node_modules/
 listhub.db-shm
 listhub.db-wal
 listhub.db
+repos/
