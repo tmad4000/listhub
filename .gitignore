@@ -8,3 +8,7 @@ listhub.db-shm
 listhub.db-wal
 listhub.db
 repos/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
