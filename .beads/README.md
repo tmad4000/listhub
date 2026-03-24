@@ -70,6 +70,15 @@ bd init
 bd create "Try out Beads"
 ```
 
+### First-time setup
+
+After cloning, initialize the database and load the existing issues:
+
+```bash
+bd init
+bd import .beads/issues.jsonl
+```
+
 ## Learn More
 
 - **Documentation**: [github.com/steveyegge/beads/docs](https://github.com/steveyegge/beads/tree/main/docs)
