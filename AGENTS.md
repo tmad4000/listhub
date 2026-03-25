@@ -2,6 +2,15 @@
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
+## Feature Parity Rule
+
+Every feature must ship with API, UI, and docs together — no API-only or UI-only features.
+
+When you add, change, or remove a feature:
+1. Implement both the API endpoint and the UI
+2. Update `templates/api_docs.html` to reflect any API changes
+3. Update the Feature Status table in `README.md`
+
 ## Quick Reference
 
 ```bash
