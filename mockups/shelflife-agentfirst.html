@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShelfLife — Agent-First Reading Platform</title>
+<style>
+  :root {
+    --bg-primary: #0a0f0a;
+    --bg-secondary: #111a11;
+    --bg-tertiary: #162016;
+    --bg-card: #1a2a1a;
+    --bg-card-hover: #1f321f;
+    --accent: #4ade80;
+    --accent-dim: #22c55e;
+    --accent-dark: #166534;
+    --accent-glow: rgba(74, 222, 128, 0.15);
+    --accent-glow-strong: rgba(74, 222, 128, 0.3);
+    --text-primary: #e8f0e8;
+    --text-secondary: #9cb89c;
+    --text-muted: #5a7a5a;
+    --border: #2a3f2a;
+    --border-light: #3a5a3a;
+    --gold: #fbbf24;
+    --gold-dim: #d97706;
+    --danger: #ef4444;
+    --info: #38bdf8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ========== CONCEPT BANNER ========== */
+  .concept-banner {
+    background: linear-gradient(135deg, var(--accent-dark), #1a4a2e);
+    border-bottom: 2px solid var(--accent);
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+  .concept-banner span {
+    opacity: 0.7;
+  }
+
+  /* ========== AGENT BAR ========== */
+  .agent-bar {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    position: sticky;
+    top: 38px;
+    z-index: 999;
+  }
+  .agent-bar-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 56px;
+  }
+  .agent-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-dark);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .agent-pulse {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--accent); }
+    50% { opacity: 0.4; box-shadow: 0 0 8px var(--accent); }
+  }
+  .agent-context {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .agent-context code {
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--accent);
+    border: 1px solid var(--border);
+  }
+  .agent-actions {
+    display: flex; gap: 8px; flex-shrink: 0;
+  }
+  .agent-action-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    transition: all 0.2s;
+  }
+  .agent-action-btn:hover {
+    border-color: var(--accent-dark);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .agent-action-btn.primary {
+    background: var(--accent-dark);
+    border-color: var(--accent-dim);
+    color: #fff;
+  }
+  .agent-action-btn.primary:hover {
+    background: var(--accent-dim);
+  }
+
+  /* ========== HEADER / NAV ========== */
+  .site-header {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .logo-text {
+    font-size: 22px; font-weight: 700;
+    color: var(--text-primary);
+  }
+  .logo-text span { color: var(--accent); }
+  .nav-links {
+    display: flex; gap: 24px; list-style: none;
+  }
+  .nav-links a {
+    color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+  .user-area {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .avatar {
+    width: 32px; height: 32px;
+    background: var(--accent-dark);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: var(--accent);
+  }
+
+  /* ========== MAIN CONTENT ========== */
+  .main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  /* ========== HERO / ONBOARDING ========== */
+  .hero {
+    background: linear-gradient(160deg, var(--bg-tertiary), var(--bg-secondary));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px;
+    margin-bottom: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -20%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero h1 {
+    font-size: 36px; font-weight: 800; margin-bottom: 12px;
+    position: relative;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero .subtitle {
+    font-size: 18px; color: var(--text-secondary); margin-bottom: 32px;
+    max-width: 600px; position: relative;
+  }
+
+  .onboarding-box {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+    max-width: 700px;
+  }
+  .onboarding-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--accent); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .onboarding-prompt {
+    font-size: 15px; color: var(--text-primary); margin-bottom: 16px;
+    padding: 14px 18px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    line-height: 1.5;
+  }
+  .onboarding-prompt .agent-cmd {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .onboarding-alts {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .onboarding-alt {
+    padding: 6px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .onboarding-alt:hover {
+    border-color: var(--accent-dark);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  /* ========== SECTION HEADERS ========== */
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .section-header h2 {
+    font-size: 20px; font-weight: 700;
+  }
+  .section-header h2 .count {
+    font-size: 14px; color: var(--text-muted); font-weight: 400; margin-left: 8px;
+  }
+  .section-subtitle {
+    font-size: 13px; color: var(--text-muted); margin-top: 2px;
+  }
+  .section-agent-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .section-agent-hint .dot {
+    width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
+  }
+
+  /* ========== BOOK GRID ========== */
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  .book-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .book-card:hover {
+    border-color: var(--border-light);
+    background: var(--bg-card-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .book-cover {
+    width: 100%;
+    height: 180px;
+    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+    border-radius: 8px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .book-cover .spine {
+    position: absolute;
+    left: 0; top: 0; bottom: 0; width: 6px;
+    border-radius: 8px 0 0 8px;
+  }
+  .book-genre {
+    position: absolute;
+    top: 8px; right: 8px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(0,0,0,0.6);
+    color: var(--text-secondary);
+  }
+  .book-title {
+    font-size: 16px; font-weight: 700; margin-bottom: 4px;
+    color: var(--text-primary);
+  }
+  .book-author {
+    font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;
+  }
+  .book-meta {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .book-rating {
+    display: flex; align-items: center; gap: 3px;
+  }
+  .star { color: var(--gold); font-size: 12px; }
+  .star.empty { color: var(--text-muted); }
+  .book-pages { display: flex; align-items: center; gap: 4px; }
+
+  .book-actions {
+    display: flex; gap: 6px; margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .book-action {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    text-align: center;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .book-action:hover {
+    border-color: var(--accent-dark);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .book-action.agent {
+    border-color: var(--accent-dark);
+    background: var(--accent-glow);
+    color: var(--accent);
+  }
+  .book-action.agent:hover {
+    background: var(--accent-glow-strong);
+  }
+
+  /* ========== WORKFLOW DEMO ========== */
+  .workflow-section {
+    margin-bottom: 48px;
+  }
+  .workflow-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .workflow-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .workflow-panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .workflow-panel-header.conversation { color: var(--accent); }
+  .workflow-panel-header.result { color: var(--info); }
+  .workflow-panel-body {
+    padding: 20px;
+  }
+
+  .chat-message {
+    margin-bottom: 16px;
+    display: flex;
+    gap: 12px;
+  }
+  .chat-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+  }
+  .chat-avatar.user {
+    background: var(--accent-dark);
+    color: var(--accent);
+  }
+  .chat-avatar.agent {
+    background: #1e3a5f;
+    color: var(--info);
+  }
+  .chat-bubble {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 85%;
+  }
+  .chat-bubble.user-msg {
+    background: var(--accent-dark);
+    color: var(--text-primary);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-bubble.agent-msg {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-bubble .action-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-dark);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 4px 4px 4px 0;
+  }
+  .chat-bubble .api-call {
+    display: block;
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .chat-bubble .api-call .method {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .chat-bubble .api-call .url {
+    color: var(--info);
+  }
+
+  .result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .result-card .label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .result-card .value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .result-card .detail {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .result-card .status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  .status-badge.success {
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-dark);
+    color: var(--accent);
+  }
+  .status-badge.info {
+    background: rgba(56,189,248,0.15);
+    border: 1px solid rgba(56,189,248,0.3);
+    color: var(--info);
+  }
+
+  /* ========== API REFERENCE ========== */
+  .api-section {
+    margin-bottom: 48px;
+  }
+  .api-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 16px;
+  }
+  .api-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .api-card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .api-method {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .api-method.get { background: rgba(56,189,248,0.2); color: var(--info); }
+  .api-method.post { background: var(--accent-glow); color: var(--accent); }
+  .api-method.put { background: rgba(251,191,36,0.2); color: var(--gold); }
+  .api-method.delete { background: rgba(239,68,68,0.2); color: var(--danger); }
+  .api-path {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  .api-card-body {
+    padding: 14px 18px;
+  }
+  .api-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+  .api-example {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .api-example .key { color: var(--info); }
+  .api-example .str { color: var(--accent); }
+  .api-example .num { color: var(--gold); }
+  .api-example .comment { color: var(--text-muted); font-style: italic; }
+
+  /* ========== MY SHELF (Logged-in view) ========== */
+  .shelf-section { margin-bottom: 48px; }
+  .shelf-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+  }
+  .stat-number {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent);
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  .reading-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .reading-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.2s;
+  }
+  .reading-item:hover {
+    border-color: var(--border-light);
+    background: var(--bg-card-hover);
+  }
+  .reading-cover-sm {
+    width: 48px; height: 68px;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .reading-cover-sm .spine-sm {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    border-radius: 4px 0 0 4px;
+  }
+  .reading-info { flex: 1; }
+  .reading-title { font-size: 15px; font-weight: 600; }
+  .reading-author-sm { font-size: 13px; color: var(--text-secondary); }
+  .reading-progress {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 6px;
+  }
+  .progress-bar {
+    width: 120px; height: 4px;
+    background: var(--bg-primary);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .progress-text {
+    font-size: 11px; color: var(--text-muted);
+  }
+  .reading-status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .reading-status.reading {
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-dark);
+    color: var(--accent);
+  }
+  .reading-status.want {
+    background: rgba(56,189,248,0.15);
+    border: 1px solid rgba(56,189,248,0.3);
+    color: var(--info);
+  }
+  .reading-status.finished {
+    background: rgba(251,191,36,0.15);
+    border: 1px solid rgba(251,191,36,0.3);
+    color: var(--gold);
+  }
+  .reading-agent-actions {
+    display: flex; gap: 6px; flex-shrink: 0;
+  }
+  .reading-agent-btn {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .reading-agent-btn:hover {
+    border-color: var(--accent-dark);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  /* ========== AGENT FEATURES GRID ========== */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  .feature-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+  }
+  .feature-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+  .feature-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .feature-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .feature-prompt {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    text-align: left;
+  }
+
+  /* ========== FOOTER ========== */
+  .footer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .footer a:hover { text-decoration: underline; }
+
+  /* ========== RESPONSIVE ========== */
+  @media (max-width: 768px) {
+    .hero { padding: 28px 20px; }
+    .hero h1 { font-size: 26px; }
+    .workflow-container { grid-template-columns: 1fr; }
+    .api-grid { grid-template-columns: 1fr; }
+    .shelf-stats { grid-template-columns: repeat(2, 1fr); }
+    .features-grid { grid-template-columns: 1fr; }
+    .book-grid { grid-template-columns: 1fr; }
+    .agent-context { display: none; }
+  }
+
+  /* ========== UTILITY ========== */
+  .mb-48 { margin-bottom: 48px; }
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== CONCEPT BANNER ====== -->
+<div class="concept-banner">
+  Concept Mockup <span>&mdash;</span> ShelfLife as an Agent-First Reading Platform
+</div>
+
+<!-- ====== PERSISTENT AGENT BAR ====== -->
+<div class="agent-bar">
+  <div class="agent-bar-inner">
+    <div class="agent-indicator">
+      <div class="agent-pulse"></div>
+      Agent Ready
+    </div>
+    <div class="agent-context">
+      Browsing <strong>Discover</strong> &mdash; Try: <code>"Find me a short sci-fi novel about AI consciousness"</code>
+    </div>
+    <div class="agent-actions">
+      <button class="agent-action-btn">View Shelf</button>
+      <button class="agent-action-btn">Reading Stats</button>
+      <button class="agent-action-btn primary">+ Add Book</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SITE HEADER ====== -->
+<header class="site-header">
+  <div class="logo">
+    <div class="logo-icon">&#128218;</div>
+    <div class="logo-text">Shelf<span>Life</span></div>
+  </div>
+  <nav>
+    <ul class="nav-links">
+      <li><a href="#" class="active">Discover</a></li>
+      <li><a href="#">My Shelf</a></li>
+      <li><a href="#">Lists</a></li>
+      <li><a href="#">Community</a></li>
+      <li><a href="#">API</a></li>
+    </ul>
+  </nav>
+  <div class="user-area">
+    <div class="avatar">JC</div>
+  </div>
+</header>
+
+<!-- ====== MAIN CONTENT ====== -->
+<main class="main">
+
+  <!-- ====== HERO / ONBOARDING ====== -->
+  <section class="hero">
+    <h1>Your reading life, <span>agent-powered</span></h1>
+    <p class="subtitle">
+      ShelfLife is built for AI agents. Track books, get recommendations, share lists &mdash;
+      all through natural language. Your agent handles the busywork; you do the reading.
+    </p>
+    <div class="onboarding-box">
+      <div class="onboarding-label">
+        <div class="agent-pulse"></div>
+        Get Started &mdash; Tell Your Agent
+      </div>
+      <div class="onboarding-prompt">
+        <span class="agent-cmd">"Sign me up for ShelfLife as @jacobc, then import my Goodreads
+export from ~/Downloads/goodreads_library_export.csv and mark anything
+I rated 5 stars as a favorite."</span>
+      </div>
+      <div class="onboarding-alts">
+        <span class="onboarding-alt">"Create my account and add The Three-Body Problem to my shelf"</span>
+        <span class="onboarding-alt">"Find popular sci-fi books published this year"</span>
+        <span class="onboarding-alt">"What are people reading in the AI/tech community?"</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== MY SHELF (Dashboard) ====== -->
+  <section class="shelf-section">
+    <div class="section-header">
+      <div>
+        <h2>My Shelf <span class="count">47 books</span></h2>
+        <div class="section-subtitle">Your personal reading tracker</div>
+      </div>
+      <div class="section-agent-hint">
+        <div class="dot"></div>
+        "Update my progress on Dune &mdash; I'm on page 312"
+      </div>
+    </div>
+
+    <div class="shelf-stats">
+      <div class="stat-card">
+        <div class="stat-number">12</div>
+        <div class="stat-label">Currently Reading</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">28</div>
+        <div class="stat-label">Finished This Year</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">7</div>
+        <div class="stat-label">Want to Read</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">4.2</div>
+        <div class="stat-label">Avg Rating Given</div>
+      </div>
+    </div>
+
+    <div class="reading-list">
+      <!-- Item 1 -->
+      <div class="reading-item">
+        <div class="reading-cover-sm" style="background: linear-gradient(135deg, #1a2f4a, #0f1f3a);">
+          <div class="spine-sm" style="background: #38bdf8;"></div>
+          &#127758;
+        </div>
+        <div class="reading-info">
+          <div class="reading-title">The Dispossessed</div>
+          <div class="reading-author-sm">Ursula K. Le Guin</div>
+          <div class="reading-progress">
+            <div class="progress-bar"><div class="progress-fill" style="width: 72%;"></div></div>
+            <span class="progress-text">72% &middot; p.267 of 371</span>
+          </div>
+        </div>
+        <span class="reading-status reading">Reading</span>
+        <div class="reading-agent-actions">
+          <button class="reading-agent-btn" title="Ask agent about this book">&#9733; Rate</button>
+          <button class="reading-agent-btn" title="Get similar recommendations">Similar</button>
+          <button class="reading-agent-btn" title="Agent actions">&#8943;</button>
+        </div>
+      </div>
+
+      <!-- Item 2 -->
+      <div class="reading-item">
+        <div class="reading-cover-sm" style="background: linear-gradient(135deg, #2a1a0a, #3a2a15);">
+          <div class="spine-sm" style="background: #fbbf24;"></div>
+          &#128293;
+        </div>
+        <div class="reading-info">
+          <div class="reading-title">Dune</div>
+          <div class="reading-author-sm">Frank Herbert</div>
+          <div class="reading-progress">
+            <div class="progress-bar"><div class="progress-fill" style="width: 55%;"></div></div>
+            <span class="progress-text">55% &middot; p.312 of 568</span>
+          </div>
+        </div>
+        <span class="reading-status reading">Reading</span>
+        <div class="reading-agent-actions">
+          <button class="reading-agent-btn">&#9733; Rate</button>
+          <button class="reading-agent-btn">Similar</button>
+          <button class="reading-agent-btn">&#8943;</button>
+        </div>
+      </div>
+
+      <!-- Item 3 -->
+      <div class="reading-item">
+        <div class="reading-cover-sm" style="background: linear-gradient(135deg, #1f0a2a, #2a153a);">
+          <div class="spine-sm" style="background: #a78bfa;"></div>
+          &#129302;
+        </div>
+        <div class="reading-info">
+          <div class="reading-title">Klara and the Sun</div>
+          <div class="reading-author-sm">Kazuo Ishiguro</div>
+        </div>
+        <span class="reading-status want">Want to Read</span>
+        <div class="reading-agent-actions">
+          <button class="reading-agent-btn">Start</button>
+          <button class="reading-agent-btn">Similar</button>
+          <button class="reading-agent-btn">&#8943;</button>
+        </div>
+      </div>
+
+      <!-- Item 4 -->
+      <div class="reading-item">
+        <div class="reading-cover-sm" style="background: linear-gradient(135deg, #0a2a1a, #153a2a);">
+          <div class="spine-sm" style="background: #4ade80;"></div>
+          &#127793;
+        </div>
+        <div class="reading-info">
+          <div class="reading-title">Braiding Sweetgrass</div>
+          <div class="reading-author-sm">Robin Wall Kimmerer</div>
+          <div class="reading-progress">
+            <div class="progress-bar"><div class="progress-fill" style="width: 100%;"></div></div>
+            <span class="progress-text">Finished &middot; Mar 14, 2026</span>
+          </div>
+        </div>
+        <span class="reading-status finished">Finished</span>
+        <div class="reading-agent-actions">
+          <button class="reading-agent-btn">&#9733; Rate</button>
+          <button class="reading-agent-btn">Review</button>
+          <button class="reading-agent-btn">&#8943;</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ====== DISCOVER BOOKS ====== -->
+  <section class="mb-48">
+    <div class="section-header">
+      <div>
+        <h2>Discover</h2>
+        <div class="section-subtitle">Staff picks and community favorites</div>
+      </div>
+      <div class="section-agent-hint">
+        <div class="dot"></div>
+        "Recommend something like Borges but more accessible"
+      </div>
+    </div>
+
+    <div class="book-grid">
+      <!-- Book 1 -->
+      <div class="book-card">
+        <div class="book-cover" style="background: linear-gradient(160deg, #1a1a3a, #0f0f2a);">
+          <div class="spine" style="background: #818cf8;"></div>
+          <span class="book-genre">Sci-Fi</span>
+          &#128752;
+        </div>
+        <div class="book-title">Project Hail Mary</div>
+        <div class="book-author">Andy Weir</div>
+        <div class="book-meta">
+          <div class="book-rating">
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span style="color: var(--text-muted); margin-left: 4px;">4.8</span>
+          </div>
+          <div class="book-pages">476 pp</div>
+        </div>
+        <div class="book-actions">
+          <button class="book-action">+ My Shelf</button>
+          <button class="book-action">Want to Read</button>
+          <button class="book-action agent">&#129302; Ask Agent</button>
+        </div>
+      </div>
+
+      <!-- Book 2 -->
+      <div class="book-card">
+        <div class="book-cover" style="background: linear-gradient(160deg, #2a1a0a, #1f1008);">
+          <div class="spine" style="background: #f59e0b;"></div>
+          <span class="book-genre">Philosophy</span>
+          &#129504;
+        </div>
+        <div class="book-title">Godel, Escher, Bach</div>
+        <div class="book-author">Douglas Hofstadter</div>
+        <div class="book-meta">
+          <div class="book-rating">
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star empty">&#9733;</span>
+            <span style="color: var(--text-muted); margin-left: 4px;">4.3</span>
+          </div>
+          <div class="book-pages">777 pp</div>
+        </div>
+        <div class="book-actions">
+          <button class="book-action">+ My Shelf</button>
+          <button class="book-action">Want to Read</button>
+          <button class="book-action agent">&#129302; Ask Agent</button>
+        </div>
+      </div>
+
+      <!-- Book 3 -->
+      <div class="book-card">
+        <div class="book-cover" style="background: linear-gradient(160deg, #0a2a1a, #081f10);">
+          <div class="spine" style="background: #4ade80;"></div>
+          <span class="book-genre">Nature</span>
+          &#127807;
+        </div>
+        <div class="book-title">The Hidden Life of Trees</div>
+        <div class="book-author">Peter Wohlleben</div>
+        <div class="book-meta">
+          <div class="book-rating">
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star empty">&#9733;</span>
+            <span style="color: var(--text-muted); margin-left: 4px;">4.1</span>
+          </div>
+          <div class="book-pages">288 pp</div>
+        </div>
+        <div class="book-actions">
+          <button class="book-action">+ My Shelf</button>
+          <button class="book-action">Want to Read</button>
+          <button class="book-action agent">&#129302; Ask Agent</button>
+        </div>
+      </div>
+
+      <!-- Book 4 -->
+      <div class="book-card">
+        <div class="book-cover" style="background: linear-gradient(160deg, #2a0a1a, #1f0810);">
+          <div class="spine" style="background: #fb7185;"></div>
+          <span class="book-genre">Fiction</span>
+          &#127754;
+        </div>
+        <div class="book-title">Piranesi</div>
+        <div class="book-author">Susanna Clarke</div>
+        <div class="book-meta">
+          <div class="book-rating">
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span class="star">&#9733;</span>
+            <span style="color: var(--text-muted); margin-left: 4px;">4.6</span>
+          </div>
+          <div class="book-pages">272 pp</div>
+        </div>
+        <div class="book-actions">
+          <button class="book-action">+ My Shelf</button>
+          <button class="book-action">Want to Read</button>
+          <button class="book-action agent">&#129302; Ask Agent</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ====== WORKFLOW DEMO ====== -->
+  <section class="workflow-section">
+    <div class="section-header">
+      <div>
+        <h2>How It Works</h2>
+        <div class="section-subtitle">A real agent interaction with ShelfLife</div>
+      </div>
+    </div>
+
+    <div class="workflow-container">
+      <!-- Left: Conversation -->
+      <div class="workflow-panel">
+        <div class="workflow-panel-header conversation">
+          <div class="agent-pulse"></div>
+          Agent Conversation
+        </div>
+        <div class="workflow-panel-body">
+
+          <div class="chat-message">
+            <div class="chat-avatar user">J</div>
+            <div class="chat-bubble user-msg">
+              Add "The Dispossessed" by Le Guin to my shelf, rate it 5 stars, and find me 3 similar books about utopian societies in science fiction.
+            </div>
+          </div>
+
+          <div class="chat-message">
+            <div class="chat-avatar agent">S</div>
+            <div class="chat-bubble agent-msg">
+              On it. Let me do three things:
+              <br><br>
+              <span class="action-tag">SEARCH</span> Looking up "The Dispossessed" by Ursula K. Le Guin...
+              <div class="api-call"><span class="method">GET</span> <span class="url">/api/v1/books/search?q=dispossessed+le+guin</span></div>
+
+              <br>
+              <span class="action-tag">ADD</span> Adding to your shelf with 5-star rating...
+              <div class="api-call"><span class="method">POST</span> <span class="url">/api/v1/users/jacobc/shelf</span>
+{  "book_id": "isbn:0061054887",
+   "status": "reading",
+   "rating": 5  }</div>
+
+              <br>
+              <span class="action-tag">DISCOVER</span> Finding similar utopian sci-fi...
+              <div class="api-call"><span class="method">GET</span> <span class="url">/api/v1/books/isbn:0061054887/similar?tags=utopia&limit=3</span></div>
+            </div>
+          </div>
+
+          <div class="chat-message">
+            <div class="chat-avatar agent">S</div>
+            <div class="chat-bubble agent-msg">
+              Done! <strong>The Dispossessed</strong> is on your shelf with 5 stars. Here are 3 similar reads:
+              <br><br>
+              1. <strong>The Left Hand of Darkness</strong> &mdash; Le Guin (same universe, gender/society themes)<br>
+              2. <strong>Woman on the Edge of Time</strong> &mdash; Marge Piercy (utopia vs. dystopia)<br>
+              3. <strong>Ecotopia</strong> &mdash; Ernest Callenbach (ecological utopia, lighter read)
+              <br><br>
+              Want me to add any of these to your "Want to Read" list?
+            </div>
+          </div>
+
+          <div class="chat-message">
+            <div class="chat-avatar user">J</div>
+            <div class="chat-bubble user-msg">
+              Add all three. And create a list called "Utopian Worlds" with all four books.
+            </div>
+          </div>
+
+          <div class="chat-message">
+            <div class="chat-avatar agent">S</div>
+            <div class="chat-bubble agent-msg">
+              <span class="action-tag">BATCH</span> Adding 3 books + creating list...
+              <div class="api-call"><span class="method">POST</span> <span class="url">/api/v1/users/jacobc/lists</span>
+{  "name": "Utopian Worlds",
+   "description": "Sci-fi exploring ideal societies",
+   "books": ["isbn:0061054887", "isbn:0441478123",
+             "isbn:0449210820", "isbn:0960432009"],
+   "visibility": "public"  }</div>
+              <br>
+              All set. "Utopian Worlds" is live with 4 books. <a href="#" style="color: var(--accent);">View list &rarr;</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Right: Results -->
+      <div class="workflow-panel">
+        <div class="workflow-panel-header result">
+          &#128200; What Changed
+        </div>
+        <div class="workflow-panel-body">
+          <div class="result-card">
+            <div class="label">Book Added</div>
+            <div class="value">The Dispossessed</div>
+            <div class="detail">Ursula K. Le Guin &middot; 1974 &middot; 387 pages</div>
+            <span class="status-badge success">&#9733; 5/5 &middot; On Shelf</span>
+          </div>
+          <div class="result-card">
+            <div class="label">Want to Read</div>
+            <div class="value">3 books added</div>
+            <div class="detail">
+              The Left Hand of Darkness<br>
+              Woman on the Edge of Time<br>
+              Ecotopia
+            </div>
+            <span class="status-badge info">Queued</span>
+          </div>
+          <div class="result-card">
+            <div class="label">New List Created</div>
+            <div class="value">Utopian Worlds</div>
+            <div class="detail">4 books &middot; Public &middot; Shareable link generated</div>
+            <span class="status-badge success">Live</span>
+          </div>
+          <div class="result-card">
+            <div class="label">Your Shelf Stats (Updated)</div>
+            <div class="detail" style="display: flex; gap: 16px; margin-top: 6px;">
+              <span><strong style="color: var(--accent);">48</strong> total books</span>
+              <span><strong style="color: var(--gold);">12</strong> five-star</span>
+              <span><strong style="color: var(--info);">3</strong> lists</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ====== AGENT FEATURES ====== -->
+  <section class="mb-48">
+    <div class="section-header">
+      <div>
+        <h2>Agent Superpowers</h2>
+        <div class="section-subtitle">Things your agent can do that buttons can't</div>
+      </div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">&#128270;</div>
+        <div class="feature-title">Semantic Search</div>
+        <div class="feature-desc">
+          Go beyond keyword matching. Your agent understands concepts, themes, and vibes.
+        </div>
+        <div class="feature-prompt">
+          "Find me a book like Piranesi but set in space &mdash; something dreamlike and mysterious"
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">&#128218;</div>
+        <div class="feature-title">Bulk Operations</div>
+        <div class="feature-desc">
+          Import, organize, and manage your entire library in a single request.
+        </div>
+        <div class="feature-prompt">
+          "Import my Kindle highlights and create a 'Best Quotes' list organized by theme"
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">&#129309;</div>
+        <div class="feature-title">Social Discovery</div>
+        <div class="feature-desc">
+          Cross-reference friends' shelves. Find unexpected overlaps and gaps.
+        </div>
+        <div class="feature-prompt">
+          "What has @sarah read that I haven't? Focus on non-fiction she rated 4+"
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">&#128197;</div>
+        <div class="feature-title">Reading Challenges</div>
+        <div class="feature-desc">
+          Set goals, get pacing reminders, and track streaks automatically.
+        </div>
+        <div class="feature-prompt">
+          "Set a goal: 52 books this year, notify me if I fall behind pace"
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">&#128194;</div>
+        <div class="feature-title">Smart Lists</div>
+        <div class="feature-desc">
+          Auto-curated lists that update as your taste evolves over time.
+        </div>
+        <div class="feature-prompt">
+          "Create a list of unread books under 300 pages, sorted by how much I'll probably like them"
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">&#9999;&#65039;</div>
+        <div class="feature-title">Review Drafting</div>
+        <div class="feature-desc">
+          Your agent knows your reading history. It can draft reviews in your voice.
+        </div>
+        <div class="feature-prompt">
+          "Draft a review of Dune comparing it to the other desert novels I've read"
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ====== API REFERENCE ====== -->
+  <section class="api-section">
+    <div class="section-header">
+      <div>
+        <h2>API for Agents</h2>
+        <div class="section-subtitle">Every UI action has a corresponding API endpoint. Agents are first-class citizens.</div>
+      </div>
+      <div class="section-agent-hint">
+        <div class="dot"></div>
+        Base URL: shelflife.app/api/v1
+      </div>
+    </div>
+
+    <div class="api-grid">
+      <!-- Endpoint 1 -->
+      <div class="api-card">
+        <div class="api-card-header">
+          <span class="api-method get">GET</span>
+          <span class="api-path">/books/search</span>
+        </div>
+        <div class="api-card-body">
+          <div class="api-desc">
+            Search by title, author, ISBN, or natural language description. Supports semantic queries.
+          </div>
+          <div class="api-example"><span class="comment"># Semantic search</span>
+<span class="method">GET</span> /api/v1/books/search
+  ?q=<span class="str">short novel about loneliness in space</span>
+  &limit=<span class="num">5</span>
+
+<span class="comment"># Returns ranked results with match_score</span>
+{ <span class="key">"results"</span>: [{
+    <span class="key">"title"</span>: <span class="str">"The Martian"</span>,
+    <span class="key">"author"</span>: <span class="str">"Andy Weir"</span>,
+    <span class="key">"isbn"</span>: <span class="str">"0553418025"</span>,
+    <span class="key">"match_score"</span>: <span class="num">0.94</span>
+  }]
+}</div>
+        </div>
+      </div>
+
+      <!-- Endpoint 2 -->
+      <div class="api-card">
+        <div class="api-card-header">
+          <span class="api-method post">POST</span>
+          <span class="api-path">/users/:id/shelf</span>
+        </div>
+        <div class="api-card-body">
+          <div class="api-desc">
+            Add a book to user's shelf with status, rating, and optional notes. Idempotent by ISBN.
+          </div>
+          <div class="api-example"><span class="method">POST</span> /api/v1/users/jacobc/shelf
+Authorization: Bearer sk_live_...
+
+{
+  <span class="key">"book_id"</span>: <span class="str">"isbn:0553418025"</span>,
+  <span class="key">"status"</span>: <span class="str">"reading"</span>,
+  <span class="key">"rating"</span>: <span class="num">5</span>,
+  <span class="key">"started_at"</span>: <span class="str">"2026-03-20"</span>,
+  <span class="key">"current_page"</span>: <span class="num">142</span>,
+  <span class="key">"notes"</span>: <span class="str">"Recommended by @sarah"</span>
+}</div>
+        </div>
+      </div>
+
+      <!-- Endpoint 3 -->
+      <div class="api-card">
+        <div class="api-card-header">
+          <span class="api-method post">POST</span>
+          <span class="api-path">/users/:id/lists</span>
+        </div>
+        <div class="api-card-body">
+          <div class="api-desc">
+            Create a curated list with description, books, and visibility. Lists are shareable via URL.
+          </div>
+          <div class="api-example"><span class="method">POST</span> /api/v1/users/jacobc/lists
+Authorization: Bearer sk_live_...
+
+{
+  <span class="key">"name"</span>: <span class="str">"Utopian Worlds"</span>,
+  <span class="key">"description"</span>: <span class="str">"Sci-fi exploring ideal societies"</span>,
+  <span class="key">"books"</span>: [<span class="str">"isbn:0061054887"</span>, ...],
+  <span class="key">"visibility"</span>: <span class="str">"public"</span>,
+  <span class="key">"tags"</span>: [<span class="str">"sci-fi"</span>, <span class="str">"utopia"</span>]
+}</div>
+        </div>
+      </div>
+
+      <!-- Endpoint 4 -->
+      <div class="api-card">
+        <div class="api-card-header">
+          <span class="api-method put">PUT</span>
+          <span class="api-path">/users/:id/shelf/:book_id</span>
+        </div>
+        <div class="api-card-body">
+          <div class="api-desc">
+            Update reading progress, status, rating, or notes. Partial updates supported.
+          </div>
+          <div class="api-example"><span class="method">PUT</span> /api/v1/users/jacobc/shelf/isbn:0441013597
+Authorization: Bearer sk_live_...
+
+{
+  <span class="key">"current_page"</span>: <span class="num">312</span>,
+  <span class="key">"status"</span>: <span class="str">"reading"</span>
+}
+
+<span class="comment"># Response includes computed progress</span>
+{ <span class="key">"progress"</span>: <span class="num">0.55</span>,
+  <span class="key">"pages_remaining"</span>: <span class="num">256</span>,
+  <span class="key">"est_days_to_finish"</span>: <span class="num">8</span> }</div>
+        </div>
+      </div>
+
+      <!-- Endpoint 5 -->
+      <div class="api-card">
+        <div class="api-card-header">
+          <span class="api-method get">GET</span>
+          <span class="api-path">/books/:id/similar</span>
+        </div>
+        <div class="api-card-body">
+          <div class="api-desc">
+            Get similar books based on themes, writing style, and community signals. Filter by tags.
+          </div>
+          <div class="api-example"><span class="method">GET</span> /api/v1/books/isbn:0061054887/similar
+  ?tags=<span class="str">utopia,feminist</span>
+  &exclude_read=<span class="num">true</span>
+  &limit=<span class="num">5</span>
+
+<span class="comment"># Excludes books already on user's shelf</span>
+<span class="comment"># Returns similarity_score + explanation</span></div>
+        </div>
+      </div>
+
+      <!-- Endpoint 6 -->
+      <div class="api-card">
+        <div class="api-card-header">
+          <span class="api-method post">POST</span>
+          <span class="api-path">/users/:id/import</span>
+        </div>
+        <div class="api-card-body">
+          <div class="api-desc">
+            Bulk import from Goodreads CSV, Kindle, Libby, StoryGraph, or raw JSON. Deduplicates by ISBN.
+          </div>
+          <div class="api-example"><span class="method">POST</span> /api/v1/users/jacobc/import
+Content-Type: multipart/form-data
+Authorization: Bearer sk_live_...
+
+<span class="key">source</span>: <span class="str">"goodreads"</span>
+<span class="key">file</span>: goodreads_library_export.csv
+<span class="key">auto_rate</span>: <span class="num">true</span>   <span class="comment"># preserve ratings</span>
+<span class="key">auto_shelf</span>: <span class="num">true</span>  <span class="comment"># map shelves to lists</span>
+
+<span class="comment"># Response</span>
+{ <span class="key">"imported"</span>: <span class="num">247</span>,
+  <span class="key">"duplicates_skipped"</span>: <span class="num">3</span>,
+  <span class="key">"lists_created"</span>: [<span class="str">"to-read"</span>, <span class="str">"favorites"</span>] }</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ====== FOOTER ====== -->
+<footer class="footer">
+  <div>
+    ShelfLife &middot; Concept Mockup &middot; <a href="#">Agent-First Design Pattern</a>
+  </div>
+  <div>
+    Built for agents, readable by humans
+  </div>
+</footer>
+
+</body>
+</html>
