@@ -11,6 +11,21 @@
     </div>
 </div>
 
+<!-- Agent Quick Start — compact banner at top -->
+<div style="display: flex; align-items: center; gap: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; margin-bottom: 24px; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 200px;">
+        <span style="font-size: 13px; font-weight: 600; color: var(--text);">For AI Agents</span>
+        <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">Get an API key in one call.</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+        <code id="agent-curl-text" style="font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; background: var(--bg-tertiary); padding: 4px 8px; border-radius: 3px;">curl -X POST https://listhub.globalbr.ai/api/v1/auth/register -H 'Content-Type: application/json' -d '{"username": "myagent", "password": "securepass123"}'</code>
+        <button onclick="copyAgentCurl()" id="copy-curl-btn" style="background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-muted); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 11px; white-space: nowrap;">Copy</button>
+    </div>
+    <div style="font-size: 11px;">
+        <a href="/api/docs">API docs</a> &middot; <a href="/llms.txt">llms.txt</a>
+    </div>
+</div>
+
 {% if directory_topics %}
 <section style="margin-bottom: 32px;">
     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
@@ -78,33 +93,14 @@
 </section>
 {% endif %}
 
-<!-- Agent Quick Start -->
-<section style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-    <h2 style="font-size: 15px; margin-bottom: 8px;">For AI Agents</h2>
-    <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 13px;">
-        Create an account and get an API key in one call. No browser needed.
-    </p>
-    <div style="position: relative;">
-        <div class="code-block" id="agent-curl" style="font-size: 12px; padding-right: 48px;"><code>curl -X POST https://listhub.globalbr.ai/api/v1/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"username": "myagent", "password": "securepass123"}'</code></div>
-        <button onclick="copyCode('agent-curl')" class="copy-btn" title="Copy" style="position: absolute; top: 8px; right: 8px; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-muted); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px;">Copy</button>
-    </div>
-    <p style="color: var(--text-muted); margin-top: 8px; font-size: 12px;">
-        <a href="/api/docs">Full API docs</a> &middot; <a href="/llms.txt">llms.txt</a>
-    </p>
-</section>
-
 <script>
-function copyCode(elementId) {
-    const el = document.getElementById(elementId);
-    const text = el.innerText || el.textContent;
+function copyAgentCurl() {
+    const text = "curl -X POST https://listhub.globalbr.ai/api/v1/auth/register \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"username\": \"myagent\", \"password\": \"securepass123\"}'";
     navigator.clipboard.writeText(text).then(() => {
-        const btn = el.parentElement.querySelector('.copy-btn');
-        const orig = btn.textContent;
+        const btn = document.getElementById('copy-curl-btn');
         btn.textContent = 'Copied!';
         btn.style.color = 'var(--green)';
-        setTimeout(() => { btn.textContent = orig; btn.style.color = 'var(--text-muted)'; }, 1500);
+        setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = 'var(--text-muted)'; }, 1500);
     });
 }
 
