@@ -19,7 +19,7 @@
                 <a href="{{ url_for('views.community') }}">People</a>
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('views.new_item') }}" class="nav-new">+ New</a>
-                    <a href="{{ url_for('views.dashboard') }}">Dashboard</a>
+                    <a href="{{ url_for('views.dashboard') }}">My Lists</a>
                     <div class="nav-dropdown">
                         <button class="nav-dropdown-toggle" onclick="this.parentElement.classList.toggle('open')">
                             @{{ current_user.username }} &#9662;
