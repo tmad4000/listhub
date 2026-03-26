@@ -2,7 +2,7 @@
 {% block title %}Dashboard — ListHub{% endblock %}
 {% block content %}
 <div class="toolbar">
-    <h1>Your Lists</h1>
+    <h1>My Lists</h1>
         <a href="/@{{ current_user.username }}" style="font-size: 13px; color: var(--text-muted);">View public profile &rarr;</a>
     <div style="display: flex; gap: 12px; align-items: center;">
         <form class="search-box" method="get" action="{{ url_for('views.dashboard') }}">
@@ -21,7 +21,7 @@
         <a href="{{ url_for('views.dashboard', visibility='shared', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'shared' %}active{% endif %}">Shared (WIP)</a>
         <a href="{{ url_for('views.dashboard', visibility='private', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'private' %}active{% endif %}">Private</a>
     </div>
-    <div class="view-toggle">
+    <div class="view-toggle" style="opacity: 0.6; font-size: 12px;">
         <a href="{{ url_for('views.dashboard', view='list', visibility=visibility_filter, q=q) }}" class="btn btn-sm {% if view_mode == 'list' %}btn-active{% endif %}" title="List view">List</a>
         <a href="{{ url_for('views.dashboard', view='folders', visibility=visibility_filter, q=q) }}" class="btn btn-sm {% if view_mode == 'folders' %}btn-active{% endif %}" title="Folder view">Folders</a>
     </div>
