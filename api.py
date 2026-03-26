@@ -927,3 +927,217 @@ def delete_key(key_id):
     db.execute("DELETE FROM api_key WHERE id = ? AND user_id = ?", (key_id, current_user.id))
     db.commit()
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Directory API (shared community repo)
+# ---------------------------------------------------------------------------
+
+import os
+import subprocess
+import tempfile
+
+
+def _directory_repo_path():
+    """Return path to the shared directory bare repo."""
+    repo_root = os.environ.get("LISTHUB_REPO_ROOT", "/home/ubuntu/listhub/repos")
+    return os.path.join(repo_root, "directory.git")
+
+
+def _dir_git(repo_path, *args, env=None, input_data=None):
+    """Run a git command on a repo. Returns stdout as string or None on error."""
+    cmd = ["git", "-C", repo_path] + list(args)
+    merged_env = os.environ.copy()
+    if env:
+        merged_env.update(env)
+    result = subprocess.run(cmd, capture_output=True, text=True, env=merged_env, input=input_data)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def _dir_git_bytes(repo_path, *args, env=None, input_bytes=None):
+    """Run a git command with binary input. Returns stdout as bytes or None."""
+    cmd = ["git", "-C", repo_path] + list(args)
+    merged_env = os.environ.copy()
+    if env:
+        merged_env.update(env)
+    result = subprocess.run(cmd, capture_output=True, env=merged_env, input=input_bytes)
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+_DIR_AUTHOR_ENV = {
+    "GIT_AUTHOR_NAME": "ListHub",
+    "GIT_AUTHOR_EMAIL": "directory@listhub",
+    "GIT_COMMITTER_NAME": "ListHub",
+    "GIT_COMMITTER_EMAIL": "directory@listhub",
+}
+
+
+def _dir_commit_file(repo, file_path, content, message, author_name=None, author_email=None):
+    """Write a file to the directory bare repo and commit it."""
+    head = _dir_git(repo, "rev-parse", "--verify", "HEAD")
+    idx = tempfile.mktemp(prefix="listhub-dir-", suffix=".idx")
+    env = {"GIT_INDEX_FILE": idx}
+
+    author_env = dict(_DIR_AUTHOR_ENV)
+    if author_name:
+        author_env["GIT_AUTHOR_NAME"] = author_name
+        author_env["GIT_COMMITTER_NAME"] = author_name
+    if author_email:
+        author_env["GIT_AUTHOR_EMAIL"] = author_email
+        author_env["GIT_COMMITTER_EMAIL"] = author_email
+
+    try:
+        if head:
+            _dir_git(repo, "read-tree", "HEAD", env=env)
+
+        blob = _dir_git_bytes(
+            repo, "hash-object", "-w", "--stdin",
+            input_bytes=content.encode("utf-8"), env=env
+        )
+        if not blob:
+            return None
+        blob_hash = blob.strip().decode()
+
+        _dir_git(repo, "update-index", "--add", "--cacheinfo",
+                 "100644", blob_hash, file_path, env=env)
+
+        new_tree = _dir_git(repo, "write-tree", env=env)
+        if not new_tree:
+            return None
+
+        commit_args = ["commit-tree", new_tree, "-m", message]
+        if head:
+            commit_args[2:2] = ["-p", head]
+
+        new_commit = _dir_git(repo, *commit_args, env={**env, **author_env})
+        if not new_commit:
+            return None
+
+        _dir_git(repo, "update-ref", "refs/heads/main", new_commit)
+        return new_commit
+    finally:
+        if os.path.exists(idx):
+            os.unlink(idx)
+
+
+def _dir_remove_file(repo, file_path, message, author_name=None):
+    """Remove a file from the directory bare repo and commit."""
+    head = _dir_git(repo, "rev-parse", "--verify", "HEAD")
+    if not head:
+        return None
+
+    idx = tempfile.mktemp(prefix="listhub-dir-", suffix=".idx")
+    env = {"GIT_INDEX_FILE": idx}
+
+    author_env = dict(_DIR_AUTHOR_ENV)
+    if author_name:
+        author_env["GIT_AUTHOR_NAME"] = author_name
+        author_env["GIT_COMMITTER_NAME"] = author_name
+
+    try:
+        _dir_git(repo, "read-tree", "HEAD", env=env)
+        _dir_git(repo, "update-index", "--index-info", env=env,
+                 input_data=f"0 0000000000000000000000000000000000000000\t{file_path}\n")
+
+        new_tree = _dir_git(repo, "write-tree", env=env)
+        old_tree = _dir_git(repo, "rev-parse", "--verify", "HEAD^{tree}")
+
+        if new_tree == old_tree:
+            return None
+
+        new_commit = _dir_git(
+            repo, "commit-tree", new_tree, "-p", head, "-m", message,
+            env={**env, **author_env}
+        )
+        if not new_commit:
+            return None
+
+        _dir_git(repo, "update-ref", "refs/heads/main", new_commit)
+        return new_commit
+    finally:
+        if os.path.exists(idx):
+            os.unlink(idx)
+
+
+@api_bp.route("/directory", methods=["GET"])
+def api_directory_tree():
+    """List the community directory tree structure."""
+    repo = _directory_repo_path()
+    if not os.path.isdir(repo):
+        return jsonify({"tree": [], "message": "Directory not initialized"}), 200
+
+    ls_output = _dir_git(repo, "ls-tree", "-r", "--name-only", "HEAD")
+    if not ls_output:
+        return jsonify({"tree": []}), 200
+
+    files = [f for f in ls_output.split("\n") if f]
+    return jsonify({"tree": files}), 200
+
+
+@api_bp.route("/directory/<path:file_path>", methods=["GET"])
+def api_directory_read(file_path):
+    """Read a file from the community directory."""
+    repo = _directory_repo_path()
+    if not os.path.isdir(repo):
+        return jsonify({"error": "Directory not initialized"}), 404
+
+    content = _dir_git(repo, "show", f"HEAD:{file_path}")
+    if content is None:
+        return jsonify({"error": "File not found"}), 404
+
+    return jsonify({"path": file_path, "content": content}), 200
+
+
+@api_bp.route("/directory/<path:file_path>", methods=["PUT"])
+@require_api_auth
+def api_directory_write(file_path):
+    """Create or update a file in the community directory. Any authenticated user can write."""
+    if not api_has_scope("write"):
+        return jsonify({"error": "Write scope required"}), 403
+
+    user = get_current_api_user()
+    data = request.get_json(silent=True) or {}
+    content = data.get("content")
+    message = data.get("message", f"Update {file_path}")
+
+    if content is None:
+        return jsonify({"error": "content field required"}), 400
+
+    repo = _directory_repo_path()
+    if not os.path.isdir(repo):
+        return jsonify({"error": "Directory not initialized"}), 404
+
+    commit = _dir_commit_file(
+        repo, file_path, content, message,
+        author_name=user.username,
+        author_email=f"{user.username}@listhub"
+    )
+    if not commit:
+        return jsonify({"error": "Failed to commit"}), 500
+
+    return jsonify({"ok": True, "path": file_path, "commit": commit}), 200
+
+
+@api_bp.route("/directory/<path:file_path>", methods=["DELETE"])
+@require_api_auth
+def api_directory_delete(file_path):
+    """Remove a file from the community directory."""
+    if not api_has_scope("write"):
+        return jsonify({"error": "Write scope required"}), 403
+
+    user = get_current_api_user()
+    message = f"Remove {file_path} (by {user.username})"
+
+    repo = _directory_repo_path()
+    if not os.path.isdir(repo):
+        return jsonify({"error": "Directory not initialized"}), 404
+
+    commit = _dir_remove_file(repo, file_path, message, author_name=user.username)
+    if not commit:
+        return jsonify({"error": "File not found or already removed"}), 404
+
+    return jsonify({"ok": True, "path": file_path, "commit": commit}), 200

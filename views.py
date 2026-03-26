@@ -661,6 +661,66 @@ def short_link(item_id):
     abort(404)
 
 
+
+@views_bp.route("/directory/edit", methods=["GET", "POST"])
+@views_bp.route("/directory/edit/<path:subpath>", methods=["GET", "POST"])
+@login_required
+def directory_edit(subpath=""):
+    """Web UI for editing community directory files."""
+    repo = _directory_repo()
+    if not os.path.isdir(repo):
+        flash("Directory not initialized.", "error")
+        return redirect(url_for("views.directory"))
+
+    # Determine file path
+    prefix = (subpath.strip("/") + "/") if subpath else ""
+    if subpath.endswith(".md"):
+        file_path = subpath
+    else:
+        file_path = f"{prefix}index.md"
+
+    if request.method == "POST":
+        new_content = request.form.get("content", "")
+        commit_message = request.form.get("message", f"Edit {file_path}").strip()
+        if not commit_message:
+            commit_message = f"Edit {file_path}"
+
+        from api import _directory_repo_path, _dir_commit_file
+        api_repo = _directory_repo_path()
+        commit = _dir_commit_file(
+            api_repo, file_path, new_content,
+            f"{commit_message} (by {current_user.username})",
+            author_name=current_user.username,
+            author_email=f"{current_user.username}@listhub"
+        )
+        if commit:
+            flash("Page updated.", "success")
+        else:
+            flash("Failed to save changes.", "error")
+
+        view_path = subpath if subpath else ""
+        if view_path.endswith("/index.md"):
+            view_path = view_path[:-9]
+        elif view_path.endswith("index.md"):
+            view_path = ""
+        return redirect(url_for("views.directory", subpath=view_path))
+
+    # GET: load current content
+    raw_content = _git_read(repo, "show", f"HEAD:{file_path}")
+    if raw_content is None:
+        raw_content = ""
+
+    title = file_path
+    if subpath:
+        title = subpath.split("/")[-1].replace("-", " ").title()
+
+    return render_template("directory_edit.html",
+                           file_path=file_path,
+                           content=raw_content,
+                           title=title,
+                           subpath=subpath)
+
+
 @views_bp.route("/llms.txt")
 def llms_txt():
     """Machine-readable site description for AI agents (llms.txt standard)."""

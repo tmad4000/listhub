@@ -152,6 +152,37 @@
 
 <p>Save the <code>key</code> value — it cannot be retrieved again.</p>
 
+<h3>Register a new account</h3>
+<p><code>POST /api/v1/auth/register</code> — no authentication required</p>
+<p>Create a new ListHub account and get an API key in a single call. This is the fastest way for an agent to get started — no browser needed.</p>
+
+<div class="code-block"><code>curl -X POST -H "Content-Type: application/json" \
+  -d '{"username": "myagent", "password": "securepass123", "key_name": "my-assistant"}' \
+  https://listhub.globalbr.ai/api/v1/auth/register</code></div>
+
+<p><strong>Fields:</strong></p>
+<ul>
+    <li><code>username</code> — desired username, 2+ alphanumeric characters (required)</li>
+    <li><code>password</code> — account password, 8+ characters (required)</li>
+    <li><code>display_name</code> — display name (optional, defaults to username)</li>
+    <li><code>email</code> — email address (optional)</li>
+    <li><code>key_name</code> — label for the auto-generated API key (default: "api-token")</li>
+    <li><code>scopes</code> — comma-separated scopes (default: "read,write")</li>
+</ul>
+
+<p><strong>Response:</strong> <code>201</code></p>
+<div class="code-block"><code>{
+  "id": "user-id",
+  "username": "myagent",
+  "key": "mem_abc123...",
+  "key_id": "key-id",
+  "key_name": "my-assistant",
+  "scopes": "read,write",
+  "message": "Account created. Save the key - it cannot be retrieved again."
+}</code></div>
+
+<p>Save the <code>key</code> value — it cannot be retrieved again. Use it as <code>Authorization: Bearer mem_abc123...</code> for all subsequent API calls.</p>
+
 <h2>Items</h2>
 
 <h3>List items</h3>
@@ -448,9 +479,17 @@ Your markdown content here...</code></div>
 
 <p>ListHub is designed to be used by AI assistants as a persistent knowledge store. Here's the recommended workflow.</p>
 
-<h3>1. Bootstrap: get an API key</h3>
+<h3>1. Bootstrap: register or authenticate</h3>
 
-<p>Call the token endpoint with the user's credentials. Do this once, then store the key for future use.</p>
+<p>If you don't have an account yet, register one — it creates the account and returns an API key in a single call:</p>
+
+<div class="code-block"><code>curl -X POST -H "Content-Type: application/json" \
+  -d '{"username": "my-agent", "password": "securepass123"}' \
+  https://listhub.globalbr.ai/api/v1/auth/register
+
+<span class="code-comment"># Response: {"username": "my-agent", "key": "mem_abc123...", ...}</span></code></div>
+
+<p>If you already have an account, exchange credentials for a key:</p>
 
 <div class="code-block"><code>curl -X POST -H "Content-Type: application/json" \
   -d '{"username": "alice", "password": "...", "name": "my-assistant"}' \
@@ -600,6 +639,56 @@ git add . && git commit -m "add music category" && git push</code></div>
 
 <div class="code-block"><code><span class="code-comment"># Clone with API key as password</span>
 git clone https://alice:mem_abc123...@listhub.globalbr.ai/git/directory.git</code></div>
+
+<h2>Community Directory API</h2>
+
+<p>The community directory is a shared, collaboratively-edited knowledge structure. Any authenticated user can read, write, and delete files. Changes are committed to the underlying git repo.</p>
+
+<h3>List directory tree</h3>
+<p><code>GET /api/v1/directory</code> — no authentication required</p>
+<p>Returns the full list of file paths in the directory.</p>
+
+<div class="code-block"><code>curl https://listhub.globalbr.ai/api/v1/directory</code></div>
+
+<p><strong>Response:</strong></p>
+<div class="code-block"><code>{"tree": ["index.md", "tech/index.md", "reading/index.md"]}</code></div>
+
+<h3>Read a directory file</h3>
+<p><code>GET /api/v1/directory/:path</code> — no authentication required</p>
+
+<div class="code-block"><code>curl https://listhub.globalbr.ai/api/v1/directory/tech/index.md</code></div>
+
+<p><strong>Response:</strong></p>
+<div class="code-block"><code>{"path": "tech/index.md", "content": "---\ntitle: Tech\n---\n# Tech\n..."}</code></div>
+
+<h3>Create or update a directory file</h3>
+<p><code>PUT /api/v1/directory/:path</code> — requires <code>write</code> scope</p>
+<p>Creates or overwrites a file in the directory. The change is committed to git with the authenticated user as the author.</p>
+
+<div class="code-block"><code>curl -X PUT -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "---\ntitle: Music\n---\n# Music\n\n- [My Playlist](/@alice/playlist)",
+    "message": "Add music category"
+  }' \
+  https://listhub.globalbr.ai/api/v1/directory/music/index.md</code></div>
+
+<p><strong>Fields:</strong></p>
+<ul>
+    <li><code>content</code> — file content, typically markdown with optional YAML frontmatter (required)</li>
+    <li><code>message</code> — git commit message (default: "Update {path}")</li>
+</ul>
+
+<p><strong>Response:</strong></p>
+<div class="code-block"><code>{"ok": true, "path": "music/index.md", "commit": "abc123..."}</code></div>
+
+<h3>Delete a directory file</h3>
+<p><code>DELETE /api/v1/directory/:path</code> — requires <code>write</code> scope</p>
+
+<div class="code-block"><code>curl -X DELETE -H "Authorization: Bearer $KEY" \
+  https://listhub.globalbr.ai/api/v1/directory/music/index.md</code></div>
+
+<p><strong>Response:</strong> <code>{"ok": true, "path": "music/index.md", "commit": "def456..."}</code></p>
 
 <h2>Errors</h2>
 

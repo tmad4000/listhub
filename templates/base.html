@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}ListHub{% endblock %}</title>
+    <meta name="description" content="ListHub — a publishing and sharing layer for notes, lists, and knowledge. Agent-native REST API, Git access, and web UI.">
+    <link rel="llms-txt" href="/llms.txt">
+    <meta name="robots" content="index, follow">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
     <meta name="description" content="ListHub - A publishing and sharing layer for notes, lists, and knowledge. Agent-native REST API for programmatic access. Register, create, search, and collaborate.">
     <link rel="api" href="/api/docs" title="API Documentation">
