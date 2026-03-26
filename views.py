@@ -859,8 +859,9 @@ def mockups_index():
     return send_from_directory(mockups_dir, "index.html")
 
 
+@views_bp.route("/mockups/")
 @views_bp.route("/mockups/<path:filename>")
-def serve_mockup(filename):
+def serve_mockup(filename="index.html"):
     """Serve mockup HTML files from the mockups directory."""
     import os
     from flask import send_from_directory
