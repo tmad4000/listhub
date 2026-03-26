@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ListHub — Workflow-First Homepage Mockup</title>
+    <style>
+        :root {
+            --bg: #0d1117; --bg-secondary: #161b22; --bg-tertiary: #21262d;
+            --border: #30363d; --text: #e6edf3; --text-muted: #8b949e; --text-dim: #484f58;
+            --accent: #58a6ff; --accent-hover: #79c0ff;
+            --green: #3fb950; --orange: #d29922; --purple: #bc8cff; --red: #f85149;
+            --radius: 6px; --max-width: 860px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); }
+        .header { border-bottom: 1px solid var(--border); padding: 12px 0; }
+        .header-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 18px; font-weight: 700; color: var(--text); }
+        .header-nav { display: flex; gap: 16px; align-items: center; }
+        .header-nav a { color: var(--text-muted); font-size: 14px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; font-size: 14px; font-weight: 500; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text); cursor: pointer; text-decoration: none; }
+        .btn:hover { background: #30363d; color: var(--text); }
+        .btn-primary { background: #238636; border-color: rgba(240,246,252,0.1); color: #fff; }
+        .btn-primary:hover { background: #2ea043; color: #fff; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        .mockup-banner { background: linear-gradient(90deg, rgba(210,153,34,0.2) 0%, rgba(248,81,73,0.15) 100%); border-bottom: 1px solid rgba(210,153,34,0.4); padding: 8px 20px; text-align: center; font-size: 13px; color: var(--orange); }
+
+        .hero { text-align: center; padding: 40px 20px 24px; }
+        .hero h1 { font-size: 32px; margin-bottom: 6px; }
+        .hero p { font-size: 17px; color: var(--text-muted); margin-bottom: 0; }
+
+        .demo-section { max-width: 700px; margin: 32px auto 40px; }
+        .demo-label { font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; text-align: center; }
+
+        .demo-terminal { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .demo-titlebar { background: var(--bg-tertiary); padding: 8px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
+        .demo-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .demo-dot-red { background: #ff5f57; }
+        .demo-dot-yellow { background: #febc2e; }
+        .demo-dot-green { background: #28c840; }
+        .demo-titlebar-text { flex: 1; text-align: center; font-size: 12px; color: var(--text-dim); }
+
+        .demo-body { padding: 20px 24px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; line-height: 1.7; }
+
+        .demo-step { margin-bottom: 20px; opacity: 0; animation: fadeInUp 0.5s ease forwards; }
+        .demo-step:nth-child(1) { animation-delay: 0.3s; }
+        .demo-step:nth-child(2) { animation-delay: 1.4s; }
+        .demo-step:nth-child(3) { animation-delay: 2.8s; }
+        .demo-step:nth-child(4) { animation-delay: 4.0s; }
+        .demo-step:nth-child(5) { animation-delay: 5.2s; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .demo-prompt { color: var(--green); }
+        .demo-cmd { color: var(--text); }
+        .demo-comment { color: var(--text-dim); }
+        .demo-output { color: var(--text-muted); margin-top: 4px; }
+        .demo-highlight { color: var(--accent); }
+        .demo-success { color: var(--green); }
+        .demo-key { color: var(--orange); font-size: 11px; background: rgba(210,153,34,0.15); padding: 2px 6px; border-radius: 3px; }
+
+        /* List preview card embedded in terminal */
+        .demo-list-preview {
+            background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 14px 18px; margin-top: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        }
+        .demo-list-title { font-size: 15px; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
+        .demo-list-meta { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
+        .demo-list-items { font-size: 13px; color: var(--text-muted); line-height: 1.8; }
+        .demo-list-items li { list-style: disc; margin-left: 18px; }
+        .demo-list-new { color: var(--green); font-weight: 500; }
+
+        .explain-section { max-width: 680px; margin: 0 auto 40px; }
+        .explain-header { font-size: 16px; font-weight: 600; margin-bottom: 16px; text-align: center; color: var(--text-muted); }
+        .explain-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        .explain-card { padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); text-align: center; }
+        .explain-icon { font-size: 24px; margin-bottom: 8px; }
+        .explain-card h4 { font-size: 13px; margin-bottom: 4px; }
+        .explain-card p { font-size: 12px; color: var(--text-muted); margin: 0; }
+
+        .try-section { max-width: 680px; margin: 0 auto 40px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+        .try-section h3 { font-size: 16px; margin-bottom: 12px; text-align: center; }
+        .try-tabs { display: flex; gap: 4px; margin-bottom: 16px; justify-content: center; }
+        .try-tab { padding: 4px 14px; font-size: 13px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; border: 1px solid transparent; }
+        .try-tab.active { color: var(--text); background: var(--bg-tertiary); border-color: var(--border); }
+        .try-code { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; line-height: 1.6; overflow-x: auto; }
+        .try-code .c { color: var(--text-dim); }
+
+        .items-section { margin-bottom: 40px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .section-header h2 { font-size: 16px; color: var(--text-muted); font-weight: 500; }
+        .item-list { display: flex; flex-direction: column; gap: 1px; }
+        .item-card { padding: 12px 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: -1px; display: flex; justify-content: space-between; align-items: center; }
+        .item-title { font-size: 14px; font-weight: 600; color: var(--accent); }
+        .item-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 10px; margin-top: 2px; }
+        .badge { display: inline-block; padding: 1px 8px; font-size: 11px; font-weight: 500; border-radius: 10px; border: 1px solid; }
+        .badge-list { color: var(--orange); border-color: rgba(210,153,34,0.3); }
+        .badge-note { color: var(--accent); border-color: rgba(88,166,255,0.3); }
+        .badge-document { color: var(--green); border-color: rgba(63,185,80,0.3); }
+        .item-saves { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+
+        .footer { max-width: var(--max-width); margin: 24px auto; padding: 24px 20px; border-top: 1px solid var(--border); text-align: center; font-size: 12px; color: var(--text-dim); }
+
+        @media (max-width: 640px) {
+            .explain-grid { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 26px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="mockup-banner">
+        Design mockup — Workflow-first variant. <a href="/mockups/" style="color: var(--accent);">View all mockups</a>
+    </div>
+
+    <header class="header">
+        <div class="header-inner">
+            <a href="#" class="logo">ListHub</a>
+            <nav class="header-nav">
+                <a href="#">Directory</a>
+                <a href="#">Explore</a>
+                <a href="#">API</a>
+                <a href="#" class="btn btn-sm btn-primary">Sign Up</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="hero">
+        <h1>Your lists, available everywhere.</h1>
+        <p>Tell your agent. It just works.</p>
+    </div>
+
+    <div class="demo-section">
+        <div class="demo-label">See it in action</div>
+        <div class="demo-terminal">
+            <div class="demo-titlebar">
+                <span class="demo-dot demo-dot-red"></span>
+                <span class="demo-dot demo-dot-yellow"></span>
+                <span class="demo-dot demo-dot-green"></span>
+                <span class="demo-titlebar-text">claude</span>
+            </div>
+            <div class="demo-body">
+                <div class="demo-step">
+                    <div><span class="demo-prompt">you:</span> <span class="demo-cmd">Add Dr. Donna Alderman to my Body Masters list on ListHub &mdash; she's great for PRP injections and RSI issues, based in the SF Bay Area</span></div>
+                </div>
+
+                <div class="demo-step">
+                    <div class="demo-output">
+                        <span class="demo-comment"># Claude finds your list and appends the entry</span><br>
+                        <span class="demo-highlight">GET</span> /api/v1/items/by-slug/body-masters &rarr; <span class="demo-success">200</span><br>
+                        <span class="demo-highlight">POST</span> /api/v1/items/xR4n.../append &rarr; <span class="demo-success">200</span>
+                    </div>
+                </div>
+
+                <div class="demo-step">
+                    <div><span class="demo-prompt">claude:</span> <span class="demo-cmd">Added Dr. Donna Alderman to your Body Masters list. Here's what it looks like now:</span></div>
+                    <div class="demo-list-preview">
+                        <div class="demo-list-title">Body Masters</div>
+                        <div class="demo-list-meta">@jacob &middot; list &middot; 6 items &middot; public</div>
+                        <ul class="demo-list-items">
+                            <li>Dr. Sarah Chen &mdash; Sports medicine, shoulder rehab (Palo Alto)</li>
+                            <li>Dr. Mike Torres &mdash; Spine specialist, dry needling (SF)</li>
+                            <li>Kim Nyugen, PT &mdash; RSI-focused physical therapy (Mountain View)</li>
+                            <li>Dr. James Park &mdash; Prolotherapy, joint regeneration (Berkeley)</li>
+                            <li>Emily Zhao, LAc &mdash; Acupuncture for nerve pain (SF)</li>
+                            <li class="demo-list-new">Dr. Donna Alderman &mdash; PRP injections, RSI issues (SF Bay Area) &#x2728; new</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="demo-step">
+                    <div class="demo-output">
+                        View it: <a href="#" style="color: var(--accent);">listhub.globalbr.ai/@jacob/body-masters</a>
+                    </div>
+                </div>
+
+                <div class="demo-step">
+                    <div style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px;">
+                        <span style="color: var(--text-dim); font-size: 12px;">No setup. No browser. Just say what you want.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="explain-section">
+            <div class="explain-header">What just happened</div>
+            <div class="explain-grid">
+                <div class="explain-card">
+                    <div class="explain-icon">&#x1f511;</div>
+                    <h4>Self-service signup</h4>
+                    <p>Agent created an account and API key in one call. No browser needed.</p>
+                </div>
+                <div class="explain-card">
+                    <div class="explain-icon">&#x1f4dd;</div>
+                    <h4>Append to any list</h4>
+                    <p>Found your list by slug and added the entry. Works from any AI agent.</p>
+                </div>
+                <div class="explain-card">
+                    <div class="explain-icon">&#x1f310;</div>
+                    <h4>Instantly published</h4>
+                    <p>Public URL, git-backed, searchable. Share with anyone or keep private.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="try-section">
+            <h3>Try it yourself</h3>
+            <div class="try-tabs">
+                <span class="try-tab active">Tell your agent</span>
+                <span class="try-tab">curl</span>
+            </div>
+            <div class="try-code" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+                <span class="c" style="font-style: italic;">"Create a reading list on ListHub and add The Dispossessed by Ursula K. Le Guin"</span><br><br>
+                <span class="c">That's it. Your agent will register, create the list, and give you the link.</span>
+            </div>
+        </div>
+
+        <div class="items-section">
+            <div class="section-header">
+                <h2>Popular lists</h2>
+                <a href="#" style="font-size: 13px;">Explore all &rarr;</a>
+            </div>
+            <div class="item-list">
+                <div class="item-card">
+                    <div>
+                        <a href="#" class="item-title">Body Masters</a>
+                        <div class="item-meta">
+                            <span>@jacob</span>
+                            <span class="badge badge-list">list</span>
+                            <span>6 items</span>
+                        </div>
+                    </div>
+                    <div class="item-saves">&#9733; 12</div>
+                </div>
+                <div class="item-card">
+                    <div>
+                        <a href="#" class="item-title">Agent Friendly Apps</a>
+                        <div class="item-meta">
+                            <span>@jacobreal</span>
+                            <span class="badge badge-list">list</span>
+                            <span>14 items</span>
+                        </div>
+                    </div>
+                    <div class="item-saves">&#9733; 8</div>
+                </div>
+                <div class="item-card">
+                    <div>
+                        <a href="#" class="item-title">Frontier Open-Source LLM Weights</a>
+                        <div class="item-meta">
+                            <span>@jacobreal</span>
+                            <span class="badge badge-document">document</span>
+                        </div>
+                    </div>
+                    <div class="item-saves">&#9733; 5</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>ListHub &mdash; <a href="#">API Docs</a> &middot; <a href="#">llms.txt</a> &middot; <a href="/mockups/">All Mockups</a></p>
+        <p style="margin-top: 6px;">MOCKUP &mdash; Workflow-first variant, March 2026</p>
+    </footer>
+</body>
+</html>
