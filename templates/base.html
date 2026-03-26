@@ -16,7 +16,7 @@
             <a href="/" class="logo">ListHub</a>
             <nav class="header-nav">
                 <a href="{{ url_for('views.browse') }}">Browse</a>
-                <a href="{{ url_for('views.community') }}">Community</a>
+                <a href="{{ url_for('views.community') }}">People</a>
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('views.new_item') }}" class="nav-new">+ New</a>
                     <a href="{{ url_for('views.dashboard') }}">Dashboard</a>
