@@ -9,9 +9,9 @@
 {% if items %}
 
 <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-    <div class="view-toggle">
-        <a href="/@{{ profile_user.username }}?view=list" class="btn btn-sm {% if view_mode == 'list' %}btn-active{% endif %}" title="List view">List</a>
-        <a href="/@{{ profile_user.username }}?view=folders" class="btn btn-sm {% if view_mode == 'folders' %}btn-active{% endif %}" title="Folder view">Folders</a>
+    <div class="seg-control">
+        <a href="/@{{ profile_user.username }}?view=list" class="{% if view_mode == 'list' %}active{% endif %}">List</a>
+        <a href="/@{{ profile_user.username }}?view=folders" class="{% if view_mode == 'folders' %}active{% endif %}">Folders</a>
     </div>
 </div>
 

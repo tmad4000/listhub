@@ -21,9 +21,9 @@
         <a href="{{ url_for('views.dashboard', visibility='shared', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'shared' %}active{% endif %}">Shared (WIP)</a>
         <a href="{{ url_for('views.dashboard', visibility='private', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'private' %}active{% endif %}">Private</a>
     </div>
-    <div class="view-toggle" style="opacity: 0.6; font-size: 12px;">
-        <a href="{{ url_for('views.dashboard', view='list', visibility=visibility_filter, q=q) }}" class="btn btn-sm {% if view_mode == 'list' %}btn-active{% endif %}" title="List view">List</a>
-        <a href="{{ url_for('views.dashboard', view='folders', visibility=visibility_filter, q=q) }}" class="btn btn-sm {% if view_mode == 'folders' %}btn-active{% endif %}" title="Folder view">Folders</a>
+    <div class="seg-control">
+        <a href="{{ url_for('views.dashboard', view='list', visibility=visibility_filter, q=q) }}" class="{% if view_mode == "list" %}active{% endif %}">List</a>
+        <a href="{{ url_for('views.dashboard', view='folders', visibility=visibility_filter, q=q) }}" class="{% if view_mode == "folders" %}active{% endif %}">Folders</a>
     </div>
 </div>
 
