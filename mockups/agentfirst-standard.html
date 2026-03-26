@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Agent-First Web</title>
+  <meta name="description" content="A standard for websites that work as well for AI agents as they do for humans.">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0a0a12;
+      --bg-secondary: #12121f;
+      --bg-card: #181828;
+      --bg-card-hover: #1e1e32;
+      --border: #2a2a44;
+      --text-primary: #e8e8f0;
+      --text-secondary: #9999b8;
+      --text-muted: #666688;
+      --accent-purple: #8b5cf6;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-bronze: #cd7f32;
+      --accent-silver: #c0c0c0;
+      --accent-gold: #ffd700;
+      --gradient-hero: linear-gradient(135deg, #1a0533 0%, #0f1a3c 30%, #0a1628 60%, #12082a 100%);
+      --gradient-accent: linear-gradient(135deg, #8b5cf6, #3b82f6, #06b6d4);
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+      --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---- NAV ---- */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10,10,18,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+    }
+    nav .nav-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    nav .logo {
+      font-weight: 700; font-size: 1.05rem; letter-spacing: -0.02em;
+      background: var(--gradient-accent); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    nav .nav-links { display: flex; gap: 1.8rem; list-style: none; }
+    nav .nav-links a {
+      color: var(--text-secondary); text-decoration: none; font-size: 0.88rem;
+      font-weight: 500; transition: color 0.2s;
+    }
+    nav .nav-links a:hover { color: var(--text-primary); }
+
+    /* ---- HERO ---- */
+    .hero {
+      position: relative; overflow: hidden;
+      padding: 10rem 2rem 6rem; text-align: center;
+      background: var(--gradient-hero);
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(ellipse at 30% 20%, rgba(139,92,246,0.12) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 60%, rgba(59,130,246,0.08) 0%, transparent 50%),
+                  radial-gradient(ellipse at 50% 80%, rgba(6,182,212,0.06) 0%, transparent 40%);
+      animation: heroGlow 12s ease-in-out infinite alternate;
+    }
+    @keyframes heroGlow {
+      0%   { transform: translate(0, 0) rotate(0deg); }
+      50%  { transform: translate(-3%, 2%) rotate(1deg); }
+      100% { transform: translate(2%, -1%) rotate(-1deg); }
+    }
+    .hero-content { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; }
+    .hero-badge {
+      display: inline-block;
+      padding: 0.35rem 1rem; margin-bottom: 1.5rem;
+      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--accent-purple); border: 1px solid rgba(139,92,246,0.3);
+      border-radius: 100px; background: rgba(139,92,246,0.08);
+    }
+    .hero h1 {
+      font-size: clamp(2.8rem, 6vw, 4.2rem);
+      font-weight: 800; letter-spacing: -0.03em;
+      line-height: 1.1; margin-bottom: 1.2rem;
+      background: linear-gradient(135deg, #e8e8f0 30%, #8b5cf6 60%, #3b82f6 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero .tagline {
+      font-size: 1.25rem; color: var(--text-secondary);
+      max-width: 600px; margin: 0 auto 2.5rem; line-height: 1.6;
+    }
+    .hero-ctas { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.8rem 1.8rem; border-radius: 10px;
+      font-size: 0.95rem; font-weight: 600; text-decoration: none;
+      transition: all 0.25s ease; cursor: pointer; border: none;
+    }
+    .btn-primary {
+      background: var(--gradient-accent); color: #fff;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.25);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 28px rgba(139,92,246,0.4);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06); color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(139,92,246,0.4);
+    }
+
+    /* ---- SECTIONS ---- */
+    section { padding: 5rem 2rem; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .section-label {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--accent-purple); margin-bottom: 0.6rem;
+    }
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.4rem);
+      font-weight: 800; letter-spacing: -0.025em;
+      margin-bottom: 1rem; line-height: 1.2;
+    }
+    .section-subtitle {
+      font-size: 1.05rem; color: var(--text-secondary);
+      max-width: 640px; margin-bottom: 2.5rem; line-height: 1.7;
+    }
+
+    /* ---- PROBLEM SECTION ---- */
+    #problem { background: var(--bg-secondary); }
+    .comparison {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    @media (max-width: 700px) { .comparison { grid-template-columns: 1fr; } }
+    .compare-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2rem; position: relative; overflow: hidden;
+    }
+    .compare-card.bad { border-color: rgba(239,68,68,0.25); }
+    .compare-card.good { border-color: rgba(16,185,129,0.25); }
+    .compare-card .label {
+      display: inline-block; padding: 0.2rem 0.7rem; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; margin-bottom: 1rem;
+    }
+    .compare-card.bad .label { background: rgba(239,68,68,0.12); color: #ef4444; }
+    .compare-card.good .label { background: rgba(16,185,129,0.12); color: #10b981; }
+    .compare-card h3 { font-size: 1.15rem; margin-bottom: 1rem; font-weight: 700; }
+    .compare-card ul { list-style: none; }
+    .compare-card ul li {
+      padding: 0.45rem 0; font-size: 0.92rem; color: var(--text-secondary);
+      display: flex; align-items: flex-start; gap: 0.6rem;
+    }
+    .compare-card ul li .icon { flex-shrink: 0; font-size: 0.85rem; margin-top: 2px; }
+    .compare-card.bad ul li .icon { color: #ef4444; }
+    .compare-card.good ul li .icon { color: #10b981; }
+
+    /* ---- TIERS ---- */
+    .tiers { display: grid; gap: 2rem; margin-top: 2rem; }
+    .tier-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2.2rem 2.4rem;
+      display: grid; grid-template-columns: 72px 1fr; gap: 1.5rem;
+      align-items: start; transition: border-color 0.3s;
+    }
+    .tier-card:hover { border-color: rgba(139,92,246,0.3); }
+    .tier-icon {
+      width: 72px; height: 72px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; font-weight: 800;
+    }
+    .tier-card.bronze .tier-icon { background: rgba(205,127,50,0.12); color: var(--accent-bronze); }
+    .tier-card.silver .tier-icon { background: rgba(192,192,192,0.1); color: var(--accent-silver); }
+    .tier-card.gold .tier-icon { background: rgba(255,215,0,0.1); color: var(--accent-gold); }
+    .tier-body h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.15rem; }
+    .tier-body .tier-name { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem; font-weight: 500; }
+    .checklist { list-style: none; }
+    .checklist li {
+      padding: 0.35rem 0; font-size: 0.92rem; color: var(--text-secondary);
+      display: flex; align-items: flex-start; gap: 0.55rem;
+    }
+    .checklist .check { color: var(--accent-green); flex-shrink: 0; font-weight: 700; font-size: 0.9rem; margin-top: 1px; }
+    @media (max-width: 600px) {
+      .tier-card { grid-template-columns: 1fr; }
+      .tier-icon { width: 52px; height: 52px; font-size: 1.3rem; }
+    }
+
+    /* ---- EXAMPLES ---- */
+    #examples { background: var(--bg-secondary); }
+    .examples-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2rem; }
+    @media (max-width: 800px) { .examples-grid { grid-template-columns: 1fr; } }
+    .example-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; transition: all 0.3s;
+      text-decoration: none; color: inherit;
+    }
+    .example-card:hover { border-color: rgba(139,92,246,0.4); transform: translateY(-3px); }
+    .example-preview {
+      height: 180px; display: flex; align-items: center; justify-content: center;
+      font-size: 3rem; position: relative;
+    }
+    .example-preview.listhub { background: linear-gradient(135deg, #1a1a2e, #16213e); }
+    .example-preview.shelflife { background: linear-gradient(135deg, #1a2e1a, #162e16); }
+    .example-preview.yours { background: linear-gradient(135deg, #2e1a2e, #2e162e); }
+    .example-preview .preview-label {
+      position: absolute; bottom: 0.8rem; right: 0.8rem;
+      font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-muted);
+      background: rgba(0,0,0,0.4); padding: 0.2rem 0.6rem; border-radius: 4px;
+    }
+    .example-body { padding: 1.2rem 1.4rem; }
+    .example-body h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .example-body p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+    .example-body .tier-badge {
+      display: inline-block; margin-top: 0.7rem;
+      font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.55rem;
+      border-radius: 4px; letter-spacing: 0.04em;
+    }
+    .tier-badge.gold-badge { background: rgba(255,215,0,0.12); color: var(--accent-gold); }
+    .tier-badge.silver-badge { background: rgba(192,192,192,0.1); color: var(--accent-silver); }
+    .tier-badge.coming { background: rgba(139,92,246,0.1); color: var(--accent-purple); }
+
+    /* ---- HOW-TO ---- */
+    .steps { counter-reset: step; margin-top: 2rem; }
+    .step {
+      counter-increment: step;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2rem 2.2rem; margin-bottom: 1.5rem;
+      position: relative;
+    }
+    .step::before {
+      content: counter(step);
+      position: absolute; top: -0.7rem; left: 1.8rem;
+      width: 1.6rem; height: 1.6rem; border-radius: 50%;
+      background: var(--gradient-accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 800;
+    }
+    .step h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.6rem; }
+    .step p { font-size: 0.92rem; color: var(--text-secondary); margin-bottom: 1rem; }
+    pre {
+      background: #0d0d18; border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.2rem 1.5rem;
+      overflow-x: auto; font-family: var(--font-mono);
+      font-size: 0.82rem; line-height: 1.65; color: var(--text-secondary);
+    }
+    pre .comment { color: var(--text-muted); }
+    pre .key { color: var(--accent-purple); }
+    pre .string { color: var(--accent-green); }
+    pre .url { color: var(--accent-cyan); }
+    pre .cmd { color: var(--accent-amber); }
+
+    /* ---- BADGE ---- */
+    .badge-section {
+      text-align: center; margin-top: 3rem;
+      padding: 2.5rem; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 16px;
+    }
+    .badge-visual {
+      display: inline-flex; flex-direction: column; align-items: center;
+      padding: 1.5rem 2.5rem; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(59,130,246,0.08));
+      border: 2px solid rgba(139,92,246,0.2); margin-bottom: 1rem;
+    }
+    .badge-shield {
+      font-size: 2.5rem; margin-bottom: 0.5rem;
+    }
+    .badge-text {
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--gradient-accent); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; letter-spacing: 0.02em;
+    }
+    .badge-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .badge-section p { font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.8rem; }
+    .badge-code {
+      display: inline-block; margin-top: 1rem;
+      background: #0d0d18; border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.6rem 1.2rem;
+      font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary);
+    }
+
+    /* ---- INSTALL ---- */
+    #install { background: var(--bg-secondary); }
+    .install-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2rem; }
+    @media (max-width: 800px) { .install-grid { grid-template-columns: 1fr; } }
+    .install-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2rem; text-align: center;
+      transition: border-color 0.3s;
+    }
+    .install-card:hover { border-color: rgba(139,92,246,0.3); }
+    .install-card .install-icon { font-size: 2.2rem; margin-bottom: 1rem; }
+    .install-card h4 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .install-card .install-status {
+      font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 0.8rem;
+    }
+    .install-card .install-status.available { color: var(--accent-green); }
+    .install-card .install-status.soon { color: var(--accent-amber); }
+    .install-card p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; }
+    .install-cmd {
+      margin-top: 1rem; background: #0d0d18; border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.5rem 0.8rem;
+      font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent-cyan);
+    }
+
+    /* ---- FOOTER ---- */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 3rem 2rem; text-align: center;
+    }
+    .footer-brand {
+      font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;
+    }
+    .footer-links { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; list-style: none; }
+    .footer-links a {
+      color: var(--text-secondary); text-decoration: none; font-size: 0.85rem;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--accent-purple); }
+    .footer-copy { margin-top: 1.5rem; font-size: 0.75rem; color: var(--text-muted); }
+
+    /* ---- DIVIDER ---- */
+    .section-divider {
+      max-width: 1000px; margin: 0 auto;
+      border: none; border-top: 1px solid var(--border);
+    }
+
+    /* ---- SCROLLBAR ---- */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a55; }
+
+    /* ---- SELECTION ---- */
+    ::selection { background: rgba(139,92,246,0.3); color: #fff; }
+  </style>
+</head>
+<body>
+
+  <!-- ===================== NAV ===================== -->
+  <nav>
+    <div class="nav-inner">
+      <div class="logo">Agent-First Web</div>
+      <ul class="nav-links">
+        <li><a href="#problem">Problem</a></li>
+        <li><a href="#standard">Standard</a></li>
+        <li><a href="#examples">Examples</a></li>
+        <li><a href="#howto">How-To</a></li>
+        <li><a href="#install">Get Started</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">Open Standard &middot; v0.1</div>
+      <h1>The Agent-First Web</h1>
+      <p class="tagline">
+        A standard for websites that work as well for AI agents as they do for humans.
+      </p>
+      <div class="hero-ctas">
+        <a href="#standard" class="btn btn-primary">Read the Standard</a>
+        <a href="#howto" class="btn btn-secondary">Check Your Site</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== THE PROBLEM ===================== -->
+  <section id="problem">
+    <div class="container">
+      <div class="section-label">The Problem</div>
+      <h2 class="section-title">The web wasn't built for agents</h2>
+      <p class="section-subtitle">
+        Today's web is designed for browsers. AI agents have to scrape, guess, and hack their way
+        through login flows, CAPTCHAs, and unstructured HTML. It doesn't have to be this way.
+      </p>
+      <div class="comparison">
+        <div class="compare-card bad">
+          <span class="label">Traditional Web</span>
+          <h3>Built for Browsers Only</h3>
+          <ul>
+            <li><span class="icon">&#x2717;</span> No machine-readable site description</li>
+            <li><span class="icon">&#x2717;</span> Registration requires a browser and email verification</li>
+            <li><span class="icon">&#x2717;</span> APIs hidden behind docs portals and waitlists</li>
+            <li><span class="icon">&#x2717;</span> Errors returned as HTML error pages</li>
+            <li><span class="icon">&#x2717;</span> No way for agents to discover capabilities</li>
+            <li><span class="icon">&#x2717;</span> "Contact sales" as the integration strategy</li>
+          </ul>
+        </div>
+        <div class="compare-card good">
+          <span class="label">Agent-First Web</span>
+          <h3>Built for Humans and Agents</h3>
+          <ul>
+            <li><span class="icon">&#x2713;</span> llms.txt describes the site for any agent</li>
+            <li><span class="icon">&#x2713;</span> Programmatic registration in one API call</li>
+            <li><span class="icon">&#x2713;</span> OpenAPI spec or MCP server auto-discoverable</li>
+            <li><span class="icon">&#x2713;</span> Structured JSON errors with actionable details</li>
+            <li><span class="icon">&#x2713;</span> Agents can browse, create, and transact</li>
+            <li><span class="icon">&#x2713;</span> "Open in your agent" as the integration strategy</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== THE STANDARD ===================== -->
+  <section id="standard">
+    <div class="container">
+      <div class="section-label">The Standard</div>
+      <h2 class="section-title">Three tiers of agent readiness</h2>
+      <p class="section-subtitle">
+        Not every site needs to go full agent-native on day one. The standard defines three
+        progressive tiers so you can start where you are and level up over time.
+      </p>
+
+      <div class="tiers">
+        <!-- BRONZE -->
+        <div class="tier-card bronze">
+          <div class="tier-icon">I</div>
+          <div class="tier-body">
+            <h3>Bronze: Discoverable</h3>
+            <div class="tier-name">Agents can find and understand your site</div>
+            <ul class="checklist">
+              <li><span class="check">&#x2713;</span> <code>llms.txt</code> at root describing the site, its purpose, and available endpoints</li>
+              <li><span class="check">&#x2713;</span> Structured API documentation (OpenAPI, AsyncAPI, or equivalent)</li>
+              <li><span class="check">&#x2713;</span> JSON error responses with error codes and human-readable messages</li>
+              <li><span class="check">&#x2713;</span> Semantic HTML with meaningful headings and landmarks</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- SILVER -->
+        <div class="tier-card silver">
+          <div class="tier-icon">II</div>
+          <div class="tier-body">
+            <h3>Silver: Self-Service</h3>
+            <div class="tier-name">Agents can sign up and use your service without a browser</div>
+            <ul class="checklist">
+              <li><span class="check">&#x2713;</span> Programmatic registration &mdash; no browser, no CAPTCHA, no email verification loop</li>
+              <li><span class="check">&#x2713;</span> API key or token issued in a single call</li>
+              <li><span class="check">&#x2713;</span> Full OpenAPI spec or an MCP server that agents can connect to</li>
+              <li><span class="check">&#x2713;</span> Rate limiting with clear <code>Retry-After</code> headers</li>
+              <li><span class="check">&#x2713;</span> Webhook support for async events</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- GOLD -->
+        <div class="tier-card gold">
+          <div class="tier-icon">III</div>
+          <div class="tier-body">
+            <h3>Gold: Agent-Native</h3>
+            <div class="tier-name">Your UI is designed with agents as first-class users</div>
+            <ul class="checklist">
+              <li><span class="check">&#x2713;</span> Agent bar or sidebar built into the UI for natural-language interaction</li>
+              <li><span class="check">&#x2713;</span> Context-aware agent suggestions based on current page and user state</li>
+              <li><span class="check">&#x2713;</span> Webhook and event streaming for real-time agent coordination</li>
+              <li><span class="check">&#x2713;</span> "Open in your agent" buttons for cross-application workflows</li>
+              <li><span class="check">&#x2713;</span> Agent identity system &mdash; agents act on behalf of users with scoped permissions</li>
+              <li><span class="check">&#x2713;</span> Structured action schemas so agents know exactly what operations are available</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== EXAMPLES ===================== -->
+  <section id="examples">
+    <div class="container">
+      <div class="section-label">Live Examples</div>
+      <h2 class="section-title">See it in action</h2>
+      <p class="section-subtitle">
+        Real sites implementing the Agent-First Web standard, from basic discoverability
+        to full agent-native experiences.
+      </p>
+
+      <div class="examples-grid">
+        <a class="example-card" href="#howto">
+          <div class="example-preview listhub">
+            <span>&#x1f4cb;</span>
+            <span class="preview-label">Live Demo</span>
+          </div>
+          <div class="example-body">
+            <h4>ListHub</h4>
+            <p>List publishing platform with agent bar, MCP server, and programmatic registration. Gold tier.</p>
+            <span class="tier-badge gold-badge">GOLD CERTIFIED</span>
+          </div>
+        </a>
+        <a class="example-card" href="#howto">
+          <div class="example-preview shelflife">
+            <span>&#x1f4da;</span>
+            <span class="preview-label">Concept</span>
+          </div>
+          <div class="example-body">
+            <h4>ShelfLife</h4>
+            <p>Book discovery site with agent-powered reading lists, reviews, and cross-library search.</p>
+            <span class="tier-badge silver-badge">SILVER CONCEPT</span>
+          </div>
+        </a>
+        <a class="example-card" href="#howto">
+          <div class="example-preview yours">
+            <span>&#x2728;</span>
+            <span class="preview-label">Your Site</span>
+          </div>
+          <div class="example-body">
+            <h4>Your Site Here</h4>
+            <p>Any web app can become agent-first. Start with llms.txt and work your way up.</p>
+            <span class="tier-badge coming">START TODAY</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HOW-TO ===================== -->
+  <section id="howto">
+    <div class="container">
+      <div class="section-label">Implementation Guide</div>
+      <h2 class="section-title">How to make your site agent-first</h2>
+      <p class="section-subtitle">
+        Four steps from zero to Gold. Each step is independently useful &mdash; you don't
+        need to do them all at once.
+      </p>
+
+      <div class="steps">
+        <!-- STEP 1 -->
+        <div class="step">
+          <h3>Add llms.txt</h3>
+          <p>
+            Place a plain-text file at your site root that tells agents what your site is,
+            what it does, and where to find the API. Think of it as <code>robots.txt</code> for AI.
+          </p>
+<pre><span class="comment"># /llms.txt</span>
+
+<span class="key">name:</span> <span class="string">YourApp</span>
+<span class="key">description:</span> <span class="string">A brief description of what your site does</span>
+<span class="key">url:</span> <span class="url">https://yourapp.com</span>
+
+<span class="key">api_base:</span> <span class="url">https://yourapp.com/api/v1</span>
+<span class="key">api_docs:</span> <span class="url">https://yourapp.com/docs/api</span>
+<span class="key">openapi:</span> <span class="url">https://yourapp.com/openapi.json</span>
+
+<span class="key">registration:</span> <span class="url">POST https://yourapp.com/api/v1/register</span>
+<span class="key">authentication:</span> <span class="string">Bearer token via API key</span>
+
+<span class="key">capabilities:</span>
+  <span class="string">- Create and manage items</span>
+  <span class="string">- Search across all public content</span>
+  <span class="string">- Webhooks for real-time updates</span></pre>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="step">
+          <h3>Add a registration API</h3>
+          <p>
+            Let agents create accounts programmatically. No browser, no CAPTCHA,
+            no email verification loop. Return an API key in the response.
+          </p>
+<pre><span class="comment"># Agent registers and gets an API key in one call</span>
+
+<span class="cmd">curl</span> -X POST https://yourapp.com/api/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    <span class="key">"username"</span>: <span class="string">"jacob-agent"</span>,
+    <span class="key">"agent_name"</span>: <span class="string">"Claude Code"</span>,
+    <span class="key">"owner_email"</span>: <span class="string">"jacob@example.com"</span>
+  }'
+
+<span class="comment"># Response:</span>
+{
+  <span class="key">"api_key"</span>: <span class="string">"afk_live_abc123..."</span>,
+  <span class="key">"username"</span>: <span class="string">"jacob-agent"</span>,
+  <span class="key">"endpoints"</span>: <span class="url">"https://yourapp.com/openapi.json"</span>
+}</pre>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="step">
+          <h3>Add an MCP server</h3>
+          <p>
+            The Model Context Protocol lets AI agents connect to your service as a tool provider.
+            Agents discover your capabilities and call them directly, with typed inputs and outputs.
+          </p>
+<pre><span class="comment"># Your MCP server exposes tools that agents can call</span>
+
+<span class="key">tools:</span>
+  - <span class="key">name:</span> <span class="string">search</span>
+    <span class="key">description:</span> <span class="string">Search all public content</span>
+    <span class="key">parameters:</span>
+      <span class="key">query:</span> <span class="string">string (required)</span>
+      <span class="key">limit:</span> <span class="string">number (default: 10)</span>
+
+  - <span class="key">name:</span> <span class="string">create_item</span>
+    <span class="key">description:</span> <span class="string">Create a new item</span>
+    <span class="key">parameters:</span>
+      <span class="key">title:</span> <span class="string">string (required)</span>
+      <span class="key">content:</span> <span class="string">string (required)</span>
+      <span class="key">visibility:</span> <span class="string">"public" | "unlisted" | "private"</span>
+
+<span class="comment"># Agents connect via:</span>
+<span class="cmd">claude mcp add</span> yourapp -- npx @yourapp/mcp-server</pre>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="step">
+          <h3>Add the agent bar</h3>
+          <p>
+            The agent bar is a UI element &mdash; a sidebar, floating panel, or command palette &mdash;
+            that lets users interact with your site through their personal AI agent. It bridges
+            the GUI and the API.
+          </p>
+<pre><span class="comment">/* The agent bar concept */</span>
+
+<span class="string">+--------------------------------------------------+</span>
+<span class="string">|  YourApp                           [Agent Bar &gt;] |</span>
+<span class="string">|                                                  |</span>
+<span class="string">|  Normal GUI here...     +---------------------+  |</span>
+<span class="string">|                         | Agent Bar            |  |</span>
+<span class="string">|  Lists, items,          |                     |  |</span>
+<span class="string">|  dashboards...          | "Create a list of   |  |</span>
+<span class="string">|                         |  my top 10 books    |  |</span>
+<span class="string">|                         |  and share it"       |  |</span>
+<span class="string">|                         |                     |  |</span>
+<span class="string">|                         | [Suggested actions] |  |</span>
+<span class="string">|                         | - Export as JSON     |  |</span>
+<span class="string">|                         | - Share publicly     |  |</span>
+<span class="string">|                         | - Open in Claude     |  |</span>
+<span class="string">|                         +---------------------+  |</span>
+<span class="string">+--------------------------------------------------+</span></pre>
+        </div>
+      </div>
+
+      <!-- BADGE -->
+      <div class="badge-section">
+        <div class="badge-visual">
+          <div class="badge-shield">&#x1f6e1;&#xfe0f;</div>
+          <div class="badge-text">Agent-First Certified</div>
+          <div class="badge-sub">GOLD &middot; 2026</div>
+        </div>
+        <p>
+          Add the Agent-First badge to your site to signal to agents (and humans) that your
+          service is ready for the agentic web.
+        </p>
+        <div class="badge-code">
+          &lt;a href="https://agentfirst.web"&gt;&lt;img src="badge-gold.svg" alt="Agent-First Gold"&gt;&lt;/a&gt;
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== INSTALL ===================== -->
+  <section id="install">
+    <div class="container">
+      <div class="section-label">Get Started</div>
+      <h2 class="section-title">Install your agent</h2>
+      <p class="section-subtitle">
+        To use agent-first sites, you need a personal AI agent. Here are the best
+        ways to get one running today.
+      </p>
+
+      <div class="install-grid">
+        <div class="install-card">
+          <div class="install-icon">&#x1f4bb;</div>
+          <h4>Claude Code</h4>
+          <div class="install-status available">Available now</div>
+          <p>
+            Anthropic's official CLI agent. Runs in your terminal with full tool access.
+            Connect MCP servers, browse the web, manage files.
+          </p>
+          <div class="install-cmd">npm install -g @anthropic-ai/claude-code</div>
+        </div>
+
+        <div class="install-card">
+          <div class="install-icon">&#x2601;&#xfe0f;</div>
+          <h4>Cortex</h4>
+          <div class="install-status available">Available now</div>
+          <p>
+            Cloud workspace for agents. Persistent sessions, shared memory,
+            and pre-configured MCP connections to agent-first sites.
+          </p>
+          <div class="install-cmd">cortex.sh</div>
+        </div>
+
+        <div class="install-card">
+          <div class="install-icon">&#x1f310;</div>
+          <h4>Browser Extension</h4>
+          <div class="install-status soon">Coming soon</div>
+          <p>
+            An extension that detects agent-first sites and lets you interact
+            with them through your preferred agent, right from the browser.
+          </p>
+          <div class="install-cmd" style="color: var(--text-muted);">Notify me when it ships</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PRINCIPLES ===================== -->
+  <section id="principles">
+    <div class="container" style="text-align: center;">
+      <div class="section-label">Principles</div>
+      <h2 class="section-title">What we believe</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-top: 2.5rem; text-align: left;">
+        <div>
+          <h4 style="font-size: 1.05rem; margin-bottom: 0.4rem;">Agents are users, not scrapers</h4>
+          <p style="font-size: 0.9rem; color: var(--text-secondary);">
+            Treat AI agents as legitimate users of your platform. Give them APIs, not obstacles.
+            The sites that welcome agents will win the next era of the web.
+          </p>
+        </div>
+        <div>
+          <h4 style="font-size: 1.05rem; margin-bottom: 0.4rem;">Progressive enhancement</h4>
+          <p style="font-size: 0.9rem; color: var(--text-secondary);">
+            Start with llms.txt. Add a registration endpoint when you're ready. Go agent-native
+            when it makes sense. Each tier delivers value independently.
+          </p>
+        </div>
+        <div>
+          <h4 style="font-size: 1.05rem; margin-bottom: 0.4rem;">Humans stay in control</h4>
+          <p style="font-size: 0.9rem; color: var(--text-secondary);">
+            Agents act on behalf of users, with scoped permissions and clear audit trails.
+            The standard requires agent identity, not agent anonymity.
+          </p>
+        </div>
+        <div>
+          <h4 style="font-size: 1.05rem; margin-bottom: 0.4rem;">Open by default</h4>
+          <p style="font-size: 0.9rem; color: var(--text-secondary);">
+            This is an open standard. No vendor lock-in. No proprietary protocols.
+            Build on MCP, OpenAPI, and plain text. Anyone can implement it.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer>
+    <div class="footer-brand">
+      An open standard by <strong>ListHub</strong> &middot; Built for the agentic era
+    </div>
+    <ul class="footer-links">
+      <li><a href="https://listhub.globalbr.ai">ListHub</a></li>
+      <li><a href="#">Cortex</a></li>
+      <li><a href="https://github.com">GitHub</a></li>
+      <li><a href="#">Mockups</a></li>
+      <li><a href="https://spec.modelcontextprotocol.io">MCP Spec</a></li>
+      <li><a href="https://llmstxt.org">llms.txt</a></li>
+    </ul>
+    <div class="footer-copy">
+      &copy; 2026 The Agent-First Web Project. Released under CC BY 4.0.
+    </div>
+  </footer>
+
+</body>
+</html>
