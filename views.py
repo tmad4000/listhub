@@ -90,9 +90,6 @@ def _get_directory_topics():
 
 @views_bp.route('/')
 def landing():
-    if current_user.is_authenticated:
-        return redirect(url_for('views.dashboard'))
-
     db = get_db()
     public_items = db.execute(
         "SELECT i.*, u.username FROM item i JOIN user u ON i.owner_id = u.id "
