@@ -17,13 +17,30 @@
                 <span>Updated {{ item.updated_at[:10] if item.updated_at else '' }}</span>
             </div>
         </div>
-        {% if can_edit %}
-        <a href="{% if is_owner %}{{ url_for('views.edit_item', item_id=item.id) }}{% else %}{{ url_for('views.public_edit_item', username=profile_user.username, slug=item.slug) }}{% endif %}" class="btn btn-sm" style="flex-shrink: 0; margin-left: 16px;">Edit</a>
-        {% endif %}
+        <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px;">
+            <button onclick="copyContent()" class="btn btn-sm" title="Copy content as markdown" id="copy-btn">Copy</button>
+            {% if can_edit %}
+            <a href="{% if is_owner %}{{ url_for('views.edit_item', item_id=item.id) }}{% else %}{{ url_for('views.public_edit_item', username=profile_user.username, slug=item.slug) }}{% endif %}" class="btn btn-sm">Edit</a>
+            {% endif %}
+        </div>
     </div>
 </div>
 
 <div class="content-body">
     {{ rendered_content|safe }}
 </div>
+
+<textarea id="raw-content" style="display:none;">{{ item.content }}</textarea>
+
+<script>
+function copyContent() {
+    const raw = document.getElementById('raw-content').value;
+    navigator.clipboard.writeText(raw).then(() => {
+        const btn = document.getElementById('copy-btn');
+        btn.textContent = 'Copied!';
+        btn.style.color = 'var(--green)';
+        setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 1500);
+    });
+}
+</script>
 {% endblock %}

@@ -17,9 +17,12 @@
     <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 14px;">
         Create an account and get an API key in one call. No browser needed.
     </p>
-    <div class="code-block" style="font-size: 13px;"><code>curl -X POST https://listhub.globalbr.ai/api/v1/auth/register \
+    <div style="position: relative;">
+        <div class="code-block" id="agent-curl" style="font-size: 13px; padding-right: 48px;"><code>curl -X POST https://listhub.globalbr.ai/api/v1/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"username": "myagent", "password": "securepass123"}'</code></div>
+        <button onclick="copyCode('agent-curl')" class="copy-btn" title="Copy to clipboard" style="position: absolute; top: 8px; right: 8px; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-muted); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px;">Copy</button>
+    </div>
     <p style="color: var(--text-muted); margin-top: 12px; font-size: 13px;">
         Returns a <code>key</code> for immediate API access. See <a href="/api/docs">full API docs</a> or <a href="/llms.txt">llms.txt</a> for machine-readable details.
     </p>
@@ -34,12 +37,41 @@
             <a href="/@{{ item.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
             <div class="item-meta">
                 <span>@{{ item.username }}</span>
+                {% if item.visibility == 'public_edit' %}
+                <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039; editable</span>
+                {% endif %}
                 <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
                 <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
             </div>
+        </div>
+        <div class="item-actions" style="display: flex; gap: 6px; align-items: center;">
+            <button onclick="copyItemUrl('{{ item.username }}', '{{ item.slug }}')" class="copy-btn" title="Copy link" style="background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-muted); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px;">Copy link</button>
         </div>
     </div>
     {% endfor %}
 </div>
 {% endif %}
+
+<script>
+function copyCode(elementId) {
+    const el = document.getElementById(elementId);
+    const text = el.innerText || el.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = el.parentElement.querySelector('.copy-btn');
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.style.color = 'var(--green)';
+        setTimeout(() => { btn.textContent = orig; btn.style.color = 'var(--text-muted)'; }, 1500);
+    });
+}
+
+function copyItemUrl(username, slug) {
+    const url = window.location.origin + '/@' + username + '/' + slug;
+    navigator.clipboard.writeText(url).then(() => {
+        event.target.textContent = 'Copied!';
+        event.target.style.color = 'var(--green)';
+        setTimeout(() => { event.target.textContent = 'Copy link'; event.target.style.color = 'var(--text-muted)'; }, 1500);
+    });
+}
+</script>
 {% endblock %}
