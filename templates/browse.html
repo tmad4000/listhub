@@ -11,7 +11,7 @@
 {% if not q %}
 {% if directory_topics %}
 <section style="margin-bottom: 28px;">
-    <h2 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Community Directory</h2>
+    <h2 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Featured Lists</h2>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 8px;">
         {% for topic in directory_topics %}
         <a href="/directory/{{ topic.path }}" style="display: block; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; text-decoration: none; transition: border-color 0.15s;">
