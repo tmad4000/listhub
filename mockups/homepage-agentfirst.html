@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ListHub — Agent-First Web Mockup</title>
+    <style>
+        :root {
+            --bg: #0d1117; --bg-secondary: #161b22; --bg-tertiary: #21262d;
+            --border: #30363d; --text: #e6edf3; --text-muted: #8b949e; --text-dim: #484f58;
+            --accent: #58a6ff; --accent-hover: #79c0ff;
+            --green: #3fb950; --orange: #d29922; --purple: #bc8cff; --red: #f85149;
+            --radius: 6px; --max-width: 1100px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); }
+
+        .mockup-banner { background: linear-gradient(90deg, rgba(137,87,229,0.2) 0%, rgba(88,166,255,0.15) 100%); border-bottom: 1px solid rgba(137,87,229,0.4); padding: 8px 20px; text-align: center; font-size: 13px; color: var(--purple); }
+
+        .header { border-bottom: 1px solid var(--border); padding: 12px 0; }
+        .header-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 18px; font-weight: 700; color: var(--text); }
+        .header-nav { display: flex; gap: 14px; align-items: center; }
+        .header-nav a { color: var(--text-muted); font-size: 14px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; font-size: 14px; font-weight: 500; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text); cursor: pointer; text-decoration: none; }
+        .btn:hover { background: #30363d; color: var(--text); }
+        .btn-primary { background: #238636; border-color: rgba(240,246,252,0.1); color: #fff; }
+        .btn-agent { background: linear-gradient(135deg, #6e40c9 0%, #8957e5 100%); border-color: rgba(137,87,229,0.4); color: #fff; }
+        .btn-agent:hover { background: linear-gradient(135deg, #8957e5 0%, #a371f7 100%); color: #fff; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+
+        /* Persistent agent bar at top */
+        .agent-bar {
+            background: linear-gradient(135deg, rgba(110,64,201,0.12) 0%, rgba(88,166,255,0.08) 100%);
+            border-bottom: 1px solid rgba(137,87,229,0.2);
+            padding: 10px 20px;
+        }
+        .agent-bar-inner {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .agent-bar-icon { font-size: 18px; }
+        .agent-bar-input {
+            flex: 1; padding: 8px 14px; font-size: 14px;
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(137,87,229,0.3);
+            border-radius: 20px; color: var(--text); font-family: inherit;
+        }
+        .agent-bar-input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px rgba(137,87,229,0.15); }
+        .agent-bar-input::placeholder { color: var(--text-dim); }
+        .agent-bar-send {
+            padding: 8px 16px; background: var(--purple); border: none; border-radius: 20px;
+            color: #fff; font-size: 13px; font-weight: 500; cursor: pointer;
+        }
+        .agent-bar-status { font-size: 11px; color: var(--green); display: flex; align-items: center; gap: 4px; }
+        .agent-bar-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+
+        /* Main hero — agent-first messaging */
+        .hero { text-align: center; padding: 40px 20px 16px; }
+        .hero h1 { font-size: 34px; margin-bottom: 8px; }
+        .hero h1 em { font-style: normal; color: var(--purple); }
+        .hero p { font-size: 17px; color: var(--text-muted); max-width: 520px; margin: 0 auto 20px; }
+
+        /* How it works — 3 methods */
+        .methods { max-width: 860px; margin: 24px auto 40px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .method-card {
+            background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 20px; text-align: center; transition: border-color 0.15s;
+        }
+        .method-card:hover { border-color: var(--text-dim); }
+        .method-card.featured { border-color: rgba(137,87,229,0.4); background: linear-gradient(180deg, rgba(110,64,201,0.08) 0%, var(--bg-secondary) 100%); }
+        .method-icon { font-size: 28px; margin-bottom: 10px; }
+        .method-card h3 { font-size: 15px; margin-bottom: 6px; }
+        .method-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+        .method-example {
+            background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 10px 14px; font-size: 12px; text-align: left; color: var(--text-muted);
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+            line-height: 1.5;
+        }
+        .method-example .user { color: var(--green); }
+        .method-example .agent { color: var(--purple); }
+
+        /* Agent-first web manifesto */
+        .manifesto {
+            max-width: 680px; margin: 0 auto 40px;
+            background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 28px 32px;
+        }
+        .manifesto h2 { font-size: 18px; margin-bottom: 16px; text-align: center; }
+        .manifesto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .manifesto-item h4 { font-size: 13px; margin-bottom: 4px; color: var(--purple); }
+        .manifesto-item p { font-size: 13px; color: var(--text-muted); }
+
+        /* Demo conversation */
+        .demo-section { max-width: 680px; margin: 0 auto 40px; }
+        .demo-header { font-size: 14px; color: var(--text-dim); text-align: center; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .demo-chat { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; }
+        .chat-msg { font-size: 14px; line-height: 1.6; padding: 10px 14px; border-radius: 10px; max-width: 85%; margin-bottom: 12px; }
+        .chat-user { background: rgba(88,166,255,0.12); align-self: flex-end; margin-left: auto; border-bottom-right-radius: 2px; }
+        .chat-agent { background: var(--bg-tertiary); border-bottom-left-radius: 2px; }
+        .chat-agent code { background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+        .chat-meta { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; text-align: center; }
+        .chat-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+
+        /* List preview in chat */
+        .chat-list-preview {
+            background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 12px 16px; margin-top: 8px;
+        }
+        .chat-list-title { font-size: 14px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+        .chat-list-items { font-size: 13px; color: var(--text-muted); }
+        .chat-list-items li { list-style: disc; margin-left: 18px; margin-bottom: 2px; }
+        .chat-list-new { color: var(--green); }
+
+        /* Extension concept */
+        .extension-section { max-width: 680px; margin: 0 auto 40px; }
+        .extension-card {
+            background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 20px 24px; display: flex; gap: 20px; align-items: center;
+        }
+        .extension-visual {
+            width: 200px; height: 140px; flex-shrink: 0;
+            background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+        }
+        .ext-browser { width: 100%; height: 100%; display: flex; flex-direction: column; }
+        .ext-toolbar { background: var(--bg); padding: 4px 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 4px; }
+        .ext-url { flex: 1; background: var(--bg-tertiary); border-radius: 3px; padding: 2px 6px; font-size: 8px; color: var(--text-dim); }
+        .ext-agent-icon { width: 16px; height: 16px; background: var(--purple); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 8px; cursor: pointer; }
+        .ext-page { flex: 1; padding: 6px 8px; font-size: 7px; color: var(--text-dim); line-height: 1.4; }
+        .ext-sidebar { position: absolute; right: 0; top: 18px; bottom: 0; width: 80px; background: rgba(110,64,201,0.15); border-left: 1px solid rgba(137,87,229,0.3); padding: 4px; font-size: 6px; color: var(--text-muted); }
+        .ext-sidebar-header { font-size: 7px; color: var(--purple); font-weight: 600; margin-bottom: 3px; padding: 2px; }
+        .ext-sidebar-msg { background: var(--bg-tertiary); border-radius: 3px; padding: 2px 4px; margin-bottom: 2px; font-size: 6px; }
+
+        .extension-text { flex: 1; }
+        .extension-text h3 { font-size: 15px; margin-bottom: 6px; }
+        .extension-text p { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+
+        /* Popular items */
+        .items-section { max-width: var(--max-width); margin: 0 auto 40px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .section-header h2 { font-size: 16px; color: var(--text-muted); font-weight: 500; }
+        .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+        .item-card { padding: 14px 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); }
+        .item-title { font-size: 14px; font-weight: 600; color: var(--accent); }
+        .item-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 10px; margin-top: 2px; }
+        .badge { display: inline-block; padding: 1px 8px; font-size: 11px; font-weight: 500; border-radius: 10px; border: 1px solid; }
+        .badge-list { color: var(--orange); border-color: rgba(210,153,34,0.3); }
+        .badge-note { color: var(--accent); border-color: rgba(88,166,255,0.3); }
+
+        .footer { max-width: var(--max-width); margin: 24px auto; padding: 24px 20px; border-top: 1px solid var(--border); text-align: center; font-size: 12px; color: var(--text-dim); }
+
+        @media (max-width: 768px) {
+            .methods { grid-template-columns: 1fr; }
+            .manifesto-grid { grid-template-columns: 1fr; }
+            .extension-card { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="mockup-banner">
+        Design mockup — Agent-First Web pioneer concept. <a href="/mockups/" style="color: var(--accent);">View all mockups</a>
+    </div>
+
+    <header class="header">
+        <div class="header-inner">
+            <a href="#" class="logo">ListHub</a>
+            <nav class="header-nav">
+                <a href="#">Directory</a>
+                <a href="#">Explore</a>
+                <a href="#">API</a>
+                <a href="#" style="color: var(--purple);">Cortex</a>
+                <a href="#" class="btn btn-sm btn-agent">Connect Agent</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Persistent Agent Bar -->
+    <div class="agent-bar">
+        <div class="agent-bar-inner">
+            <span class="agent-bar-icon">&#x2726;</span>
+            <input type="text" class="agent-bar-input" placeholder="Tell your agent what to do... e.g. &quot;Add Dr. Donna Alderman to my Body Masters list for PRP injections in SF Bay Area&quot;">
+            <button class="agent-bar-send">Send</button>
+            <span class="agent-bar-status"><span class="agent-bar-dot"></span> Agent connected</span>
+        </div>
+    </div>
+
+    <div class="hero">
+        <h1>The <em>agent-first</em> web starts here.</h1>
+        <p>Every page on ListHub is designed for your AI agent to use. Browse with your eyes. Act with your agent.</p>
+    </div>
+
+    <div class="container">
+        <!-- Three methods -->
+        <div class="methods">
+            <div class="method-card featured">
+                <div class="method-icon">&#x2726;</div>
+                <h3>Tell Your Agent</h3>
+                <p>Type a command in the agent bar above. Your personal Claude agent does the rest.</p>
+                <div class="method-example">
+                    <div class="user">"Create a reading list and add The Dispossessed"</div>
+                    <div class="agent" style="margin-top: 6px;">Done. listhub.globalbr.ai /@you/reading-list</div>
+                </div>
+            </div>
+            <div class="method-card">
+                <div class="method-icon">&#x1f4bb;</div>
+                <h3>Use the API</h3>
+                <p>REST endpoints for everything. Register, create, search, append.</p>
+                <div class="method-example">
+                    POST /api/v1/auth/register<br>
+                    POST /api/v1/items/new<br>
+                    POST /api/v1/items/:id/append
+                </div>
+            </div>
+            <div class="method-card">
+                <div class="method-icon">&#x1f310;</div>
+                <h3>Browse & Edit</h3>
+                <p>Traditional web UI. Click, type, publish. Works great too.</p>
+                <div class="method-example">
+                    Click "New List" &rarr; type your items &rarr; set visibility &rarr; publish
+                </div>
+            </div>
+        </div>
+
+        <!-- Demo conversation -->
+        <div class="demo-section">
+            <div class="demo-header">Live conversation</div>
+            <div class="demo-chat">
+                <div class="chat-label">You</div>
+                <div class="chat-msg chat-user">
+                    Add Dr. Donna Alderman to my Body Masters list &mdash; she does PRP injections for RSI, SF Bay Area
+                </div>
+                <div class="chat-label">Your Agent</div>
+                <div class="chat-msg chat-agent">
+                    Added to your Body Masters list:
+                    <div class="chat-list-preview">
+                        <div class="chat-list-title">Body Masters</div>
+                        <ul class="chat-list-items">
+                            <li>Dr. Sarah Chen &mdash; Sports medicine (Palo Alto)</li>
+                            <li>Dr. Mike Torres &mdash; Spine specialist (SF)</li>
+                            <li>Kim Nguyen, PT &mdash; RSI physical therapy (Mountain View)</li>
+                            <li class="chat-list-new">Dr. Donna Alderman &mdash; PRP injections, RSI (SF Bay Area) &#x2728;</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="chat-meta">Your agent used ListHub API &middot; 0.8s &middot; <a href="#">view API log</a></div>
+            </div>
+        </div>
+
+        <!-- Agent-First Manifesto -->
+        <div class="manifesto">
+            <h2>The Agent-First Web</h2>
+            <div class="manifesto-grid">
+                <div class="manifesto-item">
+                    <h4>Every page is an API</h4>
+                    <p>If a human can do it, an agent can do it. No separate "developer" experience.</p>
+                </div>
+                <div class="manifesto-item">
+                    <h4>Your agent, everywhere</h4>
+                    <p>A persistent sidebar or bar that follows you across the web. Not per-app AI — your personal agent.</p>
+                </div>
+                <div class="manifesto-item">
+                    <h4>Self-service onboarding</h4>
+                    <p>Agents register themselves. No OAuth flows, no approval queues. One POST, one key, go.</p>
+                </div>
+                <div class="manifesto-item">
+                    <h4>Context-aware actions</h4>
+                    <p>The agent sees what page you're on and suggests relevant actions. "Add this to your list?"</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chrome Extension concept -->
+        <div class="extension-section">
+            <div class="extension-card">
+                <div class="extension-visual">
+                    <div class="ext-browser">
+                        <div class="ext-toolbar">
+                            <div class="ext-url">listhub.globalbr.ai/@jacob/body-masters</div>
+                            <div class="ext-agent-icon">&#x2726;</div>
+                        </div>
+                        <div class="ext-page">
+                            Body Masters<br>
+                            - Dr. Sarah Chen<br>
+                            - Dr. Mike Torres<br>
+                            - Kim Nguyen, PT<br>
+                            - Dr. Donna Alderman
+                        </div>
+                        <div class="ext-sidebar">
+                            <div class="ext-sidebar-header">&#x2726; Agent</div>
+                            <div class="ext-sidebar-msg">Added Dr. Alderman</div>
+                            <div class="ext-sidebar-msg">What else?</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="extension-text">
+                    <h3>Your agent as a browser extension</h3>
+                    <p>A Chrome extension that gives you a personal agent sidebar on any website. It knows what page you're on, can read the content, and take action via the site's API.</p>
+                    <p style="font-size: 12px; color: var(--text-dim);">Not just for ListHub — this pattern works on any agent-friendly site. Your Cortex agent follows you everywhere.</p>
+                    <a href="#" class="btn btn-sm btn-agent">Coming soon</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Popular items -->
+        <div class="items-section">
+            <div class="section-header">
+                <h2>Popular lists</h2>
+                <a href="#" style="font-size: 13px;">Explore &rarr;</a>
+            </div>
+            <div class="item-grid">
+                <div class="item-card">
+                    <a href="#" class="item-title">Body Masters</a>
+                    <div class="item-meta"><span>@jacob</span> <span class="badge badge-list">list</span></div>
+                </div>
+                <div class="item-card">
+                    <a href="#" class="item-title">Agent Friendly Apps</a>
+                    <div class="item-meta"><span>@jacobreal</span> <span class="badge badge-list">list</span></div>
+                </div>
+                <div class="item-card">
+                    <a href="#" class="item-title">MCP Generator vs Embedded</a>
+                    <div class="item-meta"><span>@maxnussbaumer</span> <span class="badge badge-note">note</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>ListHub &mdash; pioneering the agent-first web. <a href="#">API</a> &middot; <a href="#">llms.txt</a> &middot; <a href="/mockups/">All Mockups</a></p>
+        <p style="margin-top: 6px;">MOCKUP &mdash; Agent-first web concept, March 2026</p>
+    </footer>
+</body>
+</html>
