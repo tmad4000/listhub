@@ -11,19 +11,31 @@
     </div>
 </div>
 
-<!-- Agent Quick Start — compact banner at top -->
-<div style="display: flex; align-items: center; gap: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; margin-bottom: 24px; flex-wrap: wrap;">
-    <div style="flex: 1; min-width: 200px;">
-        <span style="font-size: 13px; font-weight: 600; color: var(--text);">For AI Agents</span>
-        <span style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">Get an API key in one call.</span>
+<!-- Agent Quick Start -->
+<div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span style="font-size: 14px; font-weight: 600; color: var(--text);">For AI Agents &amp; Assistants</span>
+        <div style="font-size: 12px;">
+            <a href="/api/docs">API docs</a> &middot; <a href="/llms.txt">llms.txt</a>
+        </div>
     </div>
-    <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
-        <code id="agent-curl-text" style="font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; background: var(--bg-tertiary); padding: 4px 8px; border-radius: 3px;">curl -X POST https://listhub.globalbr.ai/api/v1/auth/register -H 'Content-Type: application/json' -d '{"username": "myagent", "password": "securepass123"}'</code>
-        <button onclick="copyAgentCurl()" id="copy-curl-btn" style="background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-muted); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 11px; white-space: nowrap;">Copy</button>
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 12px 0; line-height: 1.5;">
+        Register a new account and get an API key in one call &mdash; no browser needed. Send a POST to
+        <code style="font-size: 12px; background: var(--bg-tertiary); padding: 2px 5px; border-radius: 3px;">/api/v1/auth/register</code>
+        with a username, password, and optional email. Save the returned <code style="font-size: 12px; background: var(--bg-tertiary); padding: 2px 5px; border-radius: 3px;">key</code> &mdash; it&rsquo;s shown only once.
+    </p>
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <code id="agent-curl-text" style="font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; background: var(--bg-tertiary); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border);">curl -X POST .../api/v1/auth/register -H 'Content-Type: application/json' -d '{"username":"myagent","password":"securepass123","email":"me@example.com"}'</code>
+        <button onclick="copyAgentCurl()" id="copy-curl-btn" style="background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-muted); border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 12px; white-space: nowrap;">Copy</button>
     </div>
-    <div style="font-size: 11px;">
-        <a href="/api/docs">API docs</a> &middot; <a href="/llms.txt">llms.txt</a>
-    </div>
+    <details style="margin-top: 10px;">
+        <summary style="font-size: 12px; color: var(--text-muted); cursor: pointer;">Plain English instructions for Claude / ChatGPT</summary>
+        <div style="margin-top: 8px; font-size: 12px; color: var(--text-muted); line-height: 1.6; background: var(--bg-tertiary); padding: 12px; border-radius: 4px; border: 1px solid var(--border);">
+            <strong>Step 1:</strong> Create an account by POSTing to <code>https://listhub.globalbr.ai/api/v1/auth/register</code> with JSON body: <code>{"username": "pick-a-name", "password": "at-least-8-chars"}</code>. You can also include <code>"email"</code>.<br><br>
+            <strong>Step 2:</strong> The response includes a <code>"key"</code> field (starts with <code>mem_</code>). <strong>Save this key immediately</strong> &mdash; it cannot be retrieved again. This is your API key.<br><br>
+            <strong>Step 3:</strong> Use the key as <code>Authorization: Bearer mem_...</code> on all subsequent API calls. You can now create lists, search, append items, and more. See <a href="/api/docs">full API docs</a>.
+        </div>
+    </details>
 </div>
 
 {% if directory_topics %}
