@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}ListHub{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
     <meta name="description" content="ListHub - A publishing and sharing layer for notes, lists, and knowledge. Agent-native REST API for programmatic access. Register, create, search, and collaborate.">
     <link rel="api" href="/api/docs" title="API Documentation">
     <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM-readable site description">
@@ -13,17 +13,25 @@
 <body>
     <header class="header">
         <div class="header-inner">
-            <a href="{{ url_for('views.landing') }}" class="logo">ListHub</a>
+            <a href="/" class="logo">ListHub</a>
             <nav class="header-nav">
                 <a href="{{ url_for('views.browse') }}">Browse</a>
                 <a href="{{ url_for('views.community') }}">Community</a>
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('views.new_item') }}" class="nav-new">+ New</a>
                     <a href="{{ url_for('views.dashboard') }}">Dashboard</a>
-                    <a href="/@{{ current_user.username }}">@{{ current_user.username }}</a>
-                    <a href="{{ url_for('views.api_docs') }}">API</a>
-                    <a href="{{ url_for('views.settings') }}">Settings</a>
-                    <a href="{{ url_for('auth.logout') }}">Logout</a>
+                    <div class="nav-dropdown">
+                        <button class="nav-dropdown-toggle" onclick="this.parentElement.classList.toggle('open')">
+                            @{{ current_user.username }} &#9662;
+                        </button>
+                        <div class="nav-dropdown-menu">
+                            <a href="/@{{ current_user.username }}">Public Profile</a>
+                            <a href="{{ url_for('views.api_docs') }}">API Docs</a>
+                            <a href="{{ url_for('views.settings') }}">Settings</a>
+                            <div class="nav-dropdown-divider"></div>
+                            <a href="{{ url_for('auth.logout') }}">Logout</a>
+                        </div>
+                    </div>
                 {% else %}
                     <a href="{{ url_for('views.api_docs') }}">API</a>
                     <a href="{{ url_for('auth.login') }}">Sign In</a>
@@ -41,5 +49,14 @@
 
         {% block content %}{% endblock %}
     </main>
+
+    <script>
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        document.querySelectorAll('.nav-dropdown.open').forEach(function(dd) {
+            if (!dd.contains(e.target)) dd.classList.remove('open');
+        });
+    });
+    </script>
 </body>
 </html>
