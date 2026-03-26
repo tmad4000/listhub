@@ -3,6 +3,12 @@
 {% block content %}
 <div class="toolbar">
     <h1>People</h1>
+    <div class="sort-controls" style="display: flex; gap: 8px; align-items: center; font-size: 13px;">
+        <span style="color: var(--text-muted);">Sort:</span>
+        <a href="{{ url_for('views.people', sort='active') }}" class="btn btn-sm {% if sort == 'active' %}btn-active{% endif %}">Recently Active</a>
+        <a href="{{ url_for('views.people', sort='lists') }}" class="btn btn-sm {% if sort == 'lists' %}btn-active{% endif %}">Most Lists</a>
+        <a href="{{ url_for('views.people', sort='newest') }}" class="btn btn-sm {% if sort == 'newest' %}btn-active{% endif %}">Newest</a>
+    </div>
 </div>
 
 {% if users %}
@@ -14,11 +20,14 @@
             <div class="item-meta">
                 <span>@{{ user.username }}</span>
                 {% if user.public_count > 0 %}
-                    <span>{{ user.public_count }} public item{{ 's' if user.public_count != 1 }}</span>
+                    <span>{{ user.public_count }} public list{{ 's' if user.public_count != 1 }}</span>
                 {% else %}
-                    <span>No public items</span>
+                    <span>No public lists</span>
                 {% endif %}
                 <span>joined {{ user.created_at[:10] if user.created_at else '' }}</span>
+                {% if user.last_active %}
+                <span>active {{ user.last_active[:10] }}</span>
+                {% endif %}
             </div>
         </div>
     </div>
