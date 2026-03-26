@@ -715,9 +715,11 @@ def short_link(item_id):
 
 @views_bp.route("/directory/edit", methods=["GET", "POST"])
 @views_bp.route("/directory/edit/<path:subpath>", methods=["GET", "POST"])
-@login_required
 def directory_edit(subpath=""):
     """Web UI for editing community directory files."""
+    if not current_user.is_authenticated:
+        flash("Sign in to edit this page. Or use the API: POST /api/v1/auth/register to create an account, then PUT /api/v1/directory/:path to edit programmatically.", "info")
+        return redirect(url_for("auth.login_local", next=request.path))
     repo = _directory_repo()
     if not os.path.isdir(repo):
         flash("Directory not initialized.", "error")
