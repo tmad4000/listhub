@@ -43,6 +43,43 @@
 <p>Noos-authenticated users don't have a local password. For git access (clone/push), create an API key in Settings and use it as your git password:</p>
 <div class="code-block"><code>git clone https://yourname:mem_your_api_key@listhub.globalbr.ai/git/yourname.git</code></div>
 
+<h3>Register a new account (no auth required)</h3>
+<p><code>POST /api/v1/auth/register</code> — no authentication required</p>
+<p>Create a new ListHub account and receive an API key in a single call. This is the recommended way for AI agents and integrations to self-onboard — no browser, no human intervention needed.</p>
+
+<div class="code-block"><code>curl -X POST -H "Content-Type: application/json" \
+  -d '{"username": "myagent", "password": "securepass123", "key_name": "my-agent"}' \
+  https://listhub.globalbr.ai/api/v1/auth/register</code></div>
+
+<p><strong>Fields:</strong></p>
+<ul>
+    <li><code>username</code> — alphanumeric, at least 2 characters (required)</li>
+    <li><code>password</code> — at least 8 characters (required)</li>
+    <li><code>display_name</code> — human-readable name (default: username)</li>
+    <li><code>email</code> — optional email address</li>
+    <li><code>key_name</code> — label for the API key (default: "api-token")</li>
+    <li><code>scopes</code> — comma-separated scopes (default: "read,write")</li>
+</ul>
+
+<p><strong>Response:</strong> <code>201</code></p>
+<div class="code-block"><code>{
+  "id": "user-id",
+  "username": "myagent",
+  "key": "mem_abc123...",
+  "key_id": "key-id",
+  "key_name": "my-agent",
+  "scopes": "read,write",
+  "message": "Account created. Save the key — it cannot be retrieved again."
+}</code></div>
+
+<p><strong>Errors:</strong></p>
+<ul>
+    <li><code>400</code> — Missing/invalid username or password</li>
+    <li><code>409</code> — Username or email already taken</li>
+</ul>
+
+<p>After registration, use the returned <code>key</code> as a Bearer token for all subsequent API calls.</p>
+
 <h3>Get API key (token endpoint)</h3>
 <p><code>POST /api/v1/auth/token</code> — no authentication required</p>
 <p>Exchange a username and password for a new API key. This is the recommended way for assistants and integrations to bootstrap themselves.</p>

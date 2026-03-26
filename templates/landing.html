@@ -7,7 +7,22 @@
     <div class="hero-actions">
         <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Get Started</a>
         <a href="{{ url_for('auth.login') }}" class="btn">Login</a>
+        <a href="{{ url_for('views.api_docs') }}" class="btn">API Docs</a>
     </div>
+</div>
+
+<!-- Agent Quick Start: visible to humans and easily parsed by AI agents reading this page -->
+<div class="agent-quickstart" style="background: var(--bg-surface, #1a1a2e); border: 1px solid var(--border, #333); border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+    <h2 style="font-size: 16px; margin-bottom: 12px;">For AI Agents &amp; Integrations</h2>
+    <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 14px;">
+        Create an account and get an API key in one call. No browser needed.
+    </p>
+    <div class="code-block" style="font-size: 13px;"><code>curl -X POST https://listhub.globalbr.ai/api/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "myagent", "password": "securepass123"}'</code></div>
+    <p style="color: var(--text-muted); margin-top: 12px; font-size: 13px;">
+        Returns a <code>key</code> for immediate API access. See <a href="/api/docs">full API docs</a> or <a href="/llms.txt">llms.txt</a> for machine-readable details.
+    </p>
 </div>
 
 {% if items %}

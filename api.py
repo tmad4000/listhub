@@ -652,6 +652,74 @@ def get_token():
     }), 201
 
 
+
+@api_bp.route("/auth/register", methods=["POST"])
+def api_register():
+    """
+    Programmatic account registration.
+    Allows agents and integrations to create a new ListHub account
+    and receive an API key in a single call - no browser needed.
+    """
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "").strip().lower()
+    password = data.get("password", "")
+    display_name = data.get("display_name", "").strip()
+    email = data.get("email", "").strip().lower() if data.get("email") else None
+    key_name = data.get("key_name", "api-token")
+    scopes = data.get("scopes", "read,write")
+
+    if not username or not password:
+        return jsonify({"error": "username and password required"}), 400
+
+    if len(username) < 2 or not username.isalnum():
+        return jsonify({"error": "Username must be at least 2 alphanumeric characters"}), 400
+
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+    db = get_db()
+
+    if User.get_by_username(db, username):
+        return jsonify({"error": "Username already taken"}), 409
+
+    if email and User.get_by_email(db, email):
+        return jsonify({"error": "Email already registered"}), 409
+
+    user_id = nanoid()
+    pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+    db.execute(
+        "INSERT INTO user (id, username, display_name, email, password_hash) VALUES (?, ?, ?, ?, ?)",
+        (user_id, username, display_name or username, email, pw_hash)
+    )
+
+    try:
+        from git_backend import init_user_repo
+        init_user_repo(username)
+    except Exception:
+        pass
+
+    raw_key = f"mem_{secrets.token_urlsafe(32)}"
+    key_id = nanoid()
+    key_h = hash_api_key(raw_key)
+
+    db.execute(
+        "INSERT INTO api_key (id, user_id, key_hash, name, scopes) VALUES (?, ?, ?, ?, ?)",
+        (key_id, user_id, key_h, key_name, scopes)
+    )
+    db.commit()
+
+    return jsonify({
+        "id": user_id,
+        "username": username,
+        "key": raw_key,
+        "key_id": key_id,
+        "key_name": key_name,
+        "scopes": scopes,
+        "message": "Account created. Save the key - it cannot be retrieved again."
+    }), 201
+
+
 # --- API Key Management ---
 
 @api_bp.route('/keys', methods=['GET'])
