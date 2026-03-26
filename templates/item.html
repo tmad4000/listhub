@@ -8,14 +8,17 @@
             <div class="item-header-meta">
                 <a href="/@{{ profile_user.username }}">@{{ profile_user.username }}</a>
                 <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
+                {% if item.visibility == 'public_edit' %}
+                    <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039; public edit</span>
+                {% endif %}
                 {% for tag in tags %}
                     <span class="tag">{{ tag }}</span>
                 {% endfor %}
                 <span>Updated {{ item.updated_at[:10] if item.updated_at else '' }}</span>
             </div>
         </div>
-        {% if is_owner %}
-        <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="btn btn-sm" style="flex-shrink: 0; margin-left: 16px;">Edit</a>
+        {% if can_edit %}
+        <a href="{% if is_owner %}{{ url_for('views.edit_item', item_id=item.id) }}{% else %}{{ url_for('views.public_edit_item', username=profile_user.username, slug=item.slug) }}{% endif %}" class="btn btn-sm" style="flex-shrink: 0; margin-left: 16px;">Edit</a>
         {% endif %}
     </div>
 </div>

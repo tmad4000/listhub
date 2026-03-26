@@ -32,8 +32,10 @@
             <div class="item-meta">
                 {% if is_owner %}
                 <span class="badge badge-{{ item.visibility }}" title="{{ item.visibility }}">
-                    {% if item.visibility == 'public' %}&#127760;{% elif item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
+                    {% if item.visibility == 'public_edit' %}&#9999;&#65039;{% elif item.visibility == 'public' %}&#127760;{% elif item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
                 </span>
+                {% elif item.visibility == 'public_edit' %}
+                <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039;</span>
                 {% endif %}
                 <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
                 {% for tag in item.tags %}
@@ -42,12 +44,14 @@
                 <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
             </div>
         </div>
-        {% if is_owner %}
         <div class="item-actions">
             <a href="/@{{ profile_user.username }}/{{ item.slug }}" class="btn btn-sm">View</a>
+            {% if is_owner %}
             <a href="{{ url_for('views.edit_item', item_id=item.id) }}" class="btn btn-sm">Edit</a>
+            {% elif item.visibility == 'public_edit' and current_user.is_authenticated %}
+            <a href="/@{{ profile_user.username }}/{{ item.slug }}/edit" class="btn btn-sm">Edit</a>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
     {% endfor %}
 </div>

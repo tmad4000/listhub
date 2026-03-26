@@ -13,6 +13,8 @@ from git_sync import sync_item_to_repo, remove_from_repo
 
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
+VALID_VISIBILITIES = ('private', 'shared', 'public', 'public_edit')
+
 
 def slugify(text):
     text = text.lower().strip()
@@ -36,6 +38,39 @@ def item_to_dict(item, include_content=True):
     if include_content:
         d['content'] = item['content']
     return d
+
+
+def _resolve_item_for_edit(item_id):
+    """Resolve an item and check edit permission.
+    Returns (item, owner_username, is_owner, error_response_or_none).
+    For public_edit items, any authenticated user can edit.
+    For shared items with edit permission, the shared user can edit.
+    """
+    user = get_current_api_user()
+    db = get_db()
+
+    # Try as owner first
+    item = db.execute("SELECT * FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id)).fetchone()
+    if item:
+        return item, user.username, True, None
+
+    # Check if item exists and is public_edit
+    item = db.execute("SELECT * FROM item WHERE id = ?", (item_id,)).fetchone()
+    if item and item['visibility'] == 'public_edit':
+        owner = User.get(db, item['owner_id'])
+        return item, owner.username if owner else 'unknown', False, None
+
+    # Check shared edit permission
+    if item and item['visibility'] == 'shared':
+        share = db.execute(
+            "SELECT * FROM share WHERE item_id = ? AND shared_with IN (?, ?) AND permission = 'edit'",
+            (item['id'], user.id, user.email or '')
+        ).fetchone()
+        if share:
+            owner = User.get(db, item['owner_id'])
+            return item, owner.username if owner else 'unknown', False, None
+
+    return None, None, False, (jsonify({"error": "Not found"}), 404)
 
 
 @api_bp.route('/items', methods=['GET'])
@@ -116,26 +151,28 @@ def update_item_metadata(item_id):
     if not api_has_scope('write'):
         return jsonify({"error": "Write scope required"}), 403
 
-    user = get_current_api_user()
+    item, owner_username, is_owner, err = _resolve_item_for_edit(item_id)
+    if err:
+        return err
+
     db = get_db()
-
-    item = db.execute("SELECT * FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id)).fetchone()
-    if not item:
-        return jsonify({"error": "Not found"}), 404
-
     data = request.get_json(silent=True) or {}
 
     updates = []
     params = []
 
-    if 'visibility' in data and data['visibility'] in ('private', 'shared', 'public'):
+    if 'visibility' in data and data['visibility'] in VALID_VISIBILITIES:
+        if not is_owner:
+            return jsonify({"error": "Only the owner can change visibility"}), 403
         updates.append("visibility = ?")
         params.append(data['visibility'])
     if 'slug' in data:
+        if not is_owner:
+            return jsonify({"error": "Only the owner can change the slug"}), 403
         new_slug = slugify(data['slug'])
         existing = db.execute(
             "SELECT id FROM item WHERE owner_id = ? AND slug = ? AND id != ?",
-            (user.id, new_slug, item_id)
+            (item['owner_id'], new_slug, item_id)
         ).fetchone()
         if existing:
             return jsonify({"error": "Slug already in use"}), 409
@@ -151,9 +188,8 @@ def update_item_metadata(item_id):
     if updates:
         updates.append("updated_at = CURRENT_TIMESTAMP")
         params.append(item_id)
-        params.append(user.id)
         db.execute(
-            f"UPDATE item SET {', '.join(updates)} WHERE id = ? AND owner_id = ?",
+            f"UPDATE item SET {', '.join(updates)} WHERE id = ?",
             params
         )
 
@@ -170,7 +206,7 @@ def update_item_metadata(item_id):
     db.commit()
 
     try:
-        sync_item_to_repo(user.username, item_id)
+        sync_item_to_repo(owner_username, item_id)
     except Exception:
         pass
 
@@ -198,7 +234,7 @@ def create_item():
 
     if item_type not in ('note', 'list', 'document'):
         item_type = 'note'
-    if visibility not in ('private', 'shared', 'public'):
+    if visibility not in VALID_VISIBILITIES:
         visibility = 'private'
 
     # Ensure unique slug
@@ -250,13 +286,11 @@ def edit_item_content(item_id):
     if not api_has_scope('write'):
         return jsonify({"error": "Write scope required"}), 403
 
-    user = get_current_api_user()
+    item, owner_username, is_owner, err = _resolve_item_for_edit(item_id)
+    if err:
+        return err
+
     db = get_db()
-
-    item = db.execute("SELECT * FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id)).fetchone()
-    if not item:
-        return jsonify({"error": "Not found"}), 404
-
     data = request.get_json(silent=True) or {}
     content = data.get('content')
     if content is None:
@@ -279,7 +313,7 @@ def edit_item_content(item_id):
     db.commit()
 
     try:
-        sync_item_to_repo(user.username, item_id)
+        sync_item_to_repo(owner_username, item_id)
     except Exception:
         pass
 
@@ -296,6 +330,7 @@ def delete_item(item_id):
     user = get_current_api_user()
     db = get_db()
 
+    # Delete is owner-only
     item = db.execute("SELECT * FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id)).fetchone()
     if not item:
         return jsonify({"error": "Not found"}), 404
@@ -325,13 +360,11 @@ def append_to_list(item_id):
     if not api_has_scope('write'):
         return jsonify({"error": "Write scope required"}), 403
 
-    user = get_current_api_user()
+    item, owner_username, is_owner, err = _resolve_item_for_edit(item_id)
+    if err:
+        return err
+
     db = get_db()
-
-    item = db.execute("SELECT * FROM item WHERE id = ? AND owner_id = ?", (item_id, user.id)).fetchone()
-    if not item:
-        return jsonify({"error": "Not found"}), 404
-
     data = request.get_json(silent=True) or {}
     entry = data.get('entry', '').strip()
     if not entry:
@@ -357,7 +390,7 @@ def append_to_list(item_id):
     db.commit()
 
     try:
-        sync_item_to_repo(user.username, item_id)
+        sync_item_to_repo(owner_username, item_id)
     except Exception:
         pass
 
@@ -457,7 +490,7 @@ def upsert_item_by_slug(slug):
         if 'title' in data:
             updates.append("title = ?")
             params.append(data['title'])
-        if 'visibility' in data and data['visibility'] in ('private', 'shared', 'public'):
+        if 'visibility' in data and data['visibility'] in VALID_VISIBILITIES:
             updates.append("visibility = ?")
             params.append(data['visibility'])
         if 'item_type' in data and data['item_type'] in ('note', 'list', 'document'):
@@ -504,7 +537,7 @@ def upsert_item_by_slug(slug):
 
         if item_type not in ('note', 'list', 'document'):
             item_type = 'note'
-        if visibility not in ('private', 'shared', 'public'):
+        if visibility not in VALID_VISIBILITIES:
             visibility = 'private'
 
         item_id = nanoid()
@@ -570,6 +603,138 @@ def delete_item_by_slug(slug):
         pass
 
     return jsonify({"ok": True})
+
+
+# --- Public edit endpoints (by username + slug) ---
+
+@api_bp.route('/public/<username>/<slug>', methods=['GET'])
+def get_public_item(username, slug):
+    """Get a public or public_edit item by username and slug. No auth required."""
+    db = get_db()
+    user = User.get_by_username(db, username)
+    if not user:
+        return jsonify({"error": "Not found"}), 404
+
+    item = db.execute(
+        "SELECT * FROM item WHERE owner_id = ? AND slug = ?", (user.id, slug)
+    ).fetchone()
+    if not item or item['visibility'] not in ('public', 'public_edit'):
+        return jsonify({"error": "Not found"}), 404
+
+    d = item_to_dict(item)
+    d['owner'] = username
+    d['can_edit'] = item['visibility'] == 'public_edit'
+    tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
+    d['tags'] = [t['tag'] for t in tags]
+    return jsonify(d)
+
+
+@api_bp.route('/public/<username>/<slug>/edit', methods=['POST'])
+@require_api_auth
+def edit_public_item(username, slug):
+    """Edit a public_edit item by username and slug. Any authenticated user can edit."""
+    if not api_has_scope('write'):
+        return jsonify({"error": "Write scope required"}), 403
+
+    db = get_db()
+    owner = User.get_by_username(db, username)
+    if not owner:
+        return jsonify({"error": "Not found"}), 404
+
+    item = db.execute(
+        "SELECT * FROM item WHERE owner_id = ? AND slug = ?", (owner.id, slug)
+    ).fetchone()
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+
+    # Check permission: owner or public_edit
+    editor = get_current_api_user()
+    is_owner = editor.id == owner.id
+    if not is_owner and item['visibility'] != 'public_edit':
+        return jsonify({"error": "This item is not publicly editable"}), 403
+
+    data = request.get_json(silent=True) or {}
+    content = data.get('content')
+    if content is None:
+        return jsonify({"error": "content field required"}), 400
+
+    new_revision = item['revision'] + 1
+
+    db.execute(
+        "UPDATE item SET content = ?, revision = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (content, new_revision, item['id'])
+    )
+    db.execute(
+        "INSERT INTO item_version (item_id, content, revision) VALUES (?, ?, ?)",
+        (item['id'], content, new_revision)
+    )
+    db.commit()
+    reindex_item(db, item['id'])
+    db.commit()
+
+    try:
+        sync_item_to_repo(username, item['id'])
+    except Exception:
+        pass
+
+    updated = db.execute("SELECT * FROM item WHERE id = ?", (item['id'],)).fetchone()
+    return jsonify(item_to_dict(updated))
+
+
+@api_bp.route('/public/<username>/<slug>/append', methods=['POST'])
+@require_api_auth
+def append_public_item(username, slug):
+    """Append to a public_edit item by username and slug. Any authenticated user can append."""
+    if not api_has_scope('write'):
+        return jsonify({"error": "Write scope required"}), 403
+
+    db = get_db()
+    owner = User.get_by_username(db, username)
+    if not owner:
+        return jsonify({"error": "Not found"}), 404
+
+    item = db.execute(
+        "SELECT * FROM item WHERE owner_id = ? AND slug = ?", (owner.id, slug)
+    ).fetchone()
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+
+    editor = get_current_api_user()
+    is_owner = editor.id == owner.id
+    if not is_owner and item['visibility'] != 'public_edit':
+        return jsonify({"error": "This item is not publicly editable"}), 403
+
+    data = request.get_json(silent=True) or {}
+    entry = data.get('entry', '').strip()
+    if not entry:
+        return jsonify({"error": "entry field required"}), 400
+
+    content = item['content'] or ''
+    if content and not content.endswith('\n'):
+        content += '\n'
+    content += f"- {entry}\n"
+
+    new_revision = item['revision'] + 1
+
+    db.execute(
+        "UPDATE item SET content = ?, revision = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (content, new_revision, item['id'])
+    )
+    db.execute(
+        "INSERT INTO item_version (item_id, content, revision) VALUES (?, ?, ?)",
+        (item['id'], content, new_revision)
+    )
+    db.commit()
+    reindex_item(db, item['id'])
+    db.commit()
+
+    try:
+        sync_item_to_repo(username, item['id'])
+    except Exception:
+        pass
+
+    updated = db.execute("SELECT * FROM item WHERE id = ?", (item['id'],)).fetchone()
+    return jsonify(item_to_dict(updated))
 
 
 @api_bp.route('/search', methods=['GET'])

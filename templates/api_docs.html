@@ -25,6 +25,51 @@
 
 <p>The design favors simplicity: SQLite for storage, bare git repos with plumbing commands for sync, plain Bearer tokens for auth. No external dependencies beyond git itself.</p>
 
+
+<h2 id="visibility-levels">Visibility Levels</h2>
+
+<p>Every item has a <code>visibility</code> setting that controls who can view and edit it:</p>
+
+<table>
+    <thead>
+        <tr><th>Value</th><th>Who can view</th><th>Who can edit</th><th>Use case</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>private</code></td>
+            <td>Owner only</td>
+            <td>Owner only</td>
+            <td>Personal notes, drafts</td>
+        </tr>
+        <tr>
+            <td><code>shared</code></td>
+            <td>Owner + shared users</td>
+            <td>Owner + users with <code>edit</code> permission</td>
+            <td>Collaboration with specific people</td>
+        </tr>
+        <tr>
+            <td><code>public</code></td>
+            <td>Anyone (no auth needed)</td>
+            <td>Owner only</td>
+            <td>Published content, read-only sharing</td>
+        </tr>
+        <tr>
+            <td><code>public_edit</code></td>
+            <td>Anyone (no auth needed)</td>
+            <td>Any authenticated user</td>
+            <td>Wiki-style collaborative lists, community content</td>
+        </tr>
+    </tbody>
+</table>
+
+<p><strong>Key points:</strong></p>
+<ul>
+    <li><code>public_edit</code> items can be edited by any user with a ListHub account — no explicit sharing needed</li>
+    <li>Even on <code>public_edit</code> items, only the owner can change visibility, slug, or delete the item</li>
+    <li>All edits are versioned — you can always see what changed</li>
+    <li>Set via the API (<code>visibility</code> field) or the web UI edit form</li>
+</ul>
+
 <h2>Authentication</h2>
 
 <p>Most API endpoints require authentication via one of:</p>
@@ -175,7 +220,7 @@ curl -H "Authorization: Bearer $KEY" \
     <li><code>content</code> — markdown content (default: "")</li>
     <li><code>slug</code> — URL slug (auto-generated from title if omitted)</li>
     <li><code>item_type</code> — <code>note</code>, <code>list</code>, or <code>document</code> (default: "note")</li>
-    <li><code>visibility</code> — <code>private</code>, <code>shared</code>, or <code>public</code> (default: "private")</li>
+    <li><code>visibility</code> — <code>private</code>, <code>shared</code>, <code>public</code>, or <code>public_edit</code> (default: "private"). See <a href="#visibility-levels">Visibility Levels</a> below.</li>
     <li><code>tags</code> — array of tag strings</li>
     <li><code>file_path</code> — git repo file path (default: <code>{slug}.md</code>)</li>
 </ul>
@@ -193,7 +238,7 @@ curl -H "Authorization: Bearer $KEY" \
 
 <h3>Update metadata</h3>
 <p><code>PUT /api/v1/items/:id</code> — requires <code>write</code> scope</p>
-<p>Update title, slug, visibility, item_type, or tags without changing content.</p>
+<p>Update title, slug, visibility, item_type, or tags without changing content. Non-owners can update title, tags, and item_type on <code>public_edit</code> items (but not slug or visibility).</p>
 
 <div class="code-block"><code>curl -X PUT -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" \
@@ -252,7 +297,7 @@ curl -H "Authorization: Bearer $KEY" \
     <li><code>title</code> — item title (default: derived from slug)</li>
     <li><code>content</code> — markdown content</li>
     <li><code>item_type</code> — <code>note</code>, <code>list</code>, or <code>document</code> (default: "note")</li>
-    <li><code>visibility</code> — <code>private</code>, <code>shared</code>, or <code>public</code> (default: "private")</li>
+    <li><code>visibility</code> — <code>private</code>, <code>shared</code>, <code>public</code>, or <code>public_edit</code> (default: "private"). See <a href="#visibility-levels">Visibility Levels</a> below.</li>
     <li><code>tags</code> — array of tag strings</li>
 </ul>
 
@@ -291,6 +336,57 @@ curl -H "Authorization: Bearer $KEY" \
 
 <div class="code-block"><code>curl -X DELETE -H "Authorization: Bearer $KEY" \
   https://listhub.globalbr.ai/api/v1/items/abc123/share/alice</code></div>
+
+
+<h2>Public Editing</h2>
+
+<p>Items with <code>public_edit</code> visibility can be read by anyone and edited by any authenticated user. These endpoints use the <code>@username/slug</code> pattern so you don't need to know the item's internal ID.</p>
+
+<h3>Get public item</h3>
+<p><code>GET /api/v1/public/:username/:slug</code> — no authentication required</p>
+<p>Returns a public or public_edit item. The response includes a <code>can_edit</code> field indicating whether the item accepts edits from any user.</p>
+
+<div class="code-block"><code>curl https://listhub.globalbr.ai/api/v1/public/jacobreal/agent-friendly-apps</code></div>
+
+<p><strong>Response:</strong></p>
+<div class="code-block"><code>{
+  "id": "abc123",
+  "slug": "agent-friendly-apps",
+  "title": "Agent-Friendly Apps",
+  "content": "...",
+  "visibility": "public_edit",
+  "owner": "jacobreal",
+  "can_edit": true,
+  "tags": ["apps", "agents"],
+  ...
+}</code></div>
+
+<h3>Edit public item content</h3>
+<p><code>POST /api/v1/public/:username/:slug/edit</code> — requires authentication, requires <code>write</code> scope</p>
+<p>Replace the content of a <code>public_edit</code> item. Any authenticated user can call this.</p>
+
+<div class="code-block"><code>curl -X POST -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Updated content here"}' \
+  https://listhub.globalbr.ai/api/v1/public/jacobreal/agent-friendly-apps/edit</code></div>
+
+<p><strong>Errors:</strong></p>
+<ul>
+    <li><code>403</code> — Item is not <code>public_edit</code></li>
+    <li><code>404</code> — User or item not found</li>
+</ul>
+
+<h3>Append to public item</h3>
+<p><code>POST /api/v1/public/:username/:slug/append</code> — requires authentication, requires <code>write</code> scope</p>
+<p>Append a bullet point to a <code>public_edit</code> item. Any authenticated user can call this.</p>
+
+<div class="code-block"><code>curl -X POST -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"entry": "New list item here"}' \
+  https://listhub.globalbr.ai/api/v1/public/jacobreal/agent-friendly-apps/append</code></div>
+
+<h3>Edit via existing endpoints</h3>
+<p>If you already know the item's ID (e.g., from a previous API call), the standard <code>/items/:id/edit</code> and <code>/items/:id/append</code> endpoints also work for <code>public_edit</code> items — you don't need to be the owner.</p>
 
 <h2>API Keys</h2>
 

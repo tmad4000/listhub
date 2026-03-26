@@ -7,7 +7,7 @@ from flask_login import login_required, current_user
 from nanoid import generate as nanoid
 
 from db import get_db, reindex_item
-from api import slugify
+from api import slugify, VALID_VISIBILITIES
 from git_sync import sync_item_to_repo, remove_from_repo
 
 views_bp = Blueprint('views', __name__)
@@ -67,7 +67,7 @@ def landing():
     db = get_db()
     public_items = db.execute(
         "SELECT i.*, u.username FROM item i JOIN user u ON i.owner_id = u.id "
-        "WHERE i.visibility = 'public' ORDER BY i.updated_at DESC LIMIT 20"
+        "WHERE i.visibility IN ('public', 'public_edit') ORDER BY i.updated_at DESC LIMIT 20"
     ).fetchall()
 
     return render_template('landing.html', items=public_items)
@@ -78,7 +78,7 @@ def people():
     db = get_db()
     users = db.execute(
         "SELECT u.id, u.username, u.display_name, u.created_at, "
-        "COUNT(CASE WHEN i.visibility = 'public' THEN 1 END) as public_count, "
+        "COUNT(CASE WHEN i.visibility IN ('public', 'public_edit') THEN 1 END) as public_count, "
         "COUNT(i.id) as total_count "
         "FROM user u LEFT JOIN item i ON i.owner_id = u.id "
         "GROUP BY u.id ORDER BY public_count DESC, u.created_at ASC"
@@ -93,7 +93,7 @@ def explore():
 
     public_items = db.execute(
         "SELECT i.*, u.username FROM item i JOIN user u ON i.owner_id = u.id "
-        "WHERE i.visibility = 'public' ORDER BY i.updated_at DESC LIMIT 50"
+        "WHERE i.visibility IN ('public', 'public_edit') ORDER BY i.updated_at DESC LIMIT 50"
     ).fetchall()
 
     items = []
@@ -178,6 +178,9 @@ def new_item():
         visibility = request.form.get('visibility', 'private')
         tags_str = request.form.get('tags', '')
 
+        if visibility not in VALID_VISIBILITIES:
+            visibility = 'private'
+
         db = get_db()
 
         # Ensure unique slug
@@ -240,6 +243,9 @@ def edit_item(item_id):
         visibility = request.form.get('visibility', 'private')
         tags_str = request.form.get('tags', '')
 
+        if visibility not in VALID_VISIBILITIES:
+            visibility = 'private'
+
         # Ensure unique slug (excluding self)
         existing = db.execute(
             "SELECT id FROM item WHERE owner_id = ? AND slug = ? AND id != ?",
@@ -284,6 +290,75 @@ def edit_item(item_id):
     tags_str = ', '.join(t['tag'] for t in tags)
 
     return render_template('edit.html', item=item, tags_str=tags_str)
+
+
+@views_bp.route('/@<username>/<slug>/edit', methods=['GET', 'POST'])
+@login_required
+def public_edit_item(username, slug):
+    """Edit a public_edit item. Any authenticated user can edit."""
+    db = get_db()
+    from models import User
+    owner = User.get_by_username(db, username)
+    if not owner:
+        abort(404)
+
+    item = db.execute(
+        "SELECT * FROM item WHERE owner_id = ? AND slug = ?", (owner.id, slug)
+    ).fetchone()
+    if not item:
+        abort(404)
+
+    is_owner = current_user.id == owner.id
+
+    # If owner, redirect to the normal edit page
+    if is_owner:
+        return redirect(url_for('views.edit_item', item_id=item['id']))
+
+    # Non-owner: must be public_edit
+    if item['visibility'] != 'public_edit':
+        abort(403)
+
+    if request.method == 'POST':
+        content = request.form.get('content', '')
+        title = request.form.get('title', '').strip() or item['title']
+        tags_str = request.form.get('tags', '')
+
+        new_revision = item['revision'] + 1
+
+        # Non-owners can update content, title, tags — not slug, visibility, or item_type
+        db.execute(
+            "UPDATE item SET title=?, content=?, revision=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (title, content, new_revision, item['id'])
+        )
+
+        db.execute(
+            "INSERT INTO item_version (item_id, content, revision) VALUES (?, ?, ?)",
+            (item['id'], content, new_revision)
+        )
+
+        # Update tags
+        db.execute("DELETE FROM item_tag WHERE item_id = ?", (item['id'],))
+        for tag in tags_str.split(','):
+            tag = tag.strip().lower()
+            if tag:
+                db.execute("INSERT OR IGNORE INTO item_tag (item_id, tag) VALUES (?, ?)", (item['id'], tag))
+
+        db.commit()
+        reindex_item(db, item['id'])
+        db.commit()
+
+        try:
+            sync_item_to_repo(username, item['id'])
+        except Exception:
+            pass
+
+        return redirect(url_for('views.public_item', username=username, slug=slug))
+
+    tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
+    tags_str = ', '.join(t['tag'] for t in tags)
+
+    return render_template('edit.html', item=item, tags_str=tags_str,
+                           public_edit_mode=True, owner_username=username)
 
 
 @views_bp.route('/dash/delete/<item_id>', methods=['POST'])
@@ -342,7 +417,7 @@ def user_profile(username):
         ).fetchall()
     else:
         items = db.execute(
-            "SELECT * FROM item WHERE owner_id = ? AND visibility = 'public' ORDER BY updated_at DESC",
+            "SELECT * FROM item WHERE owner_id = ? AND visibility IN ('public', 'public_edit') ORDER BY updated_at DESC",
             (user.id,)
         ).fetchall()
 
@@ -376,7 +451,7 @@ def public_item(username, slug):
 
     # Access check
     can_view = False
-    if item['visibility'] == 'public':
+    if item['visibility'] in ('public', 'public_edit'):
         can_view = True
     elif current_user.is_authenticated:
         if current_user.id == user.id:
@@ -396,13 +471,19 @@ def public_item(username, slug):
     rendered_content = render_md(item['content'])
     is_owner = current_user.is_authenticated and current_user.id == user.id
 
+    # Determine edit permission
+    can_edit = is_owner
+    if not can_edit and item['visibility'] == 'public_edit' and current_user.is_authenticated:
+        can_edit = True
+
     return render_template(
         'item.html',
         item=item,
         profile_user=user,
         tags=[t['tag'] for t in tags],
         rendered_content=rendered_content,
-        is_owner=is_owner
+        is_owner=is_owner,
+        can_edit=can_edit
     )
 
 
@@ -571,7 +652,7 @@ def short_link(item_id):
     if not item:
         abort(404)
 
-    if item['visibility'] == 'public':
+    if item['visibility'] in ('public', 'public_edit'):
         return redirect(url_for('views.public_item', username=item['username'], slug=item['slug']))
 
     if current_user.is_authenticated and current_user.id == item['owner_id']:
@@ -619,6 +700,21 @@ Authorization: Bearer mem_abc123...
 - POST /api/v1/items/:id/append — append to a list
 - GET /api/v1/search?q=query — full-text search
 - PUT /api/v1/items/by-slug/:slug — create or update by slug
+
+### Public Edit (no ownership needed)
+
+Items with `public_edit` visibility can be edited by any authenticated user:
+
+- GET /api/v1/public/:username/:slug — read a public item
+- POST /api/v1/public/:username/:slug/edit — edit content
+- POST /api/v1/public/:username/:slug/append — append to list
+
+## Visibility Levels
+
+- `private` — only the owner can view and edit
+- `shared` — specific users can view/edit (via share settings)
+- `public` — anyone can view, only the owner can edit
+- `public_edit` — anyone can view, any authenticated user can edit (wiki-style)
 
 ## Links
 

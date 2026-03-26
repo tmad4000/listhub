@@ -2,11 +2,21 @@
 {% block title %}{% if item %}Edit — {{ item.title or item.slug }}{% else %}New Item{% endif %} — ListHub{% endblock %}
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    {% if public_edit_mode is defined and public_edit_mode %}
+    <a href="/@{{ owner_username }}/{{ item.slug }}">&larr; Back to item</a>
+    {% else %}
     <a href="{{ url_for('views.dashboard') }}">&larr; Back to dashboard</a>
+    {% endif %}
     {% if item %}
-    <a href="/@{{ current_user.username }}/{{ item.slug }}" class="btn btn-sm">Preview</a>
+    <a href="/@{% if public_edit_mode is defined and public_edit_mode %}{{ owner_username }}{% else %}{{ current_user.username }}{% endif %}/{{ item.slug }}" class="btn btn-sm">Preview</a>
     {% endif %}
 </div>
+
+{% if public_edit_mode is defined and public_edit_mode %}
+<div style="background: var(--bg-secondary); border: 1px solid var(--accent); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; font-size: 14px;">
+    You are editing <strong>@{{ owner_username }}/{{ item.slug }}</strong> as <strong>@{{ current_user.username }}</strong>. This item is publicly editable.
+</div>
+{% endif %}
 
 <h1 style="margin-bottom: 24px;">{% if item %}Edit Item{% else %}New Item{% endif %}</h1>
 
@@ -17,11 +27,13 @@
             <label for="title">Title</label>
             <input type="text" id="title" name="title" value="{{ item.title if item else '' }}" placeholder="My Reading List">
         </div>
+        {% if not (public_edit_mode is defined and public_edit_mode) %}
         <div class="form-group">
             <label for="slug">Slug</label>
             <input type="text" id="slug" name="slug" value="{{ item.slug if item else '' }}" placeholder="my-reading-list">
             <div class="form-help">URL path: /@{{ current_user.username }}/<em>slug</em></div>
         </div>
+        {% endif %}
     </div>
 
     <div class="form-group">
@@ -33,6 +45,7 @@
         <textarea id="content" name="content" class="raw-editor" style="display: none;">{{ item.content if item else '' }}</textarea>
     </div>
 
+    {% if not (public_edit_mode is defined and public_edit_mode) %}
     <div class="form-row">
         <div class="form-group">
             <label for="item_type">Type</label>
@@ -47,7 +60,8 @@
             <select id="visibility" name="visibility">
                 <option value="private" {% if item and item.visibility == 'private' %}selected{% endif %}>Private</option>
                 <option value="shared" {% if item and item.visibility == 'shared' %}selected{% endif %}>Shared</option>
-                <option value="public" {% if item and item.visibility == 'public' %}selected{% endif %}>Public</option>
+                <option value="public" {% if item and item.visibility == 'public' %}selected{% endif %}>Public (view only)</option>
+                <option value="public_edit" {% if item and item.visibility == 'public_edit' %}selected{% endif %}>Public (anyone can edit)</option>
             </select>
         </div>
         <div class="form-group">
@@ -56,10 +70,23 @@
             <div class="form-help">Comma-separated</div>
         </div>
     </div>
+    {% else %}
+    <div class="form-row">
+        <div class="form-group">
+            <label for="tags">Tags</label>
+            <input type="text" id="tags" name="tags" value="{{ tags_str if tags_str is defined else '' }}" placeholder="reading, books, 2026">
+            <div class="form-help">Comma-separated</div>
+        </div>
+    </div>
+    {% endif %}
 
     <div style="display: flex; gap: 12px; margin-top: 8px;">
         <button type="submit" class="btn btn-primary">{% if item %}Save Changes{% else %}Create Item{% endif %}</button>
+        {% if public_edit_mode is defined and public_edit_mode %}
+        <a href="/@{{ owner_username }}/{{ item.slug }}" class="btn">Cancel</a>
+        {% else %}
         <a href="{{ url_for('views.dashboard') }}" class="btn">Cancel</a>
+        {% endif %}
     </div>
 </form>
 
