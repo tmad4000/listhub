@@ -4,7 +4,7 @@
 <div class="toolbar">
     <h1>Explore</h1>
     <form class="search-box" method="get" action="{{ url_for('views.explore') }}">
-        <input type="text" name="q" placeholder="Search public items..." value="{{ q or '' }}">
+        <input type="text" name="q" placeholder="Search public lists..." value="{{ q or '' }}">
     </form>
 </div>
 
@@ -28,7 +28,7 @@
 </div>
 {% else %}
 <div class="empty-state">
-    <p>{% if q %}No results for "{{ q }}".{% else %}No public items yet.{% endif %}</p>
+    <p>{% if q %}No results for "{{ q }}".{% else %}No public lists yet.{% endif %}</p>
 </div>
 {% endif %}
 {% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if item %}Edit — {{ item.title or item.slug }}{% else %}New Item{% endif %} — ListHub{% endblock %}
+{% block title %}{% if item %}Edit — {{ item.title or item.slug }}{% else %}New List{% endif %} — ListHub{% endblock %}
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
     {% if public_edit_mode is defined and public_edit_mode %}
@@ -18,7 +18,7 @@
 </div>
 {% endif %}
 
-<h1 style="margin-bottom: 24px;">{% if item %}Edit Item{% else %}New Item{% endif %}</h1>
+<h1 style="margin-bottom: 24px;">{% if item %}Edit List{% else %}New List{% endif %}</h1>
 
 <form method="post" id="edit-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -59,7 +59,7 @@
             <label for="visibility">Visibility</label>
             <select id="visibility" name="visibility">
                 <option value="private" {% if item and item.visibility == 'private' %}selected{% endif %}>Private</option>
-                <option value="shared" {% if item and item.visibility == 'shared' %}selected{% endif %}>Shared</option>
+                <option value="shared" {% if item and item.visibility == 'shared' %}selected{% endif %}>Shared (WIP)</option>
                 <option value="public" {% if item and item.visibility == 'public' %}selected{% endif %}>Public (view only)</option>
                 <option value="public_edit" {% if item and item.visibility == 'public_edit' %}selected{% endif %}>Public (anyone can edit)</option>
             </select>
@@ -81,7 +81,7 @@
     {% endif %}
 
     <div style="display: flex; gap: 12px; margin-top: 8px;">
-        <button type="submit" class="btn btn-primary">{% if item %}Save Changes{% else %}Create Item{% endif %}</button>
+        <button type="submit" class="btn btn-primary">{% if item %}Save Changes{% else %}Create List{% endif %}</button>
         {% if public_edit_mode is defined and public_edit_mode %}
         <a href="/@{{ owner_username }}/{{ item.slug }}" class="btn">Cancel</a>
         {% else %}
@@ -89,6 +89,34 @@
         {% endif %}
     </div>
 </form>
+
+
+<script>
+// Auto-generate slug from title (only for new items, not edits)
+document.addEventListener('DOMContentLoaded', function() {
+    const titleInput = document.getElementById('title');
+    const slugInput = document.getElementById('slug');
+    if (!titleInput || !slugInput) return;
+
+    // Only auto-generate if slug is empty (new item)
+    let userEditedSlug = slugInput.value.trim() !== '';
+
+    slugInput.addEventListener('input', function() {
+        userEditedSlug = true;
+    });
+
+    titleInput.addEventListener('input', function() {
+        if (userEditedSlug) return;
+        const title = titleInput.value;
+        const slug = title.toLowerCase().trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_]+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+        slugInput.value = slug;
+    });
+});
+</script>
 
 <!-- Milkdown - pre-bundled -->
 <script type="module">
