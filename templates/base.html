@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}ListHub{% endblock %}</title>
-    <meta name="description" content="ListHub — a publishing and sharing layer for notes, lists, and knowledge. Agent-native REST API, Git access, and web UI.">
-    <link rel="llms-txt" href="/llms.txt">
-    <meta name="robots" content="index, follow">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3">
     <meta name="description" content="ListHub - A publishing and sharing layer for notes, lists, and knowledge. Agent-native REST API for programmatic access. Register, create, search, and collaborate.">
     <link rel="api" href="/api/docs" title="API Documentation">
     <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM-readable site description">
@@ -18,19 +15,16 @@
         <div class="header-inner">
             <a href="{{ url_for('views.landing') }}" class="logo">ListHub</a>
             <nav class="header-nav">
+                <a href="{{ url_for('views.browse') }}">Browse</a>
+                <a href="{{ url_for('views.community') }}">Community</a>
                 {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('views.directory') }}">Directory</a>
-                    <a href="{{ url_for('views.explore') }}">Explore</a>
-                    <a href="{{ url_for('views.people') }}">People</a>
-                    <a href="{{ url_for('views.dashboard') }}">My Dashboard</a>
-                    <a href="/@{{ current_user.username }}">@{{ current_user.username }} (public)</a>
+                    <a href="{{ url_for('views.new_item') }}" class="nav-new">+ New</a>
+                    <a href="{{ url_for('views.dashboard') }}">Dashboard</a>
+                    <a href="/@{{ current_user.username }}">@{{ current_user.username }}</a>
                     <a href="{{ url_for('views.api_docs') }}">API</a>
                     <a href="{{ url_for('views.settings') }}">Settings</a>
                     <a href="{{ url_for('auth.logout') }}">Logout</a>
                 {% else %}
-                    <a href="{{ url_for('views.directory') }}">Directory</a>
-                    <a href="{{ url_for('views.explore') }}">Explore</a>
-                    <a href="{{ url_for('views.people') }}">People</a>
                     <a href="{{ url_for('views.api_docs') }}">API</a>
                     <a href="{{ url_for('auth.login') }}">Sign In</a>
                 {% endif %}

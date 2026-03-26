@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Browse — ListHub{% endblock %}
+{% block content %}
+<div class="toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1>Browse</h1>
+    <form class="search-box" method="get" action="{{ url_for('views.browse') }}" style="flex: 1; max-width: 320px; margin-left: 24px;">
+        <input type="text" name="q" placeholder="Search all public items..." value="{{ q or '' }}" style="width: 100%;">
+    </form>
+</div>
+
+{% if not q %}
+{% if directory_topics %}
+<section style="margin-bottom: 28px;">
+    <h2 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Community Directory</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 8px;">
+        {% for topic in directory_topics %}
+        <a href="/directory/{{ topic.path }}" style="display: block; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; text-decoration: none; transition: border-color 0.15s;">
+            <div style="font-size: 14px; font-weight: 600; color: var(--text);">{{ topic.name }}</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">{{ topic.count }} item{{ 's' if topic.count != 1 }}</div>
+        </a>
+        {% endfor %}
+    </div>
+    <a href="{{ url_for('views.directory') }}" style="font-size: 13px; color: var(--text-muted);">View full directory &rarr;</a>
+</section>
+{% endif %}
+{% endif %}
+
+<section>
+    {% if q %}
+    <h2 style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">Results for "{{ q }}"</h2>
+    {% else %}
+    <h2 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Recent Public Lists</h2>
+    {% endif %}
+
+    {% if items %}
+    <div class="item-list">
+        {% for item in items %}
+        <div class="item-card">
+            <div class="item-info">
+                <a href="/@{{ item.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
+                <div class="item-meta">
+                    <a href="/@{{ item.username }}" style="color: var(--text-muted);">@{{ item.username }}</a>
+                    {% if item.visibility == 'public_edit' %}
+                    <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039;</span>
+                    {% endif %}
+                    <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
+                    {% for tag in item.tags %}
+                        <span class="tag">{{ tag }}</span>
+                    {% endfor %}
+                    <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>{% if q %}No results for "{{ q }}".{% else %}No public items yet.{% endif %}</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

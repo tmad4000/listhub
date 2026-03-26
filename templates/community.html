@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Community — ListHub{% endblock %}
+{% block content %}
+<h1 style="margin-bottom: 24px;">Community</h1>
+
+<section style="margin-bottom: 32px;">
+    <h2 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">People</h2>
+    {% if users %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px;">
+        {% for user in users %}
+        <a href="/@{{ user.username }}" style="display: flex; align-items: center; gap: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-decoration: none; transition: border-color 0.15s;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: var(--bg); flex-shrink: 0;">{{ (user.display_name or user.username)[0]|upper }}</div>
+            <div>
+                <div style="font-size: 14px; font-weight: 500; color: var(--text);">{{ user.display_name or user.username }}</div>
+                <div style="font-size: 12px; color: var(--text-muted);">@{{ user.username }} &middot; {{ user.public_count }} public item{{ 's' if user.public_count != 1 }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><p>No users yet.</p></div>
+    {% endif %}
+</section>
+
+{% if editable_items %}
+<section style="margin-bottom: 32px;">
+    <h2 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Open for Editing</h2>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">These lists are publicly editable — sign in to contribute.</p>
+    <div class="item-list">
+        {% for item in editable_items %}
+        <div class="item-card">
+            <div class="item-info">
+                <a href="/@{{ item.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
+                <div class="item-meta">
+                    <a href="/@{{ item.username }}" style="color: var(--text-muted);">@{{ item.username }}</a>
+                    <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039; editable</span>
+                    <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
+                    <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <h2 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Community Directory</h2>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+        A shared, curated index of topics and lists — maintained by the community via git.
+        <a href="{{ url_for('views.directory') }}">Browse the directory &rarr;</a>
+    </p>
+</section>
+{% endblock %}

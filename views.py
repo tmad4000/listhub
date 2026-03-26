@@ -59,6 +59,20 @@ def api_docs():
     return render_template('api_docs.html')
 
 
+def _get_directory_topics():
+    """Get top-level directory topics for display on homepage/browse."""
+    repo = _directory_repo()
+    if not os.path.isdir(repo):
+        return []
+    ls_output = _git_read(repo, 'ls-tree', '-r', '--name-only', 'HEAD')
+    if not ls_output:
+        return []
+    all_files = [f for f in ls_output.strip().split('\n') if f]
+    tree = _build_full_tree(all_files)
+    # Return only top-level folders
+    return [t for t in tree if t['type'] == 'folder']
+
+
 @views_bp.route('/')
 def landing():
     if current_user.is_authenticated:
@@ -67,14 +81,29 @@ def landing():
     db = get_db()
     public_items = db.execute(
         "SELECT i.*, u.username FROM item i JOIN user u ON i.owner_id = u.id "
-        "WHERE i.visibility IN ('public', 'public_edit') ORDER BY i.updated_at DESC LIMIT 20"
+        "WHERE i.visibility IN ('public', 'public_edit') ORDER BY i.updated_at DESC LIMIT 12"
     ).fetchall()
 
-    return render_template('landing.html', items=public_items)
+    # Get directory topics
+    directory_topics = _get_directory_topics()
+
+    # Get active users (with public content)
+    active_users = db.execute(
+        "SELECT u.id, u.username, u.display_name, "
+        "COUNT(CASE WHEN i.visibility IN ('public', 'public_edit') THEN 1 END) as public_count "
+        "FROM user u JOIN item i ON i.owner_id = u.id "
+        "WHERE i.visibility IN ('public', 'public_edit') "
+        "GROUP BY u.id HAVING public_count > 0 "
+        "ORDER BY public_count DESC LIMIT 8"
+    ).fetchall()
+
+    return render_template('landing.html', items=public_items,
+                           directory_topics=directory_topics,
+                           active_users=[dict(u) for u in active_users])
 
 
-@views_bp.route('/people')
-def people():
+@views_bp.route('/community')
+def community():
     db = get_db()
     users = db.execute(
         "SELECT u.id, u.username, u.display_name, u.created_at, "
@@ -83,11 +112,25 @@ def people():
         "FROM user u LEFT JOIN item i ON i.owner_id = u.id "
         "GROUP BY u.id ORDER BY public_count DESC, u.created_at ASC"
     ).fetchall()
-    return render_template('people.html', users=[dict(u) for u in users])
+
+    # Get publicly editable items
+    editable_items = db.execute(
+        "SELECT i.*, u.username FROM item i JOIN user u ON i.owner_id = u.id "
+        "WHERE i.visibility = 'public_edit' ORDER BY i.updated_at DESC LIMIT 10"
+    ).fetchall()
+
+    return render_template('community.html', users=[dict(u) for u in users],
+                           editable_items=editable_items)
 
 
-@views_bp.route('/explore')
-def explore():
+@views_bp.route('/people')
+def people():
+    """Legacy redirect."""
+    return redirect(url_for('views.community'), 301)
+
+
+@views_bp.route('/browse')
+def browse():
     db = get_db()
     q = request.args.get('q', '').strip()
 
@@ -115,7 +158,15 @@ def explore():
         except Exception:
             flash('Invalid search query.', 'error')
 
-    return render_template('explore.html', items=items, q=q)
+    directory_topics = _get_directory_topics()
+
+    return render_template('browse.html', items=items, q=q, directory_topics=directory_topics)
+
+
+@views_bp.route('/explore')
+def explore():
+    """Legacy redirect."""
+    return redirect(url_for('views.browse', **request.args), 301)
 
 
 @views_bp.route('/dash')

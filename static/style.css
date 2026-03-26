@@ -626,3 +626,24 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     .item-actions { margin-left: 0; margin-top: 8px; }
     .hero h1 { font-size: 28px; }
 }
+
+/* Nav: New button highlight */
+.nav-new {
+    background: var(--green);
+    color: var(--bg) !important;
+    padding: 2px 10px;
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 13px;
+}
+.nav-new:hover {
+    opacity: 0.9;
+    text-decoration: none !important;
+}
+
+/* Badge: public_edit */
+.badge-public_edit {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
