@@ -60,7 +60,7 @@ def api_docs():
 
 
 def _get_directory_topics():
-    """Get top-level directory topics for display on homepage/browse."""
+    """Get top-level directory topics with descriptions from index.md files."""
     repo = _directory_repo()
     if not os.path.isdir(repo):
         return []
@@ -69,8 +69,23 @@ def _get_directory_topics():
         return []
     all_files = [f for f in ls_output.strip().split('\n') if f]
     tree = _build_full_tree(all_files)
-    # Return only top-level folders
-    return [t for t in tree if t['type'] == 'folder']
+    topics = [t for t in tree if t['type'] == 'folder']
+
+    # Extract one-line description from each topic's index.md
+    for topic in topics:
+        raw = _git_read(repo, 'show', f"HEAD:{topic['path']}/index.md")
+        desc = ''
+        if raw:
+            _, body = _extract_frontmatter(raw)
+            # Find first non-heading, non-empty line as description
+            for line in body.split('\n'):
+                line = line.strip()
+                if line and not line.startswith('#') and not line.startswith('-') and not line.startswith('*'):
+                    desc = line
+                    break
+        topic['description'] = desc
+
+    return topics
 
 
 @views_bp.route('/')
