@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadmap — ListHub</title>
+    <style>
+        :root {
+            --bg: #0d1117; --bg-secondary: #161b22; --bg-tertiary: #21262d;
+            --border: #30363d; --text: #e6edf3; --text-muted: #8b949e; --text-dim: #484f58;
+            --accent: #58a6ff; --green: #3fb950; --orange: #d29922; --red: #f85149;
+            --purple: #bc8cff; --radius: 6px; --max-width: 900px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: #79c0ff; }
+        .header { border-bottom: 1px solid var(--border); padding: 12px 0; }
+        .header-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 18px; font-weight: 700; color: var(--text); }
+        .header-nav { display: flex; gap: 16px; align-items: center; }
+        .header-nav a { color: var(--text-muted); font-size: 14px; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 24px 20px; }
+        h1 { font-size: 24px; margin-bottom: 4px; }
+        .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+
+        /* Stats bar */
+        .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .stat { padding: 8px 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; }
+        .stat-num { font-weight: 700; font-size: 18px; }
+        .stat-label { color: var(--text-muted); }
+
+        /* Filters */
+        .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .filter-btn {
+            padding: 4px 12px; font-size: 12px; border-radius: 20px; cursor: pointer;
+            border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-muted);
+            font-family: inherit;
+        }
+        .filter-btn:hover { border-color: var(--text-muted); color: var(--text); }
+        .filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,0.1); }
+
+        /* Tree */
+        .tree { margin-bottom: 32px; }
+        .tree-node { border-left: 2px solid var(--border); margin-left: 0; padding-left: 0; }
+        .tree-node.depth-0 { border-left: none; }
+        .tree-item {
+            display: flex; align-items: flex-start; gap: 8px; padding: 6px 12px;
+            border-radius: var(--radius); cursor: pointer; transition: background 0.1s;
+        }
+        .tree-item:hover { background: var(--bg-secondary); }
+        .tree-toggle {
+            width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; color: var(--text-dim); font-size: 10px; margin-top: 3px; cursor: pointer;
+            border-radius: 3px;
+        }
+        .tree-toggle:hover { background: var(--bg-tertiary); }
+        .tree-spacer { width: 18px; flex-shrink: 0; }
+        .tree-status { flex-shrink: 0; margin-top: 3px; font-size: 14px; }
+        .tree-content { flex: 1; min-width: 0; }
+        .tree-title { font-size: 14px; font-weight: 500; }
+        .tree-title.closed { text-decoration: line-through; color: var(--text-dim); }
+        .tree-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 8px; margin-top: 1px; flex-wrap: wrap; }
+        .tree-children { margin-left: 20px; }
+        .tree-children.collapsed { display: none; }
+
+        /* Badges */
+        .badge { display: inline-block; padding: 0px 7px; font-size: 10px; font-weight: 600; border-radius: 10px; border: 1px solid; }
+        .badge-epic { color: var(--purple); border-color: rgba(188,140,255,0.3); background: rgba(188,140,255,0.08); }
+        .badge-feature { color: var(--accent); border-color: rgba(88,166,255,0.3); }
+        .badge-task { color: var(--green); border-color: rgba(63,185,80,0.3); }
+        .badge-bug { color: var(--red); border-color: rgba(248,81,73,0.3); }
+        .badge-chore { color: var(--text-muted); border-color: var(--border); }
+        .badge-p0 { color: var(--red); } .badge-p1 { color: var(--orange); }
+        .badge-p2 { color: var(--text-muted); } .badge-p3 { color: var(--text-dim); }
+
+        /* Description panel */
+        .desc-panel {
+            position: fixed; top: 0; right: -420px; width: 420px; height: 100vh;
+            background: var(--bg-secondary); border-left: 1px solid var(--border);
+            transition: right 0.2s ease; z-index: 100; overflow-y: auto; padding: 24px;
+        }
+        .desc-panel.open { right: 0; }
+        .desc-panel h2 { font-size: 16px; margin-bottom: 8px; }
+        .desc-panel .close-btn {
+            position: absolute; top: 12px; right: 12px; background: none; border: none;
+            color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 4px 8px;
+        }
+        .desc-panel .close-btn:hover { color: var(--text); }
+        .desc-panel .desc-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+        .desc-panel .desc-body {
+            font-size: 13px; line-height: 1.7; color: var(--text-muted);
+            white-space: pre-wrap; word-wrap: break-word;
+        }
+        .desc-panel .desc-body h2, .desc-panel .desc-body h3 { color: var(--text); margin: 12px 0 6px; font-size: 14px; }
+        .desc-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); z-index: 99; display: none;
+        }
+        .desc-overlay.open { display: block; }
+
+        .gh-link { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+        .loading { text-align: center; padding: 48px; color: var(--text-muted); }
+
+        @media (max-width: 640px) {
+            .desc-panel { width: 100%; right: -100%; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <a href="/" class="logo">ListHub</a>
+            <nav class="header-nav">
+                <a href="/explore">Explore</a>
+                <a href="/api/docs">API</a>
+                <a href="/mockups/">Mockups</a>
+                <a href="https://github.com/tmad4000/listhub" target="_blank" class="gh-link">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    Source
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <h1>Roadmap</h1>
+        <p class="subtitle">ListHub project issues, pulled live from <a href="https://github.com/tmad4000/listhub/blob/main/.beads/issues.jsonl" target="_blank">.beads/issues.jsonl</a></p>
+
+        <div class="stats" id="stats"></div>
+        <div class="filters" id="filters"></div>
+        <div class="tree" id="tree"><div class="loading">Loading issues from GitHub...</div></div>
+    </div>
+
+    <div class="desc-overlay" id="overlay" onclick="closePanel()"></div>
+    <div class="desc-panel" id="panel">
+        <button class="close-btn" onclick="closePanel()">&times;</button>
+        <h2 id="panel-title"></h2>
+        <div class="desc-meta" id="panel-meta"></div>
+        <div class="desc-body" id="panel-body"></div>
+    </div>
+
+    <script>
+    const JSONL_URL = 'https://raw.githubusercontent.com/tmad4000/listhub/main/.beads/issues.jsonl';
+    let allIssues = [];
+    let activeFilter = 'open';
+
+    async function loadIssues() {
+        try {
+            const res = await fetch(JSONL_URL);
+            const text = await res.text();
+            allIssues = text.trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+            render();
+        } catch (e) {
+            document.getElementById('tree').innerHTML = '<div class="loading">Failed to load issues. <a href="https://github.com/tmad4000/listhub/blob/main/.beads/issues.jsonl" target="_blank">View on GitHub</a></div>';
+        }
+    }
+
+    function render() {
+        renderStats();
+        renderFilters();
+        renderTree();
+    }
+
+    function renderStats() {
+        const open = allIssues.filter(i => i.status === 'open').length;
+        const closed = allIssues.filter(i => i.status === 'closed').length;
+        const inProgress = allIssues.filter(i => i.status === 'in_progress').length;
+        const epics = allIssues.filter(i => i.issue_type === 'epic').length;
+        document.getElementById('stats').innerHTML = `
+            <div class="stat"><span class="stat-num">${allIssues.length}</span> <span class="stat-label">total</span></div>
+            <div class="stat"><span class="stat-num" style="color:var(--green)">${open}</span> <span class="stat-label">open</span></div>
+            <div class="stat"><span class="stat-num" style="color:var(--accent)">${inProgress}</span> <span class="stat-label">in progress</span></div>
+            <div class="stat"><span class="stat-num" style="color:var(--text-dim)">${closed}</span> <span class="stat-label">closed</span></div>
+            <div class="stat"><span class="stat-num" style="color:var(--purple)">${epics}</span> <span class="stat-label">epics</span></div>
+        `;
+    }
+
+    function renderFilters() {
+        const types = ['all', 'open', 'epic', 'feature', 'task', 'bug', 'chore', 'closed'];
+        document.getElementById('filters').innerHTML = types.map(t =>
+            `<button class="filter-btn ${activeFilter === t ? 'active' : ''}" onclick="setFilter('${t}')">${t}</button>`
+        ).join('');
+    }
+
+    function setFilter(f) { activeFilter = f; render(); }
+
+    function filterIssues(issues) {
+        if (activeFilter === 'all') return issues;
+        if (activeFilter === 'open') return issues.filter(i => i.status !== 'closed');
+        if (activeFilter === 'closed') return issues.filter(i => i.status === 'closed');
+        return issues.filter(i => i.issue_type === activeFilter && i.status !== 'closed');
+    }
+
+    function renderTree() {
+        // Build parent-child from .N suffix convention and known epic children
+        const epics = allIssues.filter(i => i.issue_type === 'epic');
+        const childMap = {}; // parent_id -> [child issues]
+        const isChild = new Set();
+
+        // Detect .N suffix children (e.g., listhub-xtc.1 is child of listhub-xtc)
+        for (const issue of allIssues) {
+            const match = issue.id.match(/^(.+)\.\d+$/);
+            if (match) {
+                const parentId = match[1];
+                if (!childMap[parentId]) childMap[parentId] = [];
+                childMap[parentId].push(issue);
+                isChild.add(issue.id);
+            }
+        }
+
+        // Also detect children mentioned in epic descriptions
+        for (const epic of epics) {
+            const desc = epic.description || '';
+            const mentions = desc.match(/listhub-[a-z0-9]+/g) || [];
+            for (const mid of mentions) {
+                if (mid === epic.id) continue;
+                const child = allIssues.find(i => i.id === mid);
+                if (child && !isChild.has(mid)) {
+                    if (!childMap[epic.id]) childMap[epic.id] = [];
+                    // Avoid duplicates
+                    if (!childMap[epic.id].find(c => c.id === mid)) {
+                        childMap[epic.id].push(child);
+                        isChild.add(mid);
+                    }
+                }
+            }
+        }
+
+        // Top-level = not a child of anything
+        let topLevel = allIssues.filter(i => !isChild.has(i.id));
+
+        // Sort: epics first, then by priority, then by type
+        const typeOrder = { epic: 0, feature: 1, task: 2, bug: 3, chore: 4 };
+        const sort = (a, b) => {
+            const ta = typeOrder[a.issue_type] ?? 5;
+            const tb = typeOrder[b.issue_type] ?? 5;
+            if (ta !== tb) return ta - tb;
+            return (a.priority ?? 2) - (b.priority ?? 2);
+        };
+        topLevel.sort(sort);
+
+        const filtered = filterIssues(topLevel);
+        const html = filtered.map(issue => renderNode(issue, childMap, 0)).join('');
+        document.getElementById('tree').innerHTML = html || '<div class="loading">No issues match this filter.</div>';
+    }
+
+    function renderNode(issue, childMap, depth) {
+        const children = (childMap[issue.id] || []).sort((a, b) => (a.priority ?? 2) - (b.priority ?? 2));
+        const hasChildren = children.length > 0;
+        const isClosed = issue.status === 'closed';
+        const statusIcon = isClosed ? '&#10003;' : (issue.status === 'in_progress' ? '&#9654;' : '&#9675;');
+        const statusColor = isClosed ? 'var(--text-dim)' : (issue.status === 'in_progress' ? 'var(--accent)' : 'var(--text-muted)');
+        const type = issue.issue_type || 'task';
+        const p = issue.priority ?? 2;
+
+        let childrenHtml = '';
+        if (hasChildren) {
+            const filteredChildren = activeFilter === 'all' ? children :
+                activeFilter === 'open' ? children.filter(c => c.status !== 'closed') :
+                activeFilter === 'closed' ? children.filter(c => c.status === 'closed') :
+                children.filter(c => c.issue_type === activeFilter);
+            childrenHtml = `<div class="tree-children" id="children-${issue.id}">${filteredChildren.map(c => renderNode(c, childMap, depth + 1)).join('')}</div>`;
+        }
+
+        return `
+        <div class="tree-node depth-${depth}">
+            <div class="tree-item" onclick="openPanel('${issue.id}')">
+                ${hasChildren ? `<span class="tree-toggle" onclick="event.stopPropagation(); toggleChildren('${issue.id}')">&#9660;</span>` : '<span class="tree-spacer"></span>'}
+                <span class="tree-status" style="color:${statusColor}">${statusIcon}</span>
+                <div class="tree-content">
+                    <div class="tree-title ${isClosed ? 'closed' : ''}">${escHtml(issue.title || issue.id)}</div>
+                    <div class="tree-meta">
+                        <span class="badge badge-${type}">${type}</span>
+                        <span class="badge badge-p${p}">P${p}</span>
+                        <span>${issue.id}</span>
+                        ${hasChildren ? `<span>${children.length} children</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            ${childrenHtml}
+        </div>`;
+    }
+
+    function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function toggleChildren(id) {
+        const el = document.getElementById('children-' + id);
+        if (el) el.classList.toggle('collapsed');
+        // Toggle chevron
+        const item = el?.previousElementSibling;
+        if (item) {
+            const toggle = item.querySelector('.tree-toggle');
+            if (toggle) toggle.innerHTML = el.classList.contains('collapsed') ? '&#9654;' : '&#9660;';
+        }
+    }
+
+    function openPanel(id) {
+        const issue = allIssues.find(i => i.id === id);
+        if (!issue) return;
+        document.getElementById('panel-title').textContent = issue.title || issue.id;
+        const p = issue.priority ?? 2;
+        document.getElementById('panel-meta').innerHTML = `
+            <span class="badge badge-${issue.issue_type || 'task'}">${issue.issue_type || 'task'}</span>
+            <span class="badge badge-p${p}">P${p}</span>
+            <span>${issue.status}</span>
+            <span>${issue.id}</span>
+            ${issue.created_at ? `<span>Created ${issue.created_at.slice(0,10)}</span>` : ''}
+        `;
+        document.getElementById('panel-body').textContent = issue.description || '(no description)';
+        document.getElementById('panel').classList.add('open');
+        document.getElementById('overlay').classList.add('open');
+    }
+
+    function closePanel() {
+        document.getElementById('panel').classList.remove('open');
+        document.getElementById('overlay').classList.remove('open');
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+    loadIssues();
+    </script>
+</body>
+</html>

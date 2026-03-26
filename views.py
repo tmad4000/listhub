@@ -851,12 +851,30 @@ Items with `public_edit` visibility can be edited by any authenticated user:
     return Response(content, mimetype="text/plain")
 
 
+@views_bp.route("/roadmap")
+def roadmap():
+    """Interactive roadmap page showing all beads issues."""
+    import os
+    from flask import send_from_directory
+    mockups_dir = os.path.join(os.path.dirname(__file__), "mockups")
+    return send_from_directory(mockups_dir, "roadmap.html")
+
+
 @views_bp.route("/mockups/")
 def mockups_index():
     import os
     from flask import send_from_directory
     mockups_dir = os.path.join(os.path.dirname(__file__), "mockups")
     return send_from_directory(mockups_dir, "index.html")
+
+
+@views_bp.route("/roadmap")
+def roadmap():
+    """Interactive roadmap page showing all beads issues."""
+    import os
+    from flask import send_from_directory
+    mockups_dir = os.path.join(os.path.dirname(__file__), "mockups")
+    return send_from_directory(mockups_dir, "roadmap.html")
 
 
 @views_bp.route("/mockups/")
