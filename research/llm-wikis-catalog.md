@@ -16,6 +16,22 @@ The five senses (from the research doc):
 
 ## Sense 1 — Personal LLM wikis (Karpathy-style)
 
+### Named personal wikis (the people who actually built one)
+
+Most builders keep their wiki private — same reason as Farza below. This is the short list of real, named, verified instances. The interesting research subject is **the people**, not the tooling.
+
+- **Farzapedia** — Farza Majeed (@FarzaTV), buildspace founder. Tweeted April 4, 2026; boosted by Karpathy same day. ~400 articles, ~2500 source entries. **Explicitly private** — "Considering it made an entire 'Relationship History' article, some things should remain between me and my LLM." Lukewarm landing page: https://farza.com/knowledge — Twitter announcement: https://x.com/FarzaTV/status/2040563939797504467 — Karpathy boost: https://x.com/karpathy/status/2040572272944324650
+- **Commonplace** — `zby` (HN: zbyforgotpass) — https://zby.github.io/commonplace/ — A wiki *about* LLM agent memory systems, maintained by LLM agents (recursive). ~30+ system reviews, hundreds of notes. GitHub Pages. The most rigorous publicly-browsable example.
+- **Grimoire** — sprites.app dev (HN: 0123456789ABCDE) — https://grimoire-pt5.sprites.app/ — Self-described "LLM-maintained personal knowledge base" following Karpathy. Themes: AI research, infra, security. "Spells/scrolls/grimoire" framing. Active April 2026 commits.
+- **Karpathy's own research wiki** — Andrej Karpathy. ~100 articles, ~400k words on an ML research topic. Described in the gist; **not linked publicly**. Private.
+- **Louis Wang's KB** — https://louiswang524.github.io/blog/llm-knowledge-base/ — KB itself is private, but the writeup contains the best scaling analysis publicly available ("~100-200 articles is the index-first ceiling"). Maintainer: Louis Wang.
+
+**Pattern observations:**
+- "{Name}pedia" is unclaimed as a naming convention — Farzapedia put it on the map but no product owns it.
+- `index.md` at root is the universal entry pattern (Farzapedia, Karpathy, Commonplace).
+- The unit of value is the navigable filesystem, not the rendered HTML — 3 of 4 verified wikis are agent-first; humans browse second.
+- The publishing gap is real: no popular product exists for "publish my LLM-maintained wiki to a public URL with selective visibility." Obsidian Publish isn't LLM-aware; Quartz isn't packaged with an agent loop. Real practitioners (zby, the grimoire owner) are obvious early-adopter targets for a publish-my-LLM-wiki feature.
+
 ### Canonical & tooling
 
 - **Karpathy's llm-wiki gist** — https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f — The original 2026-04-03 "idea file" describing the three-layer raw/wiki/schema pattern. ~8200 stars.
