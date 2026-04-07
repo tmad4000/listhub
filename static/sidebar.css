@@ -1,31 +1,36 @@
 /* ─────────────────────────────────────────────────
-   ListHub Sidebar Styles
+   ListHub Sidebar Styles (V1.1)
    Three-section persistent left sidebar: Your docs / Community / Focused @user
+
+   Key behaviors:
+   - When collapsed: main content reverts to pre-sidebar layout (860px centered)
+   - When expanded: sidebar + main content in a grid, main is left-aligned
+   - Sections are flex column; collapsed sections = header height, expanded
+     sections share remaining space with independent scrolling
+   - Section titles are links, chevrons are separate toggle buttons
    ───────────────────────────────────────────────── */
 
 :root {
     --sb-width: 260px;
+    --sb-header-height: 49px;
+    --sb-section-header-height: 36px;
     --sb-bg: var(--bg-secondary, #161b22);
     --sb-border: var(--border, #30363d);
 }
 
-/* ── Layout wrapping ──
-   Two distinct states:
-   1) EXPANDED  — grid with sidebar + main. Main is content-width
-                  (~900px), left-aligned inside its cell so it reads
-                  comfortably next to the sidebar without stretching.
-   2) COLLAPSED — sidebar hidden, main reverts to the original
-                  pre-sidebar .container behavior: max-width 860px,
-                  centered (margin: 0 auto). This keeps existing pages
-                  looking the same as before the sidebar shipped.
-   ───────────────────────────────────────────── */
+/* ── Layout wrapping ────────────────────────────────
+   EXPANDED  — grid with sidebar + main. Main is content-width
+               (~900px), left-aligned inside its cell.
+   COLLAPSED — sidebar hidden, main reverts to .container
+               (max-width 860px, centered).
+   ───────────────────────────────────────────────── */
 
 /* EXPANDED (default has-sidebar) */
 body.has-sidebar .app-layout {
     display: grid;
     grid-template-columns: var(--sb-width) minmax(0, 1fr);
-    min-height: calc(100vh - 64px);
-    max-width: calc(var(--sb-width) + 900px + 40px); /* sidebar + content + side padding */
+    min-height: calc(100vh - var(--sb-header-height));
+    max-width: calc(var(--sb-width) + 900px + 40px);
     margin: 0 auto;
     gap: 0;
 }
@@ -35,17 +40,13 @@ body.has-sidebar .app-main {
     padding: 24px 20px 40px;
 }
 
-/* When expanded, override the original .container centering so that main
-   sits inside its grid cell with a sane max content width, left-aligned. */
 body.has-sidebar .app-main.container {
     max-width: 900px;
     margin-left: 0;
     margin-right: 0;
 }
 
-/* COLLAPSED — behave exactly like the pre-sidebar layout.
-   Collapse the grid to a single column and let .container do its
-   original thing (max-width 860px, margin: 0 auto). */
+/* COLLAPSED — behave exactly like the pre-sidebar layout */
 body.has-sidebar.sb-collapsed .app-layout {
     display: block;
     max-width: none;
@@ -78,51 +79,94 @@ body.has-sidebar.sb-collapsed .app-main.container {
 .sb-sidebar {
     border-right: 1px solid var(--sb-border);
     background: var(--sb-bg);
-    overflow-y: auto;
     position: sticky;
-    top: 49px;
-    height: calc(100vh - 49px);
+    top: var(--sb-header-height);
+    height: calc(100vh - var(--sb-header-height));
+    overflow: hidden; /* inner scroll happens in section bodies */
 }
 
 .sb-sidebar-inner {
-    padding: 8px 0 24px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
 }
 
-/* ── Section (collapsible group) ── */
+/* ── Section (flex child of sidebar-inner) ──
+   - Collapsed: just the header (flex: 0 0 auto)
+   - Expanded: body grows to share remaining space (flex: 1 1 0)
+   ───────────────────────────────────────── */
 .sb-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     border-bottom: 1px solid var(--sb-border);
+    flex: 0 0 auto; /* default: header-only height */
 }
 .sb-section:last-child {
     border-bottom: none;
 }
+.sb-section.sb-expanded {
+    flex: 1 1 0; /* expanded sections share remaining space */
+    min-height: 120px; /* don't shrink below usable */
+}
 
-.sb-section > .sb-section-header {
-    list-style: none;
+/* ── Section header ── */
+.sb-section-header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 10px 14px 10px 10px;
+    gap: 4px;
+    padding: 0 8px 0 4px;
+    height: var(--sb-section-header-height);
+    flex: 0 0 var(--sb-section-header-height);
+    background: var(--sb-bg);
+    border-bottom: 1px solid transparent;
+}
+.sb-section.sb-expanded > .sb-section-header {
+    border-bottom-color: rgba(255, 255, 255, 0.04);
+}
+
+.sb-section-chevron {
+    background: transparent;
+    border: none;
+    color: var(--text-dim, #484f58);
+    padding: 6px;
     cursor: pointer;
-    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+.sb-section-chevron:hover {
+    color: var(--text, #e6edf3);
+    background: rgba(255, 255, 255, 0.04);
+}
+.sb-section-chevron svg {
+    transition: transform 0.15s;
+}
+.sb-section.sb-expanded > .sb-section-header > .sb-section-chevron svg {
+    transform: rotate(90deg);
+}
+
+.sb-section-title {
+    flex: 1;
     font-size: 12px;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--text-muted, #8b949e);
-    font-weight: 600;
-}
-.sb-section > .sb-section-header::-webkit-details-marker {
-    display: none;
-}
-.sb-section > .sb-section-header:hover {
-    background: rgba(255, 255, 255, 0.02);
-    color: var(--text, #e6edf3);
-}
-.sb-section-title {
-    flex: 1;
+    text-decoration: none;
+    padding: 8px 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.sb-section-title:hover {
+    color: var(--text, #e6edf3);
+    text-decoration: none;
+}
+
 .sb-section-action {
     color: var(--text-dim, #484f58);
     font-size: 14px;
@@ -138,17 +182,17 @@ body.has-sidebar.sb-collapsed .app-main.container {
     text-decoration: none;
 }
 
-.sb-section .sb-chevron {
-    transition: transform 0.15s;
-    color: var(--text-dim, #484f58);
-    flex-shrink: 0;
-}
-.sb-section[open] > .sb-section-header .sb-chevron {
-    transform: rotate(90deg);
-}
-
+/* ── Section body (only visible when .sb-expanded) ── */
 .sb-section-body {
-    padding-bottom: 8px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 4px 0 8px;
+    display: none; /* hidden when section is collapsed */
+}
+.sb-section.sb-expanded > .sb-section-body {
+    display: block;
 }
 
 .sb-empty {
@@ -162,7 +206,7 @@ body.has-sidebar.sb-collapsed .app-main.container {
     font-style: normal;
 }
 
-/* ── Tree (recursive) ── */
+/* ── Tree (recursive, folders use native <details>) ── */
 .sb-tree {
     list-style: none;
     margin: 0;
@@ -246,10 +290,14 @@ body.has-sidebar.sb-collapsed .app-main.container {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.sb-file .sb-vis {
+.sb-vis {
     font-size: 10px;
     opacity: 0.7;
     flex-shrink: 0;
+}
+.sb-vis-folder {
+    opacity: 0.55;
+    margin-left: 2px;
 }
 
 /* ── Header sidebar toggle button ── */
@@ -280,11 +328,11 @@ body.has-sidebar .header-inner {
     }
     .sb-sidebar {
         position: fixed;
-        top: 49px;
+        top: var(--sb-header-height);
         left: 0;
         width: 85vw;
         max-width: 320px;
-        height: calc(100vh - 49px);
+        height: calc(100vh - var(--sb-header-height));
         z-index: 90;
         transform: translateX(-100%);
         transition: transform 0.2s ease;
@@ -296,7 +344,7 @@ body.has-sidebar .header-inner {
     body.sb-open::after {
         content: '';
         position: fixed;
-        top: 49px;
+        top: var(--sb-header-height);
         left: 0;
         right: 0;
         bottom: 0;

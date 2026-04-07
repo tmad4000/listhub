@@ -678,7 +678,7 @@ def public_item(username, slug):
 
     # Access check
     can_view = False
-    if item['visibility'] in ('public', 'public_edit'):
+    if item['visibility'] in ('public', 'public_edit', 'unlisted'):
         can_view = True
     elif current_user.is_authenticated:
         if current_user.id == user.id:
@@ -879,7 +879,7 @@ def short_link(item_id):
     if not item:
         abort(404)
 
-    if item['visibility'] in ('public', 'public_edit'):
+    if item['visibility'] in ('public', 'public_edit', 'unlisted'):
         return redirect(url_for('views.public_item', username=item['username'], slug=item['slug']))
 
     if current_user.is_authenticated and current_user.id == item['owner_id']:

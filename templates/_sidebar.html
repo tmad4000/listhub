@@ -1,21 +1,29 @@
-{# ── ListHub Three-Section Sidebar ──────────────────
+{# ── ListHub Three-Section Sidebar (V1.1) ──────────────────
    Uses context-injected variables from views.py inject_sidebar_data:
      sidebar_your_tree        — user's own items as nested tree
      sidebar_community_tree   — community directory as nested tree
      sidebar_focused          — {username, tree} or None
      sidebar_current_username — current user's username or None
+
+   Each section has:
+     - A chevron button that toggles expand/collapse
+     - A title link that navigates to the full-page view of that scope
+     - An action link (+ for new item, ↗ for directory/profile)
+     - A body with the tree
    ────────────────────────────────────────────────── #}
 <aside class="sb-sidebar" id="sb-sidebar">
   <div class="sb-sidebar-inner">
 
     {% if current_user.is_authenticated %}
     {# ── Section 1: Your Docs ── #}
-    <details class="sb-section" open>
-      <summary class="sb-section-header">
-        <svg class="sb-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
-        <span class="sb-section-title">Your docs</span>
-        <a href="{{ url_for('views.new_item') }}" class="sb-section-action" title="New item" onclick="event.stopPropagation();">+</a>
-      </summary>
+    <div class="sb-section" data-sb-section="your">
+      <div class="sb-section-header">
+        <button class="sb-section-chevron" aria-label="Toggle Your docs" aria-expanded="true">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+        </button>
+        <a href="{{ url_for('views.dashboard') }}" class="sb-section-title">Your docs</a>
+        <a href="{{ url_for('views.new_item') }}" class="sb-section-action" title="New item">+</a>
+      </div>
       <div class="sb-section-body">
         {% if sidebar_your_tree %}
           {% with nodes=sidebar_your_tree, link_prefix='/@' + sidebar_current_username + '/', storage_key='sb_your' %}
@@ -25,16 +33,18 @@
           <div class="sb-empty">No items yet. <a href="{{ url_for('views.new_item') }}">Create one</a>.</div>
         {% endif %}
       </div>
-    </details>
+    </div>
     {% endif %}
 
     {# ── Section 2: Community ── #}
-    <details class="sb-section" {% if not current_user.is_authenticated %}open{% endif %}>
-      <summary class="sb-section-header">
-        <svg class="sb-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
-        <span class="sb-section-title">Community</span>
-        <a href="{{ url_for('views.directory') }}" class="sb-section-action" title="Open directory" onclick="event.stopPropagation();">↗</a>
-      </summary>
+    <div class="sb-section" data-sb-section="community">
+      <div class="sb-section-header">
+        <button class="sb-section-chevron" aria-label="Toggle Community" aria-expanded="true">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+        </button>
+        <a href="{{ url_for('views.directory') }}" class="sb-section-title">Community</a>
+        <a href="{{ url_for('views.directory') }}" class="sb-section-action" title="Open directory">↗</a>
+      </div>
       <div class="sb-section-body">
         {% if sidebar_community_tree %}
           {% with nodes=sidebar_community_tree, link_prefix='/directory/', storage_key='sb_community' %}
@@ -44,16 +54,18 @@
           <div class="sb-empty">Community directory is empty.</div>
         {% endif %}
       </div>
-    </details>
+    </div>
 
     {# ── Section 3: Focused on @user ── #}
     {% if sidebar_focused %}
-    <details class="sb-section" open>
-      <summary class="sb-section-header">
-        <svg class="sb-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
-        <span class="sb-section-title">@{{ sidebar_focused.username }}</span>
-        <a href="/@{{ sidebar_focused.username }}" class="sb-section-action" title="Open profile" onclick="event.stopPropagation();">↗</a>
-      </summary>
+    <div class="sb-section" data-sb-section="focused" data-sb-focused-user="{{ sidebar_focused.username }}">
+      <div class="sb-section-header">
+        <button class="sb-section-chevron" aria-label="Toggle @{{ sidebar_focused.username }}" aria-expanded="true">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+        </button>
+        <a href="/@{{ sidebar_focused.username }}" class="sb-section-title">@{{ sidebar_focused.username }}</a>
+        <a href="/@{{ sidebar_focused.username }}" class="sb-section-action" title="Open profile">↗</a>
+      </div>
       <div class="sb-section-body">
         {% if sidebar_focused.tree %}
           {% with nodes=sidebar_focused.tree, link_prefix='/@' + sidebar_focused.username + '/', storage_key='sb_focus_' + sidebar_focused.username %}
@@ -63,7 +75,7 @@
           <div class="sb-empty">No public items.</div>
         {% endif %}
       </div>
-    </details>
+    </div>
     {% endif %}
 
   </div>
