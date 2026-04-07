@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index of /mockups — ListHub</title>
+    <style>
+        :root {
+            --bg: #fcfbf7;
+            --paper: #fffef9;
+            --border: #d9d4c4;
+            --border-soft: #e8e4d5;
+            --text: #2c2a24;
+            --text-muted: #6b6558;
+            --text-dim: #9c9687;
+            --accent: #3b6ee8;
+            --accent-visited: #7341a5;
+            --folder: #d97706;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            font-size: 14px;
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 32px 24px 80px;
+        }
+        .breadcrumb-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .breadcrumb-bar a { color: var(--accent); text-decoration: none; }
+        .breadcrumb-bar a:hover { text-decoration: underline; }
+        .breadcrumb-bar .sep { color: var(--text-dim); }
+        h1 {
+            font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text);
+        }
+        .lead {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+        .lead a { color: var(--accent); }
+        .lead a:hover { text-decoration: underline; }
+        .lead code {
+            background: rgba(0,0,0,0.04);
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        hr.rule {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 8px 0 16px;
+        }
+        table.listing {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        table.listing thead th {
+            text-align: left;
+            padding: 8px 12px 8px 0;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            user-select: none;
+        }
+        table.listing thead th.size { text-align: right; padding-right: 20px; }
+        table.listing thead th.sortable {
+            cursor: pointer;
+            transition: color 0.1s;
+        }
+        table.listing thead th.sortable:hover {
+            color: var(--accent);
+        }
+        table.listing thead th.sortable.active {
+            color: var(--accent);
+        }
+        .sort-ind {
+            display: inline-block;
+            margin-left: 4px;
+            opacity: 0.9;
+            font-size: 10px;
+        }
+        table.listing tbody tr {
+            border-bottom: 1px solid var(--border-soft);
+        }
+        table.listing tbody tr:hover {
+            background: rgba(59, 110, 232, 0.04);
+        }
+        table.listing td {
+            padding: 7px 12px 7px 0;
+            vertical-align: top;
+        }
+        table.listing td.icon {
+            width: 22px;
+            padding-right: 8px;
+            padding-left: 2px;
+            font-size: 14px;
+            opacity: 0.85;
+        }
+        table.listing td.icon.folder { color: var(--folder); }
+        table.listing td.name {
+            padding-right: 24px;
+            min-width: 240px;
+        }
+        table.listing td.name a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        table.listing td.name a:visited { color: var(--accent-visited); }
+        table.listing td.name a:hover { text-decoration: underline; }
+        table.listing td.name .filename {
+            font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+        }
+        table.listing td.description {
+            color: var(--text-muted);
+            padding-right: 16px;
+            line-height: 1.5;
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+            max-width: 480px;
+        }
+        table.listing td.size {
+            text-align: right;
+            color: var(--text-dim);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            padding-right: 20px;
+        }
+        table.listing td.date {
+            color: var(--text-dim);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+        footer {
+            margin-top: 40px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        footer a { color: var(--text-muted); }
+        footer a:hover { text-decoration: underline; }
+        @media (max-width: 720px) {
+            .hide-mobile { display: none; }
+            table.listing td.name { min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="breadcrumb-bar">
+            <a href="/">listhub</a>
+            <span class="sep">/</span>
+            <a href="/mockups/">mockups</a>
+            <span class="sep">/</span>
+            <span>all files</span>
+        </div>
+        <h1>Index of /mockups/</h1>
+        <p class="lead">
+            Live listing of every file in <code>mockups/</code>, scanned fresh on each request.
+            Click any column header to sort. Titles and descriptions are auto-extracted
+            from each HTML file's <code>&lt;title&gt;</code> and
+            <code>&lt;meta name="description"&gt;</code>. For the curated view with commentary,
+            see the <a href="/mockups/">main index</a>.
+        </p>
+
+        <hr class="rule">
+
+        <table class="listing" id="file-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th class="sortable" data-sort="name">Name <span class="sort-ind"></span></th>
+                    <th class="sortable hide-mobile" data-sort="description">Description <span class="sort-ind"></span></th>
+                    <th class="sortable size" data-sort="size">Size <span class="sort-ind"></span></th>
+                    <th class="sortable hide-mobile" data-sort="mtime">Modified <span class="sort-ind"></span></th>
+                </tr>
+            </thead>
+            <tbody id="file-tbody">
+                <tr class="fixed-row">
+                    <td class="icon folder">📂</td>
+                    <td class="name"><a href="/mockups/"><span class="filename">../</span></a></td>
+                    <td class="description hide-mobile">Parent directory (curated index)</td>
+                    <td class="size">&mdash;</td>
+                    <td class="date hide-mobile">&mdash;</td>
+                </tr>
+                {% for e in entries %}
+                <tr class="file-row"
+                    data-name="{{ e.name|lower }}"
+                    data-description="{{ (e.description or e.title)|lower }}"
+                    data-size="{{ e.size }}"
+                    data-mtime="{{ e.mtime }}">
+                    <td class="icon">📄</td>
+                    <td class="name">
+                        <a href="/mockups/{{ e.name }}"><span class="filename">{{ e.name }}</span></a>
+                    </td>
+                    <td class="description hide-mobile">{{ e.description or e.title }}</td>
+                    <td class="size">{{ e.size_human }}</td>
+                    <td class="date hide-mobile">{{ e.mtime_str }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <footer>
+            <span>{{ entries|length }} file{{ 's' if entries|length != 1 else '' }} · live directory listing · <a href="/mockups/">curated index</a></span>
+            <span>ListHub · <a href="/">home</a> · <a href="/api/docs">api</a> · <a href="/llms.txt">llms.txt</a></span>
+        </footer>
+    </div>
+
+<script>
+// Click column headers to sort. Default sort (server-rendered) is mtime DESC.
+(function () {
+    'use strict';
+    var table = document.getElementById('file-table');
+    if (!table) return;
+    var tbody = document.getElementById('file-tbody');
+    var headers = table.querySelectorAll('th.sortable');
+    // Initial state matches server-side sort
+    var state = { key: 'mtime', asc: false };
+
+    function sortRows(key, asc) {
+        var rows = Array.from(tbody.querySelectorAll('.file-row'));
+        rows.sort(function (a, b) {
+            var aVal = a.dataset[key];
+            var bVal = b.dataset[key];
+            var cmp;
+            if (key === 'size' || key === 'mtime') {
+                cmp = parseFloat(aVal) - parseFloat(bVal);
+            } else {
+                cmp = aVal.localeCompare(bVal);
+            }
+            return asc ? cmp : -cmp;
+        });
+        rows.forEach(function (r) { tbody.appendChild(r); });
+        updateHeaders();
+    }
+
+    function updateHeaders() {
+        headers.forEach(function (h) {
+            var indicator = h.querySelector('.sort-ind');
+            if (h.dataset.sort === state.key) {
+                indicator.textContent = state.asc ? ' \u25B2' : ' \u25BC';
+                h.classList.add('active');
+            } else {
+                indicator.textContent = '';
+                h.classList.remove('active');
+            }
+        });
+    }
+
+    headers.forEach(function (h) {
+        h.addEventListener('click', function () {
+            var key = this.dataset.sort;
+            if (state.key === key) {
+                state.asc = !state.asc;
+            } else {
+                state.key = key;
+                // Default direction per-column: newest/biggest first
+                state.asc = !(key === 'mtime' || key === 'size');
+            }
+            sortRows(state.key, state.asc);
+        });
+    });
+
+    // Show the indicator on the initially-sorted column
+    updateHeaders();
+})();
+</script>
+</body>
+</html>

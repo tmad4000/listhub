@@ -1033,6 +1033,78 @@ def mockups_index():
 
 
 @views_bp.route("/mockups/")
+
+
+def _format_bytes(n):
+    """Return a human-readable file size."""
+    if n < 1024:
+        return f"{n} B"
+    for unit in ("KB", "MB", "GB"):
+        n /= 1024.0
+        if n < 1024:
+            return f"{n:.1f} {unit}"
+    return f"{n:.1f} TB"
+
+
+def _scan_mockups_dir():
+    """Scan the mockups directory and return a list of entries with
+    size, mtime, and extracted title/description from each HTML file."""
+    import re as _re
+    from datetime import datetime as _dt
+    mockups_dir = os.path.join(os.path.dirname(__file__), "mockups")
+    if not os.path.isdir(mockups_dir):
+        return []
+    entries = []
+    for name in os.listdir(mockups_dir):
+        if name.startswith("."):
+            continue
+        path = os.path.join(mockups_dir, name)
+        if not os.path.isfile(path):
+            continue
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        is_html = name.lower().endswith((".html", ".htm"))
+        title = ""
+        description = ""
+        if is_html and st.st_size < 2 * 1024 * 1024:
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                    head = fh.read(12288)
+                m = _re.search(r"<title[^>]*>(.*?)</title>", head, _re.IGNORECASE | _re.DOTALL)
+                if m:
+                    title = _re.sub(r"\s+", " ", m.group(1)).strip()
+                m = _re.search(
+                    r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']*)["\']',
+                    head,
+                    _re.IGNORECASE,
+                )
+                if m:
+                    description = m.group(1).strip()
+            except Exception:
+                pass
+        entries.append({
+            "name": name,
+            "title": title or name,
+            "description": description,
+            "size": st.st_size,
+            "size_human": _format_bytes(st.st_size),
+            "mtime": int(st.st_mtime),
+            "mtime_str": _dt.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M"),
+        })
+    entries.sort(key=lambda e: e["mtime"], reverse=True)
+    return entries
+
+
+@views_bp.route("/mockups/all-files.html")
+@views_bp.route("/mockups/all-files")
+def mockups_all_files():
+    """Dynamic super-index of everything in the mockups directory."""
+    entries = _scan_mockups_dir()
+    return render_template("mockups_all_files.html", entries=entries)
+
+
 @views_bp.route("/mockups/<path:filename>")
 def serve_mockup(filename="index.html"):
     """Serve mockup HTML files from the mockups directory."""
