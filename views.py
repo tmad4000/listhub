@@ -33,13 +33,14 @@ def build_folder_tree(items_list):
             total += count_files(child)
         return total
 
-    def tree_to_list(node, depth=0):
+    def tree_to_list(node, depth=0, prefix=''):
         result = []
         for name in sorted(node['children'].keys()):
             child = node['children'][name]
             file_count = count_files(child)
-            result.append({'type': 'folder', 'name': name, 'depth': depth, 'count': file_count})
-            result.extend(tree_to_list(child, depth + 1))
+            full_path = f"{prefix}{name}" if prefix else name
+            result.append({'type': 'folder', 'name': name, 'depth': depth, 'count': file_count, 'path': full_path})
+            result.extend(tree_to_list(child, depth + 1, full_path + '/'))
         for f in node['files']:
             result.append({'type': 'file', 'item': f, 'depth': depth})
         return result
@@ -511,7 +512,10 @@ def dashboard():
     query = "SELECT * FROM item WHERE owner_id = ?"
     params = [current_user.id]
 
-    if visibility_filter:
+    if visibility_filter == 'published':
+        # Union of public + public_edit + shared (everything non-private)
+        query += " AND visibility IN ('public', 'public_edit', 'shared')"
+    elif visibility_filter:
         query += " AND visibility = ?"
         params.append(visibility_filter)
 
@@ -814,8 +818,18 @@ def user_profile(username):
     if view_mode == 'folders':
         folder_tree = build_folder_tree(items_with_tags)
 
+    # Look up the user's "home" item (special slug). Shows a prominent button
+    # on the profile header if present. Non-owners only see it when public.
+    home_item = db.execute(
+        "SELECT id, slug, title, visibility FROM item WHERE owner_id = ? AND slug = 'home'",
+        (user.id,)
+    ).fetchone()
+    if home_item and not is_owner and home_item['visibility'] not in ('public', 'public_edit', 'unlisted'):
+        home_item = None
+
     return render_template('profile.html', profile_user=user, items=items_with_tags,
-                           view_mode=view_mode, folder_tree=folder_tree, is_owner=is_owner)
+                           view_mode=view_mode, folder_tree=folder_tree, is_owner=is_owner,
+                           home_item=dict(home_item) if home_item else None)
 
 
 @views_bp.route('/@<username>/<slug>')
