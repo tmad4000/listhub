@@ -101,6 +101,10 @@ body.has-sidebar.sb-collapsed .app-main.container {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow: hidden; /* CRITICAL: prevents flex item from growing past its
+                         allocated share when inner content is taller than
+                         the share. Inner sb-section-body has its own
+                         overflow-y: auto so content still scrolls. */
     border-bottom: 1px solid var(--sb-border);
     flex: 0 0 auto; /* default: header-only height */
 }
