@@ -60,6 +60,7 @@
             <select id="visibility" name="visibility">
                 <option value="private" {% if item and item.visibility == 'private' %}selected{% endif %}>Private</option>
                 <option value="shared" {% if item and item.visibility == 'shared' %}selected{% endif %}>Shared (WIP)</option>
+                <option value="unlisted" {% if item and item.visibility == 'unlisted' %}selected{% endif %}>Unlisted (anyone with link)</option>
                 <option value="public" {% if item and item.visibility == 'public' %}selected{% endif %}>Public (view only)</option>
                 <option value="public_edit" {% if item and item.visibility == 'public_edit' %}selected{% endif %}>Public (anyone can edit)</option>
             </select>

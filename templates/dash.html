@@ -18,6 +18,7 @@
         <a href="{{ url_for('views.dashboard', view=view_mode) }}" class="filter-tab {% if not visibility_filter %}active{% endif %}">All</a>
         <a href="{{ url_for('views.dashboard', visibility='public', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'public' %}active{% endif %}">Public</a>
         <a href="{{ url_for('views.dashboard', visibility='public_edit', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'public_edit' %}active{% endif %}">Public Edit</a>
+        <a href="{{ url_for('views.dashboard', visibility='unlisted', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'unlisted' %}active{% endif %}">Unlisted</a>
         <a href="{{ url_for('views.dashboard', visibility='shared', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'shared' %}active{% endif %}">Shared (WIP)</a>
         <a href="{{ url_for('views.dashboard', visibility='private', view=view_mode) }}" class="filter-tab {% if visibility_filter == 'private' %}active{% endif %}">Private</a>
     </div>
@@ -45,7 +46,7 @@
             <a href="/@{{ current_user.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
             <div class="item-meta">
                 <span class="badge badge-{{ item.visibility }}" title="{{ item.visibility }}">
-                    {% if item.visibility == 'public' %}&#127760;{% elif item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
+                    {% if item.visibility == 'public' %}&#127760;{% elif item.visibility == 'public_edit' %}&#9999;&#65039;{% elif item.visibility == 'unlisted' %}&#128584;{% elif item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
                 </span>
                 <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
                 {% for tag in item.tags %}

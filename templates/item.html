@@ -10,6 +10,8 @@
                 <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
                 {% if item.visibility == 'public_edit' %}
                     <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039; public edit</span>
+                {% elif item.visibility == 'unlisted' %}
+                    <span class="badge badge-unlisted" title="Anyone with the link can view">&#128584; unlisted</span>
                 {% endif %}
                 {% for tag in tags %}
                     <span class="tag">{{ tag }}</span>

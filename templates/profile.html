@@ -32,7 +32,7 @@
             <div class="item-meta">
                 {% if is_owner %}
                 <span class="badge badge-{{ item.visibility }}" title="{{ item.visibility }}">
-                    {% if item.visibility == 'public_edit' %}&#9999;&#65039;{% elif item.visibility == 'public' %}&#127760;{% elif item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
+                    {% if item.visibility == 'public_edit' %}&#9999;&#65039;{% elif item.visibility == 'public' %}&#127760;{% elif item.visibility == 'unlisted' %}&#128584;{% elif item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
                 </span>
                 {% elif item.visibility == 'public_edit' %}
                 <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039;</span>

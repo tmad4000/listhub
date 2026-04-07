@@ -13,7 +13,7 @@ from git_sync import sync_item_to_repo, remove_from_repo
 
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
-VALID_VISIBILITIES = ('private', 'shared', 'public', 'public_edit')
+VALID_VISIBILITIES = ('private', 'shared', 'public', 'public_edit', 'unlisted')
 
 
 def slugify(text):
@@ -618,7 +618,7 @@ def get_public_item(username, slug):
     item = db.execute(
         "SELECT * FROM item WHERE owner_id = ? AND slug = ?", (user.id, slug)
     ).fetchone()
-    if not item or item['visibility'] not in ('public', 'public_edit'):
+    if not item or item['visibility'] not in ('public', 'public_edit', 'unlisted'):
         return jsonify({"error": "Not found"}), 404
 
     d = item_to_dict(item)
