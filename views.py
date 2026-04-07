@@ -33,13 +33,14 @@ def build_folder_tree(items_list):
             total += count_files(child)
         return total
 
-    def tree_to_list(node, depth=0):
+    def tree_to_list(node, depth=0, prefix=''):
         result = []
         for name in sorted(node['children'].keys()):
             child = node['children'][name]
             file_count = count_files(child)
-            result.append({'type': 'folder', 'name': name, 'depth': depth, 'count': file_count})
-            result.extend(tree_to_list(child, depth + 1))
+            full_path = f"{prefix}{name}" if prefix else name
+            result.append({'type': 'folder', 'name': name, 'depth': depth, 'count': file_count, 'path': full_path})
+            result.extend(tree_to_list(child, depth + 1, full_path + '/'))
         for f in node['files']:
             result.append({'type': 'file', 'item': f, 'depth': depth})
         return result
@@ -218,6 +219,162 @@ def inject_sidebar_data():
     }
 
 
+def _build_user_breadcrumbs(username, file_path=None, is_folder=False, folder_path=None):
+    """Build breadcrumb crumbs for a user content page.
+
+    For an item at file_path "research/ai/transformers.md" viewed at
+    /@jacob/transformers, returns crumbs:
+      [@jacob (link)] [research (link)] [ai (link)] [transformers (current)]
+
+    For a folder at folder_path "research/ai" viewed at /@jacob/research/ai/,
+    returns:
+      [@jacob (link)] [research (link)] [ai (current)]
+
+    Args:
+      username: the profile username
+      file_path: the item file_path for item pages (e.g. 'research/ai/x.md')
+      is_folder: if True, folder_path is used and there is no filename
+      folder_path: the folder path (used when is_folder=True)
+    """
+    crumbs = [{"name": "@" + username, "url": "/@" + username}]
+    if is_folder and folder_path:
+        parts = [p for p in folder_path.strip("/").split("/") if p]
+        for i, part in enumerate(parts):
+            current = (i == len(parts) - 1)
+            sub = "/".join(parts[: i + 1])
+            crumbs.append({
+                "name": part,
+                "url": None if current else f"/@{username}/{sub}/",
+            })
+    elif file_path:
+        # Strip the trailing filename; use slug for display of the last crumb
+        parts = [p for p in file_path.strip("/").split("/") if p]
+        # The last element is the filename (e.g. transformers.md)
+        # Intermediate parts are folders.
+        folders = parts[:-1]
+        for i, folder in enumerate(folders):
+            sub = "/".join(folders[: i + 1])
+            crumbs.append({"name": folder, "url": f"/@{username}/{sub}/"})
+        # Current page (item) — use the filename stem
+        last = parts[-1] if parts else ""
+        if last.endswith(".md"):
+            last = last[:-3]
+        crumbs.append({"name": last, "url": None})
+    return crumbs
+
+
+
+@views_bp.route("/@<username>/<path:subpath>/")
+def user_folder(username, subpath):
+    """Folder view: show children (folders + items) at file_path prefix.
+
+    GitHub-style auto-listing. If a child item has slug 'README', its content
+    is rendered below the listing.
+    """
+    from models import User as UserModel
+    db = get_db()
+    user = UserModel.get_by_username(db, username)
+    if not user:
+        abort(404)
+
+    is_owner = current_user.is_authenticated and current_user.id == user.id
+    folder_path = subpath.strip("/")
+    if not folder_path:
+        return redirect(url_for("views.user_profile", username=username))
+
+    prefix = folder_path + "/"
+
+    # Fetch all items under this prefix
+    rows = db.execute(
+        "SELECT id, slug, title, file_path, item_type, visibility, updated_at, content "
+        "FROM item WHERE owner_id = ? AND file_path LIKE ? ORDER BY file_path",
+        (user.id, prefix + "%"),
+    ).fetchall()
+
+    # Filter visibility for non-owner
+    if not is_owner:
+        rows = [r for r in rows if r["visibility"] in ("public", "public_edit")]
+
+    if not rows:
+        abort(404)
+
+    # Group into direct children: folders (immediate subdirs) and files (items
+    # whose file_path has exactly one more path segment after the prefix)
+    folders_map = {}  # name -> list of item rows under that subfolder
+    direct_files = []
+    prefix_len = len(prefix)
+    for r in rows:
+        fp = r["file_path"] or f'{r["slug"]}.md'
+        rel = fp[prefix_len:] if fp.startswith(prefix) else fp
+        if "/" in rel:
+            # Nested: belongs to a subfolder
+            sub = rel.split("/", 1)[0]
+            folders_map.setdefault(sub, []).append(r)
+        else:
+            # Direct file in this folder
+            direct_files.append(r)
+
+    # Find README (case-insensitive slug match for "readme", but only the one
+    # directly in this folder)
+    readme_html = None
+    readme_item_id = None
+    readme_is_editable = False
+    for r in direct_files:
+        if (r["slug"] or "").lower() == "readme":
+            readme_html = render_md(r["content"] or "")
+            readme_item_id = r["id"]
+            readme_is_editable = is_owner
+            break
+
+    # Build children list for the template: folders first, then files (sans README)
+    children = []
+    for subname in sorted(folders_map.keys()):
+        sub_rows = folders_map[subname]
+        # Aggregate visibility of descendants
+        vis_set = set(r["visibility"] for r in sub_rows)
+        if len(vis_set) == 1:
+            vis_summary = next(iter(vis_set))
+        else:
+            vis_summary = "mixed"
+        children.append({
+            "type": "folder",
+            "name": subname,
+            "path": f"{folder_path}/{subname}",
+            "count": len(sub_rows),
+            "visibility_summary": vis_summary,
+        })
+    for r in sorted(direct_files, key=lambda x: ((x["title"] or x["slug"]) or "").lower()):
+        if (r["slug"] or "").lower() == "readme":
+            continue  # skip README in the listing; it gets rendered separately
+        children.append({
+            "type": "file",
+            "name": r["title"] or r["slug"],
+            "title": r["title"],
+            "slug": r["slug"],
+            "item_type": r["item_type"],
+            "visibility": r["visibility"],
+            "updated_at": r["updated_at"],
+        })
+
+    # Build breadcrumbs
+    breadcrumbs = _build_user_breadcrumbs(username, is_folder=True, folder_path=folder_path)
+
+    folder_name = folder_path.split("/")[-1]
+
+    return render_template(
+        "folder.html",
+        profile_user=user,
+        folder_path=folder_path,
+        folder_name=folder_name,
+        children=children,
+        readme_html=readme_html,
+        readme_item_id=readme_item_id,
+        readme_is_editable=readme_is_editable,
+        breadcrumbs=breadcrumbs,
+        is_owner=is_owner,
+    )
+
+
 @views_bp.route('/api/docs')
 def api_docs():
     return render_template('api_docs.html')
@@ -355,7 +512,10 @@ def dashboard():
     query = "SELECT * FROM item WHERE owner_id = ?"
     params = [current_user.id]
 
-    if visibility_filter:
+    if visibility_filter == 'published':
+        # Union of public + public_edit + shared (everything non-private)
+        query += " AND visibility IN ('public', 'public_edit', 'shared')"
+    elif visibility_filter:
         query += " AND visibility = ?"
         params.append(visibility_filter)
 
@@ -658,8 +818,18 @@ def user_profile(username):
     if view_mode == 'folders':
         folder_tree = build_folder_tree(items_with_tags)
 
+    # Look up the user's "home" item (special slug). Shows a prominent button
+    # on the profile header if present. Non-owners only see it when public.
+    home_item = db.execute(
+        "SELECT id, slug, title, visibility FROM item WHERE owner_id = ? AND slug = 'home'",
+        (user.id,)
+    ).fetchone()
+    if home_item and not is_owner and home_item['visibility'] not in ('public', 'public_edit', 'unlisted'):
+        home_item = None
+
     return render_template('profile.html', profile_user=user, items=items_with_tags,
-                           view_mode=view_mode, folder_tree=folder_tree, is_owner=is_owner)
+                           view_mode=view_mode, folder_tree=folder_tree, is_owner=is_owner,
+                           home_item=dict(home_item) if home_item else None)
 
 
 @views_bp.route('/@<username>/<slug>')
@@ -703,6 +873,7 @@ def public_item(username, slug):
     if not can_edit and item['visibility'] == 'public_edit' and current_user.is_authenticated:
         can_edit = True
 
+    item_breadcrumbs = _build_user_breadcrumbs(user.username, file_path=item['file_path'] or f"{item['slug']}.md")
     return render_template(
         'item.html',
         item=item,
@@ -710,7 +881,8 @@ def public_item(username, slug):
         tags=[t['tag'] for t in tags],
         rendered_content=rendered_content,
         is_owner=is_owner,
-        can_edit=can_edit
+        can_edit=can_edit,
+        breadcrumbs=item_breadcrumbs
     )
 
 

@@ -60,6 +60,17 @@
         if (e.target.closest('a')) return;
         toggleFolder(folder);
       });
+
+      /* Explicit chevron click: toggle even if we're over the link area */
+      var chevron = folder.querySelector('.tree-chevron');
+      if (chevron) {
+        chevron.addEventListener('click', function (e) {
+          e.stopPropagation();
+          e.preventDefault();
+          toggleFolder(folder);
+        });
+        chevron.style.cursor = 'pointer';
+      }
     });
   }
 

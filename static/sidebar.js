@@ -1,18 +1,17 @@
-// ListHub sidebar (V1.1):
-// - Section expand/collapse with chevron buttons + title links
-// - Only one section expanded by default (but multiple allowed)
-// - localStorage persistence of folder (tree) collapse state
-// - Mobile drawer + sidebar collapse toggle
+// ListHub sidebar (V1.2):
+// - Top-level sections: chevron button + title link
+// - Folder rows: chevron button toggles open/closed, folder name links to folder view
+// - localStorage persistence (folders + sections, independently)
 // - Active link highlighting with auto-expand ancestors
-// - Cmd/Ctrl + \ to toggle sidebar
+// - Cmd/Ctrl + \ to toggle sidebar collapse
 (function () {
   'use strict';
 
-  const STORAGE_KEY = 'listhub_sidebar_state';
-  const COLLAPSED_KEY = 'listhub_sidebar_collapsed';
-  const SECTIONS_KEY = 'listhub_sidebar_sections';
+  const STORAGE_KEY = 'listhub_sidebar_state';        // folder (tree) state
+  const COLLAPSED_KEY = 'listhub_sidebar_collapsed';  // whole sidebar hidden
+  const SECTIONS_KEY = 'listhub_sidebar_sections';    // top-level section expanded
 
-  // ── Folder state (tree) ──
+  // ── Folder (tree) state ──
   function loadState() {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -25,17 +24,37 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {}
   }
-  const state = loadState();
+  const folderState = loadState();
 
-  // Restore folder open/close state (inside tree)
+  // Restore folder open/close state for the new v2 folders
+  document.querySelectorAll('.sb-folder-v2[data-sb-key]').forEach(function (el) {
+    const key = el.getAttribute('data-sb-key');
+    if (key in folderState && folderState[key]) {
+      el.classList.add('sb-folder-open');
+    }
+    const chevron = el.querySelector(':scope > .sb-folder-row > .sb-folder-chevron');
+    if (chevron) {
+      chevron.setAttribute('aria-expanded', el.classList.contains('sb-folder-open') ? 'true' : 'false');
+      chevron.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isOpen = el.classList.toggle('sb-folder-open');
+        chevron.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        folderState[key] = isOpen;
+        saveState(folderState);
+      });
+    }
+  });
+
+  // Legacy: restore <details data-sb-key> state if any still exist
   document.querySelectorAll('details[data-sb-key]').forEach(function (el) {
     const key = el.getAttribute('data-sb-key');
-    if (key in state) {
-      el.open = state[key];
+    if (key in folderState) {
+      el.open = folderState[key];
     }
     el.addEventListener('toggle', function () {
-      state[key] = el.open;
-      saveState(state);
+      folderState[key] = el.open;
+      saveState(folderState);
     });
   });
 
@@ -56,29 +75,23 @@
   const sections = Array.from(document.querySelectorAll('.sb-section'));
   if (sections.length) {
     const persisted = loadSectionState();
-    // Determine initial expanded state per section
     sections.forEach(function (section, idx) {
       const id = section.getAttribute('data-sb-section');
       let expanded;
       if (persisted && id in persisted) {
         expanded = persisted[id];
       } else {
-        // Default: first applicable section expanded. Focused section takes
-        // precedence (if present). Otherwise Your docs for logged in, else Community.
         if (id === 'focused') {
           expanded = true;
         } else if (persisted) {
           expanded = false;
         } else {
-          // No persisted state at all: expand first non-focused section only
-          // unless a focused section is present which wins.
           const hasFocused = sections.some(function (s) {
             return s.getAttribute('data-sb-section') === 'focused';
           });
           if (hasFocused) {
             expanded = (id === 'focused');
           } else {
-            // First section in the DOM wins
             expanded = (idx === 0);
           }
         }
@@ -89,7 +102,6 @@
       if (chevron) chevron.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     });
 
-    // Toggle on chevron click
     sections.forEach(function (section) {
       const chevron = section.querySelector('.sb-section-chevron');
       if (!chevron) return;
@@ -98,7 +110,6 @@
         e.stopPropagation();
         const expanded = section.classList.toggle('sb-expanded');
         chevron.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        // Persist all section states
         const snapshot = {};
         sections.forEach(function (s) {
           snapshot[s.getAttribute('data-sb-section')] = s.classList.contains('sb-expanded');
@@ -108,7 +119,7 @@
     });
   }
 
-  // ── Sidebar collapse toggle (global hamburger) ──
+  // ── Sidebar collapse toggle ──
   const toggleBtn = document.getElementById('sb-toggle');
   const body = document.body;
   const isMobile = function () { return window.matchMedia('(max-width: 768px)').matches; };
@@ -132,14 +143,12 @@
     });
   }
 
-  // Close mobile drawer when clicking a file link
-  document.querySelectorAll('.sb-sidebar .sb-file-link').forEach(function (a) {
+  document.querySelectorAll('.sb-sidebar .sb-file-link, .sb-sidebar .sb-folder-link').forEach(function (a) {
     a.addEventListener('click', function () {
       if (isMobile()) body.classList.remove('sb-open');
     });
   });
 
-  // Close mobile drawer on backdrop click
   document.addEventListener('click', function (e) {
     if (!isMobile() || !body.classList.contains('sb-open')) return;
     const sidebar = document.getElementById('sb-sidebar');
@@ -148,27 +157,35 @@
     }
   });
 
-  // Highlight current page in sidebar
+  // Highlight current page in sidebar and auto-expand ancestors
   const currentPath = window.location.pathname;
-  document.querySelectorAll('.sb-file-link').forEach(function (a) {
+  const highlightLinks = document.querySelectorAll('.sb-file-link, .sb-folder-link');
+  highlightLinks.forEach(function (a) {
     if (a.getAttribute('href') === currentPath) {
       a.classList.add('active');
-      // Open all parent <details> so the active item is visible
+      // Walk up and open all ancestor folders + parent section
       let el = a.parentElement;
       while (el && el.tagName !== 'ASIDE') {
+        // Legacy: details
         if (el.tagName === 'DETAILS') el.open = true;
-        // Also ensure the parent section is expanded
+        // New: sb-folder-v2
+        if (el.classList && el.classList.contains('sb-folder-v2')) {
+          el.classList.add('sb-folder-open');
+          const ch = el.querySelector(':scope > .sb-folder-row > .sb-folder-chevron');
+          if (ch) ch.setAttribute('aria-expanded', 'true');
+        }
+        // Parent section
         if (el.classList && el.classList.contains('sb-section')) {
           el.classList.add('sb-expanded');
-          const chevron = el.querySelector('.sb-section-chevron');
-          if (chevron) chevron.setAttribute('aria-expanded', 'true');
+          const ch = el.querySelector('.sb-section-chevron');
+          if (ch) ch.setAttribute('aria-expanded', 'true');
         }
         el = el.parentElement;
       }
     }
   });
 
-  // Keyboard: Cmd/Ctrl + \ toggles sidebar
+  // Cmd/Ctrl + \ toggles sidebar
   document.addEventListener('keydown', function (e) {
     if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
       e.preventDefault();

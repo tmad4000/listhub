@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}{{ folder_name }} — @{{ profile_user.username }} — ListHub{% endblock %}
+{% block content %}
+
+{% with crumbs=breadcrumbs %}
+  {% include '_breadcrumbs.html' %}
+{% endwith %}
+
+<div class="folder-header">
+  <h1>
+    <span class="folder-icon">📁</span>
+    {{ folder_name }}
+  </h1>
+  <div class="folder-meta">
+    <span>{{ children|length }} item{{ 's' if children|length != 1 else '' }}</span>
+    {% if is_owner %}
+    <a href="{{ url_for('views.new_item') }}?file_path={{ folder_path }}/" class="btn btn-sm btn-primary">+ New in this folder</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if children %}
+<div class="folder-listing">
+  <table class="folder-table">
+    <thead>
+      <tr>
+        <th class="folder-col-name">Name</th>
+        <th class="folder-col-type">Type</th>
+        {% if is_owner %}<th class="folder-col-vis">Visibility</th>{% endif %}
+        <th class="folder-col-updated">Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for child in children %}
+      <tr class="folder-row folder-row--{{ child.type }}">
+        <td class="folder-col-name">
+          {% if child.type == 'folder' %}
+            <a href="/@{{ profile_user.username }}/{{ child.path }}/" class="folder-link">
+              <span class="folder-icon">📁</span> {{ child.name }}
+              {% if child.count %}<span class="folder-count">{{ child.count }}</span>{% endif %}
+            </a>
+          {% else %}
+            <a href="/@{{ profile_user.username }}/{{ child.slug }}" class="item-link">
+              <span class="folder-icon-file">📄</span> {{ child.title or child.slug }}
+            </a>
+          {% endif %}
+        </td>
+        <td class="folder-col-type">
+          {% if child.type == 'folder' %}
+            <span class="muted">folder</span>
+          {% else %}
+            <span class="badge badge-{{ child.item_type }}">{{ child.item_type }}</span>
+          {% endif %}
+        </td>
+        {% if is_owner %}
+        <td class="folder-col-vis">
+          {% if child.type == 'folder' and child.visibility_summary %}
+            <span class="vis-badge" title="folder: {{ child.visibility_summary }}">
+              {% if child.visibility_summary == 'private' %}🔒
+              {% elif child.visibility_summary == 'public' %}🌐
+              {% elif child.visibility_summary == 'public_edit' %}✏️
+              {% elif child.visibility_summary == 'shared' %}🔗
+              {% elif child.visibility_summary == 'mixed' %}◐
+              {% endif %}
+              {{ child.visibility_summary }}
+            </span>
+          {% elif child.type == 'file' %}
+            <span class="vis-badge" title="{{ child.visibility }}">
+              {% if child.visibility == 'private' %}🔒
+              {% elif child.visibility == 'public' %}🌐
+              {% elif child.visibility == 'public_edit' %}✏️
+              {% elif child.visibility == 'shared' %}🔗
+              {% endif %}
+              {{ child.visibility }}
+            </span>
+          {% endif %}
+        </td>
+        {% endif %}
+        <td class="folder-col-updated">
+          {% if child.type == 'file' and child.updated_at %}
+            {{ child.updated_at[:10] }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>This folder is empty{% if not is_owner %} or has no public items{% endif %}.</p>
+  {% if is_owner %}
+  <a href="{{ url_for('views.new_item') }}?file_path={{ folder_path }}/" class="btn btn-primary">+ New item here</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if readme_html %}
+<div class="folder-readme">
+  <div class="folder-readme-header">
+    <h2>README</h2>
+    {% if readme_is_editable %}
+    <a href="{{ url_for('views.edit_item', item_id=readme_item_id) }}" class="btn btn-sm">Edit</a>
+    {% endif %}
+  </div>
+  <div class="rendered-content">{{ readme_html | safe }}</div>
+</div>
+{% endif %}
+
+<style>
+.folder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.folder-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.folder-header .folder-icon {
+  font-size: 22px;
+}
+.folder-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.folder-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.folder-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.folder-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.folder-table tbody tr:hover {
+  background: rgba(88, 166, 255, 0.04);
+}
+.folder-col-name { width: auto; }
+.folder-col-type { width: 90px; }
+.folder-col-vis  { width: 110px; }
+.folder-col-updated { width: 100px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.folder-link,
+.item-link {
+  color: var(--accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.folder-link:hover,
+.item-link:hover {
+  text-decoration: underline;
+}
+.folder-link .folder-icon,
+.item-link .folder-icon-file {
+  font-size: 14px;
+}
+.folder-count {
+  font-size: 11px;
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.03);
+  padding: 1px 7px;
+  border-radius: 8px;
+  margin-left: 4px;
+}
+.muted { color: var(--text-dim); font-size: 11px; }
+.vis-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.folder-readme {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.folder-readme-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.folder-readme-header h2 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+</style>
+
+{% endblock %}

@@ -352,3 +352,109 @@ body.has-sidebar .header-inner {
         z-index: 80;
     }
 }
+
+/* ─────────────────────────────────────────────────
+   Breadcrumbs (shared partial _breadcrumbs.html)
+   ───────────────────────────────────────────────── */
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted, #8b949e);
+    margin-bottom: 20px;
+    padding: 4px 0;
+}
+.breadcrumb-link {
+    color: var(--text-muted, #8b949e);
+    text-decoration: none;
+}
+.breadcrumb-link:hover {
+    color: var(--accent, #58a6ff);
+    text-decoration: underline;
+}
+.breadcrumb-current {
+    color: var(--text, #e6edf3);
+    font-weight: 500;
+}
+.breadcrumb-sep {
+    color: var(--text-dim, #484f58);
+    font-weight: 300;
+}
+
+/* ─────────────────────────────────────────────────
+   Sidebar folder v2: split click targets
+   (chevron = toggle, folder name = navigate to folder view)
+   ───────────────────────────────────────────────── */
+.sb-folder-v2 > .sb-folder-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    line-height: 1.5;
+}
+.sb-folder-v2 > .sb-folder-row:hover {
+    background: rgba(88, 166, 255, 0.06);
+}
+
+.sb-folder-chevron {
+    background: transparent;
+    border: none;
+    color: var(--text-dim, #484f58);
+    padding: 5px 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+.sb-folder-chevron:hover {
+    color: var(--text, #e6edf3);
+    background: rgba(255, 255, 255, 0.06);
+}
+.sb-folder-chevron svg {
+    transition: transform 0.15s;
+}
+.sb-folder-v2.sb-folder-open > .sb-folder-row > .sb-folder-chevron svg {
+    transform: rotate(90deg);
+}
+
+.sb-folder-link {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px 4px 2px;
+    font-size: 13px;
+    color: var(--text, #e6edf3);
+    text-decoration: none;
+    font-weight: 500;
+    min-width: 0;
+}
+.sb-folder-link:hover {
+    color: var(--accent, #58a6ff);
+    text-decoration: none;
+}
+.sb-folder-link .sb-folder-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+}
+.sb-folder-link .sb-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sb-folder-link.active {
+    background: rgba(88, 166, 255, 0.12);
+    color: var(--accent, #58a6ff);
+    border-radius: 3px;
+}
+
+.sb-folder-children {
+    display: none;
+}
+.sb-folder-v2.sb-folder-open > .sb-folder-children {
+    display: block;
+}

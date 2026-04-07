@@ -1,0 +1,25 @@
+{# ── Shared Breadcrumbs Partial ──────────────────
+   Usage:
+     {% with crumbs=[{'name': '@jacob', 'url': '/@jacob'}, {'name': 'research', 'url': None}] %}
+       {% include '_breadcrumbs.html' %}
+     {% endwith %}
+
+   Rules:
+   - Each crumb: {name: str, url: str|None}
+   - A crumb with url=None is the current page (not a link, emphasized)
+   - Renders as: @jacob / research / ai
+   ────────────────────────────────────────────────── #}
+{% if crumbs %}
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  {% for crumb in crumbs %}
+    {% if crumb.url %}
+      <a href="{{ crumb.url }}" class="breadcrumb-link">{{ crumb.name }}</a>
+    {% else %}
+      <span class="breadcrumb-current">{{ crumb.name }}</span>
+    {% endif %}
+    {% if not loop.last %}
+      <span class="breadcrumb-sep">/</span>
+    {% endif %}
+  {% endfor %}
+</nav>
+{% endif %}
