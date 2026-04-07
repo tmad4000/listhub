@@ -461,7 +461,8 @@
             <ul class="checklist">
               <li><span class="check">&#x2713;</span> Programmatic registration &mdash; no browser, no CAPTCHA, no email verification loop</li>
               <li><span class="check">&#x2713;</span> API key or token issued in a single call</li>
-              <li><span class="check">&#x2713;</span> Full OpenAPI spec or an MCP server that agents can connect to</li>
+              <li><span class="check">&#x2713;</span> Full OpenAPI spec advertised via <code>.well-known/openapi.json</code></li>
+              <li><span class="check">&#x2713;</span> MCP server endpoint for Claude Desktop / Cursor / persistent tool stacks</li>
               <li><span class="check">&#x2713;</span> Rate limiting with clear <code>Retry-After</code> headers</li>
               <li><span class="check">&#x2713;</span> Webhook support for async events</li>
             </ul>
@@ -475,14 +476,83 @@
             <h3>Gold: Agent-Native</h3>
             <div class="tier-name">Your UI is designed with agents as first-class users</div>
             <ul class="checklist">
-              <li><span class="check">&#x2713;</span> Agent bar or sidebar built into the UI for natural-language interaction</li>
+              <li><span class="check">&#x2713;</span> <strong>WebMCP support</strong> &mdash; tools registered via <code>navigator.modelContext.registerTool()</code> on every page so browser agents can call them directly</li>
+              <li><span class="check">&#x2713;</span> Page-context tools that auto-register based on the current URL (e.g. "save this item")</li>
+              <li><span class="check">&#x2713;</span> Tools inherit the user's existing browser session &mdash; no API key handoff</li>
+              <li><span class="check">&#x2713;</span> Optional in-site agent bar or sidebar for users who don't yet have a personal agent</li>
               <li><span class="check">&#x2713;</span> Context-aware agent suggestions based on current page and user state</li>
-              <li><span class="check">&#x2713;</span> Webhook and event streaming for real-time agent coordination</li>
               <li><span class="check">&#x2713;</span> "Open in your agent" buttons for cross-application workflows</li>
               <li><span class="check">&#x2713;</span> Agent identity system &mdash; agents act on behalf of users with scoped permissions</li>
-              <li><span class="check">&#x2713;</span> Structured action schemas so agents know exactly what operations are available</li>
+              <li><span class="check">&#x2713;</span> Sets <code>data-agent-first="ready"</code> on the <code>&lt;html&gt;</code> element so agents can probe</li>
             </ul>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== WEBMCP CALLOUT ===================== -->
+  <section id="webmcp" style="background: linear-gradient(180deg, rgba(110,64,201,0.04) 0%, transparent 100%); padding: 60px 0;">
+    <div class="container">
+      <div class="section-label">The Browser Standard</div>
+      <h2 class="section-title">WebMCP &mdash; the missing layer</h2>
+      <p class="section-subtitle">
+        Google and Microsoft are co-shipping <strong>WebMCP</strong> as a W3C standard. It lets a website declare callable tools that any browser-based AI agent can invoke via <code>navigator.modelContext</code>. This is the breakthrough that makes agent-first sites actually work without an API-key handoff.
+      </p>
+
+      <div style="max-width: 720px; margin: 0 auto;">
+        <div style="background: var(--bg-card, #161b22); border: 1px solid rgba(137,87,229,0.3); border-radius: 12px; padding: 24px 28px; margin-bottom: 20px;">
+          <h3 style="margin-top: 0;">Why it matters</h3>
+          <ul style="line-height: 1.8; color: var(--text-muted, #8b949e);">
+            <li><strong>No auth handoff.</strong> The tool runs in the tab the user is already logged into. The browser session IS the auth.</li>
+            <li><strong>No separate server.</strong> Unlike traditional MCP, you don't run a tool server &mdash; the page IS the tool surface.</li>
+            <li><strong>89% more efficient than screenshots.</strong> Agents call typed tools instead of guessing at DOM elements.</li>
+            <li><strong>Works with any browser session.</strong> Google OAuth, username/password, magic link, Auth0 &mdash; whatever you use, WebMCP inherits it.</li>
+            <li><strong>Future browser default.</strong> In Chrome 146+ today; Safari and Firefox in the W3C working group.</li>
+          </ul>
+        </div>
+
+        <div style="background: var(--bg-card, #161b22); border: 1px solid var(--border, #30363d); border-radius: 12px; padding: 24px 28px; margin-bottom: 20px;">
+          <h3 style="margin-top: 0;">Minimal implementation</h3>
+          <pre style="background: var(--bg, #0d1117); padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5;"><code>&lt;script defer&gt;
+if ("modelContext" in window.navigator) {
+  window.navigator.modelContext.registerTool({
+    name: "create_note",
+    description: "Save a new note for the logged-in user",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        content: { type: "string" }
+      },
+      required: ["title"]
+    },
+    execute: async ({ title, content }) =&gt; {
+      const r = await fetch("/api/v1/notes", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content })
+      });
+      const note = await r.json();
+      return { content: [{ type: "text", text: "Saved as " + note.id }] };
+    }
+  });
+}
+&lt;/script&gt;</code></pre>
+          <p style="color: var(--text-muted, #8b949e); font-size: 14px;">
+            That's the whole pattern. Wrap your existing REST endpoints. The browser handles auth.
+          </p>
+        </div>
+
+        <div style="background: var(--bg-card, #161b22); border: 1px solid var(--border, #30363d); border-radius: 12px; padding: 24px 28px;">
+          <h3 style="margin-top: 0;">Live example</h3>
+          <p style="color: var(--text-muted, #8b949e); margin-bottom: 12px;">
+            <a href="https://listhub.globalbr.ai" style="color: var(--accent, #58a6ff);">ListHub</a> registers 9 WebMCP tools on every page (search, get, list, create, append, upsert, set-visibility, plus page-context tools). Source: <a href="https://listhub.globalbr.ai/static/webmcp.js" style="color: var(--accent, #58a6ff);">/static/webmcp.js</a>.
+          </p>
+          <p style="color: var(--text-muted, #8b949e); font-size: 13px; margin-bottom: 0;">
+            Enable in Chrome: <code>chrome://flags/#enable-webmcp-testing</code> &rarr; install Model Context Tool Inspector &rarr; visit any ListHub page &rarr; tools auto-register.
+          </p>
         </div>
       </div>
     </div>
@@ -506,7 +576,7 @@
           </div>
           <div class="example-body">
             <h4>ListHub</h4>
-            <p>List publishing platform with agent bar, MCP server, and programmatic registration. Gold tier.</p>
+            <p>List publishing platform with WebMCP tools, programmatic registration, llms.txt, and per-item visibility. Gold tier.</p>
             <span class="tier-badge gold-badge">GOLD CERTIFIED</span>
           </div>
         </a>

@@ -48,6 +48,92 @@ bd sync               # Sync with git
 - If push fails, resolve and retry until it succeeds
 
 
+## Agent-First Architecture (PRINCIPLES — KEEP THIS UP TO DATE)
+
+ListHub is an **agent-first website**. Every code change to user-facing
+features must preserve and extend the agent surfaces. When you add an
+endpoint, add a tool. When you add a content surface, respect visibility.
+When you add a discovery affordance, document it for agents.
+
+### Required surfaces (do not regress)
+
+These exist today and MUST keep working. If you change a related area,
+verify each:
+
+1. **WebMCP** &mdash; `static/webmcp.js` registers tools via
+   `navigator.modelContext.registerTool()` on every page. The script is
+   loaded from `templates/base.html` with `<script defer>`. When you add
+   a new write endpoint to `api.py`, add a corresponding tool to
+   `webmcp.js`. Tools call the REST API via
+   `fetch(..., { credentials: 'include' })` so the browser session
+   handles auth automatically.
+
+2. **REST API** &mdash; `api.py` exposes the full feature surface.
+   Read endpoints work for any visitor; write endpoints respect
+   ownership and visibility. The API is the source of truth — UI and
+   WebMCP both wrap it.
+
+3. **`/llms.txt`** &mdash; the route is in `views.py` (`llms_txt`). It
+   describes the API base URL, the registration flow, the WebMCP
+   tools, the home special slug, the private content blocks pattern,
+   and the visibility levels. When you add a new agent-relevant
+   capability, add a section here too.
+
+4. **`/api/docs`** &mdash; the human-readable companion. Mirror any
+   `llms.txt` change here. Keep the WebMCP section accurate when tools
+   change.
+
+5. **Programmatic registration** &mdash; `POST /api/v1/auth/register`
+   must keep working without browser, CAPTCHA, or email verification.
+   Agents self-onboard via this endpoint.
+
+6. **Per-item visibility** &mdash; `private`, `public`, `public_edit`,
+   `shared`, and `unlisted` (when shipped). The agent that creates an
+   item sets the visibility at write time via the API. Do not weaken
+   this.
+
+7. **Private content blocks** &mdash; `<!-- private -->...<!-- /private -->`
+   in markdown is stripped at render time for non-owners via
+   `strip_private_blocks()` in `views.py`. **Any new surface that
+   exposes `item.content` to a template, API response, or log MUST
+   filter it through `strip_private_blocks()` for non-owners.** This
+   includes copy-to-clipboard textareas, embedded raw views, and any
+   future export feature.
+
+8. **Special slug `home`** &mdash; users can create an item with slug
+   `home` that becomes their landing card on `/@username` and `/dash`.
+   Treat it as agent-editable. Do not hard-code it as a separate type.
+
+### When adding new features
+
+- [ ] If it's a new write endpoint &rarr; add a WebMCP tool
+- [ ] If it's a new content type &rarr; respect visibility on every render
+- [ ] If it's a new content surface &rarr; pass content through
+      `strip_private_blocks()` for non-owners
+- [ ] If it's a new agent-relevant capability &rarr; document in
+      `/llms.txt` AND `/api/docs`
+- [ ] If it's a new auth flow &rarr; programmatic registration must
+      still work
+
+### What NOT to do
+
+- Do **not** add a feature that requires a browser-only flow without
+  also exposing it via the API
+- Do **not** strip the WebMCP loader from `base.html`
+- Do **not** add per-item content access without checking visibility
+- Do **not** introduce captchas or human-verification on the
+  registration endpoint
+- Do **not** remove `data-listhub-webmcp="ready"` &mdash; agents probe it
+
+### References
+
+- WebMCP spec: https://github.com/webmachinelearning/webmcp
+- Implementation: `static/webmcp.js`
+- Standard mockup: `mockups/agentfirst-standard.html` (the
+  Bronze/Silver/Gold tier definition this codebase aims for)
+- Visibility code path: `views.py` &rarr; `render_md()` &rarr;
+  `strip_private_blocks()`
+
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 ## Beads Issue Tracker
 
