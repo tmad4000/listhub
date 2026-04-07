@@ -352,3 +352,33 @@ body.has-sidebar .header-inner {
         z-index: 80;
     }
 }
+
+/* ─────────────────────────────────────────────────
+   Breadcrumbs (shared partial _breadcrumbs.html)
+   ───────────────────────────────────────────────── */
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted, #8b949e);
+    margin-bottom: 20px;
+    padding: 4px 0;
+}
+.breadcrumb-link {
+    color: var(--text-muted, #8b949e);
+    text-decoration: none;
+}
+.breadcrumb-link:hover {
+    color: var(--accent, #58a6ff);
+    text-decoration: underline;
+}
+.breadcrumb-current {
+    color: var(--text, #e6edf3);
+    font-weight: 500;
+}
+.breadcrumb-sep {
+    color: var(--text-dim, #484f58);
+    font-weight: 300;
+}
