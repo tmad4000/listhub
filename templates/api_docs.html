@@ -183,6 +183,31 @@
 
 <p>Save the <code>key</code> value — it cannot be retrieved again. Use it as <code>Authorization: Bearer mem_abc123...</code> for all subsequent API calls.</p>
 
+<h2 id="private-blocks">Private content blocks</h2>
+
+<p>Any item's content can contain HTML comment blocks that are rendered for the
+owner but stripped when anyone else views the item. This lets you mix personal
+notes into otherwise-public content without splitting into two items.</p>
+
+<div class="code-block"><code>Public intro that everyone sees.
+
+&lt;!-- private --&gt;
+Secret section. Only the owner sees this when rendering.
+Non-owners get the text stripped from the HTML entirely.
+&lt;!-- /private --&gt;
+
+More public content below.</code></div>
+
+<p><strong>Rules:</strong></p>
+<ul>
+    <li>Markers are <code>&lt;!-- private --&gt;</code> and <code>&lt;!-- /private --&gt;</code></li>
+    <li>Case-insensitive, whitespace inside the marker is allowed</li>
+    <li>Non-greedy: the first <code>&lt;!-- /private --&gt;</code> closes the nearest open block. Don't nest.</li>
+    <li>The raw markdown still contains the block — the filter runs at render time only</li>
+    <li>For whole-item privacy, prefer the <code>visibility</code> field</li>
+    <li>Agents writing items should use this pattern when they want to mix personal context into shareable content</li>
+</ul>
+
 <h2>Items</h2>
 
 <h3>List items</h3>

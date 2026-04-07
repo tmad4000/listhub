@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 
 import markdown
@@ -48,7 +49,34 @@ def build_folder_tree(items_list):
     return tree_to_list(root)
 
 
-def render_md(text):
+# Private content block pattern:
+#   <!-- private --> ... <!-- /private -->
+# Content inside these HTML comment markers is stripped from rendered output
+# for everyone except the item owner. Non-greedy, DOTALL, case-insensitive.
+# See also: /llms.txt and the API docs page for the agent-facing convention.
+_PRIVATE_BLOCK_RE = re.compile(
+    r'<!--\s*private\s*-->.*?<!--\s*/\s*private\s*-->',
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def strip_private_blocks(text):
+    """Remove <!-- private --> ... <!-- /private --> blocks from markdown.
+
+    Used to hide per-section private content when rendering for non-owners.
+    The content is only stripped from the rendered view — the raw markdown
+    still contains the block, so editing (via the API or web UI) preserves it.
+    """
+    if not text:
+        return text
+    return _PRIVATE_BLOCK_RE.sub('', text)
+
+
+def render_md(text, is_owner=False):
+    """Render markdown to HTML. If is_owner is False, strip <!-- private -->
+    blocks first so non-owners never see per-section private content."""
+    if not is_owner:
+        text = strip_private_blocks(text)
     return markdown.markdown(
         text or '',
         extensions=['tables', 'fenced_code', 'toc', 'nl2br', 'sane_lists']
@@ -321,7 +349,7 @@ def user_folder(username, subpath):
     readme_is_editable = False
     for r in direct_files:
         if (r["slug"] or "").lower() == "readme":
-            readme_html = render_md(r["content"] or "")
+            readme_html = render_md(r["content"] or "", is_owner=is_owner)
             readme_item_id = r["id"]
             readme_is_editable = is_owner
             break
@@ -880,8 +908,8 @@ def public_item(username, slug):
         abort(404)
 
     tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
-    rendered_content = render_md(item['content'])
     is_owner = current_user.is_authenticated and current_user.id == user.id
+    rendered_content = render_md(item['content'], is_owner=is_owner)
 
     # Determine edit permission
     can_edit = is_owner
@@ -1176,6 +1204,38 @@ Authorization: Bearer mem_abc123...
 - POST /api/v1/items/:id/append — append to a list
 - GET /api/v1/search?q=query — full-text search
 - PUT /api/v1/items/by-slug/:slug — create or update by slug
+
+## Private content blocks (hide per-section content from non-owners)
+
+Any item can contain HTML comment blocks that are rendered for the owner but
+stripped for everyone else:
+
+    Public intro that everyone sees.
+
+    <!-- private -->
+    Secret section. Only the owner sees this when viewing the rendered item.
+    Non-owners get the text stripped from the HTML entirely.
+    <!-- /private -->
+
+    More public content below.
+
+Rules for agents writing content:
+- Markers are HTML comments: `<!-- private -->` and `<!-- /private -->`.
+- Case-insensitive, whitespace inside the marker is allowed.
+- Non-greedy, so the first `<!-- /private -->` closes the nearest open
+  `<!-- private -->`. Nested blocks don't work — don't nest.
+- The content is still stored in the underlying markdown and accessible
+  via the API (if the caller is authenticated as the owner). The filter
+  is a RENDERING concern, not a storage concern.
+- Use for things like personal todos, reminders, or work-in-progress
+  sections you want to mix into otherwise-public content.
+- For whole-item privacy, prefer the `visibility` field instead.
+
+## Special slug: home
+
+Each user can have an item with slug `home`. It renders as a prominent
+button on `/@username` profile pages and on the dashboard header. Treat
+it as the user's agent-editable landing page.
 
 ### Public Edit (no ownership needed)
 
