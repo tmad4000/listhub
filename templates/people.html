@@ -17,6 +17,9 @@
     <div class="item-card">
         <div class="item-info">
             <a href="/@{{ user.username }}" class="item-title">{{ user.display_name or user.username }}</a>
+            {% if user.username in users_with_home %}
+            <a href="/@{{ user.username }}/home" class="btn btn-sm" style="margin-left: 8px; font-size: 11px;" title="{{ user.display_name or user.username }}'s home page">&#127968; Home</a>
+            {% endif %}
             <div class="item-meta">
                 <span>@{{ user.username }}</span>
                 {% if user.public_count > 0 %}

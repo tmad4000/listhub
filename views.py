@@ -452,8 +452,16 @@ def community():
         "WHERE i.visibility = 'public_edit' ORDER BY i.updated_at DESC LIMIT 10"
     ).fetchall()
 
+    # Users who have a publicly visible home item
+    home_rows = db.execute(
+        "SELECT u.username FROM item i JOIN user u ON i.owner_id = u.id "
+        "WHERE i.slug = 'home' AND i.visibility IN ('public', 'public_edit', 'unlisted')"
+    ).fetchall()
+    users_with_home = {r['username'] for r in home_rows}
+
     return render_template('community.html', users=[dict(u) for u in users],
-                           editable_items=editable_items)
+                           editable_items=editable_items,
+                           users_with_home=users_with_home)
 
 
 @views_bp.route('/people')
@@ -549,9 +557,16 @@ def dashboard():
     if view_mode == 'folders':
         folder_tree = build_folder_tree(items_with_tags)
 
+    # Does the current user have a "home" item? Used to decide whether
+    # to show the Home button or "Set up home page" prompt in the header.
+    has_home = db.execute(
+        "SELECT 1 FROM item WHERE owner_id = ? AND slug = 'home' LIMIT 1",
+        (current_user.id,)
+    ).fetchone() is not None
+
     return render_template('dash.html', items=items_with_tags, q=q,
                            visibility_filter=visibility_filter, view_mode=view_mode,
-                           folder_tree=folder_tree)
+                           folder_tree=folder_tree, has_home=has_home)
 
 
 @views_bp.route('/dash/new', methods=['GET', 'POST'])

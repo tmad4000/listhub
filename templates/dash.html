@@ -4,6 +4,11 @@
 <div class="toolbar">
     <h1>My Lists</h1>
         <a href="/@{{ current_user.username }}" style="font-size: 13px; color: var(--text-muted);">View public profile &rarr;</a>
+        {% if has_home %}
+        <a href="/@{{ current_user.username }}/home" class="btn btn-sm btn-primary" style="margin-left: 8px;" title="Your public home page">&#127968; Home</a>
+        {% else %}
+        <a href="{{ url_for('views.new_item') }}?slug=home" style="font-size: 13px; color: var(--text-muted); margin-left: 8px;" title="Create a public home page">+ Set up home page</a>
+        {% endif %}
     <div style="display: flex; gap: 12px; align-items: center;">
         <form class="search-box" method="get" action="{{ url_for('views.dashboard') }}">
             <input type="text" name="q" placeholder="Search..." value="{{ q or '' }}">

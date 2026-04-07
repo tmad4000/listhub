@@ -8,7 +8,10 @@
     {% if users %}
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px;">
         {% for user in users %}
-        <a href="/@{{ user.username }}" style="display: flex; align-items: center; gap: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-decoration: none; transition: border-color 0.15s;">
+        <a href="/@{{ user.username }}" style="display: flex; align-items: center; gap: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-decoration: none; transition: border-color 0.15s; position: relative;">
+            {% if user.username in users_with_home %}
+            <span style="position: absolute; top: 6px; right: 8px; font-size: 14px;" title="Has a home page">&#127968;</span>
+            {% endif %}
             <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: var(--bg); flex-shrink: 0;">{{ (user.display_name or user.username)[0]|upper }}</div>
             <div>
                 <div style="font-size: 14px; font-weight: 500; color: var(--text);">{{ user.display_name or user.username }}</div>
