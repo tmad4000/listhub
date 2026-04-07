@@ -109,3 +109,10 @@ See [CLAUDE.md](CLAUDE.md) for full architecture, conventions, and deploy instru
 ```bash
 ssh noos-prod "cd /home/ubuntu/listhub && git pull origin main && sudo systemctl restart listhub"
 ```
+
+## Docs &amp; history
+
+- **[docs/looms.md](docs/looms.md)** — index of Loom walkthroughs (pre-sidebar checkpoint, pitch pages, feature demos). Add new Looms here as they are recorded.
+- **[docs/history-pre-sidebar.md](docs/history-pre-sidebar.md)** — state of ListHub before the three-section sidebar shipped; Google Sites / Wikispaces / sub-wiki context.
+- **[docs/investor-blurb.md](docs/investor-blurb.md)** — intro blurbs (short/medium/long) for investors forwarding the IdeaFlow Memory pitch to portfolio founders.
+- **`/mockups/`** — design mockups served at `https://listhub.globalbr.ai/mockups/`. Includes the agent-first web standard page, the company LLM wiki pitch pages, and the IdeaFlow Memory brand direction.
