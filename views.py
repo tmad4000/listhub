@@ -34,13 +34,38 @@ def build_folder_tree(items_list):
             total += count_files(child)
         return total
 
+    def collect_visibilities(node):
+        s = set()
+        for f in node['files']:
+            v = f.get('visibility')
+            if v:
+                s.add(v)
+        for child in node['children'].values():
+            s |= collect_visibilities(child)
+        return s
+
+    def folder_visibility_summary(node):
+        vis = collect_visibilities(node)
+        if not vis:
+            return None
+        if len(vis) == 1:
+            return next(iter(vis))
+        return 'mixed'
+
     def tree_to_list(node, depth=0, prefix=''):
         result = []
         for name in sorted(node['children'].keys()):
             child = node['children'][name]
             file_count = count_files(child)
             full_path = f"{prefix}{name}" if prefix else name
-            result.append({'type': 'folder', 'name': name, 'depth': depth, 'count': file_count, 'path': full_path})
+            result.append({
+                'type': 'folder',
+                'name': name,
+                'depth': depth,
+                'count': file_count,
+                'path': full_path,
+                'visibility_summary': folder_visibility_summary(child),
+            })
             result.extend(tree_to_list(child, depth + 1, full_path + '/'))
         for f in node['files']:
             result.append({'type': 'file', 'item': f, 'depth': depth})

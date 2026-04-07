@@ -18,6 +18,9 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
         </span>
         <span class="tree-name"><a href="/@{{ tree_owner }}/{{ node.path }}/" title="Open folder">{{ node.name }}</a></span>
+        {% if node.visibility_summary %}
+        <span class="tree-vis tree-vis-folder" title="folder visibility: {{ node.visibility_summary }}">{% if node.visibility_summary == 'private' %}&#128274;{% elif node.visibility_summary == 'public' %}&#127760;{% elif node.visibility_summary == 'public_edit' %}&#9999;&#65039;{% elif node.visibility_summary == 'shared' %}&#128279;{% elif node.visibility_summary == 'mixed' %}&#9680;{% endif %}</span>
+        {% endif %}
         <span class="tree-count">{{ node.count }}</span>
       </div>
     </div>
