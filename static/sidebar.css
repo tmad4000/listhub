@@ -9,32 +9,56 @@
     --sb-border: var(--border, #30363d);
 }
 
-/* ── Layout wrapping ── */
+/* ── Layout wrapping ──
+   Two distinct states:
+   1) EXPANDED  — grid with sidebar + main. Main is content-width
+                  (~900px), left-aligned inside its cell so it reads
+                  comfortably next to the sidebar without stretching.
+   2) COLLAPSED — sidebar hidden, main reverts to the original
+                  pre-sidebar .container behavior: max-width 860px,
+                  centered (margin: 0 auto). This keeps existing pages
+                  looking the same as before the sidebar shipped.
+   ───────────────────────────────────────────── */
+
+/* EXPANDED (default has-sidebar) */
 body.has-sidebar .app-layout {
     display: grid;
     grid-template-columns: var(--sb-width) minmax(0, 1fr);
     min-height: calc(100vh - 64px);
-    max-width: 1200px;
+    max-width: calc(var(--sb-width) + 900px + 40px); /* sidebar + content + side padding */
     margin: 0 auto;
     gap: 0;
-}
-body.has-sidebar.sb-collapsed .app-layout {
-    grid-template-columns: 0 minmax(0, 1fr);
-}
-body.has-sidebar.sb-collapsed .sb-sidebar {
-    display: none;
 }
 
 body.has-sidebar .app-main {
     min-width: 0;
     padding: 24px 20px 40px;
-    max-width: none;
 }
 
+/* When expanded, override the original .container centering so that main
+   sits inside its grid cell with a sane max content width, left-aligned. */
 body.has-sidebar .app-main.container {
-    max-width: none;
+    max-width: 900px;
     margin-left: 0;
     margin-right: 0;
+}
+
+/* COLLAPSED — behave exactly like the pre-sidebar layout.
+   Collapse the grid to a single column and let .container do its
+   original thing (max-width 860px, margin: 0 auto). */
+body.has-sidebar.sb-collapsed .app-layout {
+    display: block;
+    max-width: none;
+    margin: 0;
+}
+body.has-sidebar.sb-collapsed .sb-sidebar {
+    display: none;
+}
+body.has-sidebar.sb-collapsed .app-main.container {
+    max-width: var(--max-width, 860px);
+    margin-left: auto;
+    margin-right: auto;
+    padding: 24px 20px 40px;
 }
 
 .app-footer {
