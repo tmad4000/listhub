@@ -1241,6 +1241,33 @@ Each user can have an item with slug `home`. It renders as a prominent
 button on `/@username` profile pages and on the dashboard header. Treat
 it as the user's agent-editable landing page.
 
+## WebMCP support (browser-based agents)
+
+Every ListHub page registers tools via the W3C WebMCP standard
+(`navigator.modelContext`). Agents running in Chrome 146+ (with the
+WebMCP flag enabled) can call these tools directly without any API key
+handoff — they inherit the user's existing browser session.
+
+Tools registered on every page:
+
+- listhub_search(query) — full-text search
+- listhub_get_item(slug) — fetch an item by slug
+- listhub_list_my_items({visibility?, type?, tag?}) — list owned items
+- listhub_create_item({title, content, item_type?, visibility?, tags?, slug?})
+- listhub_append_to_list({slug, entry}) — append a bullet
+- listhub_upsert_item({slug, ...fields}) — idempotent create-or-update
+- listhub_set_visibility({slug, visibility}) — change item visibility
+
+Page-context tools (only available on relevant pages):
+
+- listhub_save_current_item_to_my_collection() — only on /@user/slug item pages
+- listhub_browse_user_items() — only on /@user profile pages
+
+The page sets data-listhub-webmcp="ready" on the html element when
+tools are registered, so agents can probe whether the surface is live.
+
+For headless agents (Claude Code, scripts, CI), use the REST API above.
+
 ### Public Edit (no ownership needed)
 
 Items with `public_edit` visibility can be edited by any authenticated user:

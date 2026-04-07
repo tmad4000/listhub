@@ -183,6 +183,41 @@
 
 <p>Save the <code>key</code> value — it cannot be retrieved again. Use it as <code>Authorization: Bearer mem_abc123...</code> for all subsequent API calls.</p>
 
+<h2 id="webmcp">WebMCP &mdash; in-tab tools for browser agents</h2>
+
+<p>ListHub registers itself as a <a href="https://github.com/webmachinelearning/webmcp">WebMCP</a> provider on every page. Browser-based AI agents (Chrome 146+ with the WebMCP flag enabled) can call ListHub's API directly via <code>navigator.modelContext</code>, inheriting the user's existing browser session. No API key handoff. No cross-origin dance.</p>
+
+<p>This is the W3C standard (Google + Microsoft) for letting websites declare callable tools that in-tab agents can invoke. ListHub's tools are thin wrappers around the REST API documented below.</p>
+
+<p><strong>Enabling WebMCP in Chrome:</strong></p>
+<ol>
+    <li>Chrome 146 or newer (Canary as of writing)</li>
+    <li>Visit <code>chrome://flags/#enable-webmcp-testing</code> and enable</li>
+    <li>Install the <em>Model Context Tool Inspector</em> extension</li>
+    <li>Visit any ListHub page &mdash; tools auto-register</li>
+</ol>
+
+<p><strong>Tools registered on every page:</strong></p>
+<ul>
+    <li><code>listhub_search(query)</code> &mdash; full-text search across public items</li>
+    <li><code>listhub_get_item(slug)</code> &mdash; fetch an item by slug</li>
+    <li><code>listhub_list_my_items({visibility, type, tag})</code> &mdash; list the logged-in user's items</li>
+    <li><code>listhub_create_item({title, content, item_type, visibility, tags, slug})</code></li>
+    <li><code>listhub_append_to_list({slug, entry})</code></li>
+    <li><code>listhub_upsert_item({slug, ...fields})</code> &mdash; idempotent create-or-update</li>
+    <li><code>listhub_set_visibility({slug, visibility})</code></li>
+</ul>
+
+<p><strong>Page-context tools</strong> (only registered on the relevant page):</p>
+<ul>
+    <li><code>listhub_save_current_item_to_my_collection()</code> &mdash; only on <code>/@user/slug</code> item pages</li>
+    <li><code>listhub_browse_user_items()</code> &mdash; only on <code>/@user</code> profile pages</li>
+</ul>
+
+<p>The implementation lives in <a href="/static/webmcp.js"><code>/static/webmcp.js</code></a> and is loaded with <code>&lt;script defer&gt;</code> from <code>base.html</code>. It is a no-op in browsers without WebMCP support, so the page works fine for everyone else.</p>
+
+<p>The page sets <code>data-listhub-webmcp="ready"</code> on the <code>&lt;html&gt;</code> element when tools are registered, so agents can probe whether the surface is live.</p>
+
 <h2 id="private-blocks">Private content blocks</h2>
 
 <p>Any item's content can contain HTML comment blocks that are rendered for the
