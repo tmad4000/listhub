@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent-First Web Ecosystem — Research</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Manrope:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #07070f;
+            --text: #e8e4df;
+            --dim: #8a8695;
+            --blue: #5b9aff;
+            --amber: #ffb74d;
+            --green: #4dd8a8;
+            --display: 'Fraunces', serif;
+            --body: 'Manrope', sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        body { background: var(--bg); color: var(--text); font-family: var(--body); font-weight: 300; line-height: 1.7; -webkit-font-smoothing: antialiased; }
+        body::before { content:''; position:fixed; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, var(--blue), var(--amber), var(--green)); z-index:100; }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 4rem 2rem 6rem; }
+
+        h1 { font-family: var(--display); font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 300; font-style: italic; letter-spacing: -0.03em; margin-bottom: 0.5rem; }
+        .updated { font-family: var(--mono); font-size: 0.7rem; color: var(--dim); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 3rem; }
+
+        h2 { font-family: var(--display); font-size: 1.6rem; font-weight: 400; margin: 3rem 0 1.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        h3 { font-size: 1rem; font-weight: 500; margin: 1.5rem 0 0.8rem; color: var(--text); }
+
+        p { color: var(--dim); font-size: 0.92rem; margin-bottom: 1rem; line-height: 1.85; }
+        p em { color: var(--text); font-style: normal; font-weight: 500; }
+
+        table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.85rem; }
+        th { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; text-align: left; padding: 0.6rem 1rem; color: var(--dim); border-bottom: 1px solid rgba(255,255,255,0.08); }
+        td { padding: 0.6rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--dim); vertical-align: top; }
+        td:first-child { color: var(--text); font-weight: 400; white-space: nowrap; }
+
+        .badge { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 3px; white-space: nowrap; }
+        .badge--prod { background: rgba(77,216,168,0.1); color: var(--green); }
+        .badge--preview { background: rgba(91,154,255,0.1); color: var(--blue); }
+        .badge--spec { background: rgba(255,183,77,0.1); color: var(--amber); }
+
+        .stack { display: grid; gap: 0.4rem; margin: 1.5rem 0; }
+        .stack-row { display: grid; grid-template-columns: 100px 1fr auto; gap: 1rem; padding: 0.75rem 1rem; background: rgba(255,255,255,0.018); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; align-items: center; }
+        .stack-name { font-family: var(--mono); font-size: 0.8rem; }
+        .stack-desc { font-size: 0.82rem; color: var(--dim); }
+
+        .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+        .compare-col { padding: 1.2rem; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; }
+        .compare-col h4 { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.8rem; }
+        .compare-col ul { list-style: none; }
+        .compare-col li { font-size: 0.82rem; color: var(--dim); padding: 0.25rem 0; padding-left: 1rem; position: relative; }
+        .compare-col li::before { content: '→'; position: absolute; left: 0; opacity: 0.4; }
+
+        .impl { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 1.2rem; margin: 1rem 0; }
+        .impl-title { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.6rem; }
+        .impl code { font-family: var(--mono); font-size: 0.78rem; color: var(--blue); background: rgba(91,154,255,0.08); padding: 0.15rem 0.4rem; border-radius: 3px; }
+
+        .links { margin: 1.5rem 0; }
+        .links a { display: block; font-family: var(--mono); font-size: 0.78rem; color: var(--blue); text-decoration: none; padding: 0.3rem 0; opacity: 0.8; }
+        .links a:hover { opacity: 1; }
+        .links .label { color: var(--dim); font-size: 0.72rem; }
+
+        .back { display: inline-block; font-family: var(--mono); font-size: 0.7rem; color: var(--dim); text-decoration: none; letter-spacing: 0.1em; margin-bottom: 2rem; }
+        .back:hover { color: var(--text); }
+
+        @media (max-width: 640px) {
+            .compare { grid-template-columns: 1fr; }
+            .stack-row { grid-template-columns: 80px 1fr; }
+            .stack-row .badge { grid-column: 1 / -1; justify-self: start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/mockups/" class="back">&larr; Back to mockups</a>
+
+        <h1>Agent-First Web Ecosystem</h1>
+        <p class="updated">Research — March 2026</p>
+
+        <p>The web is acquiring a parallel interface layer built for AI agents. This document maps the protocol stack, implementation patterns, and competitive landscape that Ideaflow is building into.</p>
+
+        <!-- PROTOCOL STACK -->
+        <h2>The Protocol Stack</h2>
+        <p>Seven layers, from content to discovery. Each solves a different piece of the agent-web interaction.</p>
+
+        <div class="stack">
+            <div class="stack-row">
+                <span class="stack-name">llms.txt</span>
+                <span class="stack-desc">Structured site content for LLMs — the robots.txt of the AI era</span>
+                <span class="badge badge--prod">844K+ sites</span>
+            </div>
+            <div class="stack-row">
+                <span class="stack-name">MCP</span>
+                <span class="stack-desc">Universal tool protocol — connect any AI to any external tool or data source</span>
+                <span class="badge badge--prod">Production</span>
+            </div>
+            <div class="stack-row">
+                <span class="stack-name">WebMCP</span>
+                <span class="stack-desc">Browser-native agent interface — websites declare capabilities as callable tools</span>
+                <span class="badge badge--preview">Chrome 146</span>
+            </div>
+            <div class="stack-row">
+                <span class="stack-name">A2A</span>
+                <span class="stack-desc">Agent-to-agent communication with capability advertisement (Agent Cards)</span>
+                <span class="badge badge--spec">Linux Foundation</span>
+            </div>
+            <div class="stack-row">
+                <span class="stack-name">AG-UI</span>
+                <span class="stack-desc">Event-based protocol for agent-to-frontend streaming</span>
+                <span class="badge badge--prod">Production</span>
+            </div>
+            <div class="stack-row">
+                <span class="stack-name">A2UI</span>
+                <span class="stack-desc">Agents generate rich UIs from widget catalogs</span>
+                <span class="badge badge--preview">v0.8 preview</span>
+            </div>
+            <div class="stack-row">
+                <span class="stack-name">.well-known</span>
+                <span class="stack-desc">Auto-discover MCP server capabilities at standard endpoint</span>
+                <span class="badge badge--spec">Spec proposals</span>
+            </div>
+        </div>
+
+        <!-- WEBMCP DEEP DIVE -->
+        <h2>WebMCP Deep Dive</h2>
+        <p>The most significant new standard. WebMCP lets any webpage declare structured, callable tools for AI agents — replacing screenshot-based interaction with direct function calls.</p>
+
+        <h3>Two Implementation Modes</h3>
+        <div class="compare">
+            <div class="compare-col">
+                <h4 style="color: var(--blue);">Declarative (HTML)</h4>
+                <ul>
+                    <li>Add <code>toolname</code> and <code>tooldescription</code> attributes to HTML forms</li>
+                    <li>Browser auto-translates fields into structured schema</li>
+                    <li>Agent calls tool → browser fills and submits form</li>
+                    <li>Minimal code changes for existing sites</li>
+                    <li>Good for: static forms, search, filters</li>
+                </ul>
+            </div>
+            <div class="compare-col">
+                <h4 style="color: var(--amber);">Imperative (JavaScript)</h4>
+                <ul>
+                    <li>Register tools via <code>navigator.modelContext</code> API</li>
+                    <li>Includes name, description, input schema, execute fn</li>
+                    <li>Tools can register/unregister based on page state</li>
+                    <li>Full programmatic control</li>
+                    <li>Good for: SPAs, dynamic interfaces, complex workflows</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>How It Differs from MCP</h3>
+        <table>
+            <tr><th>Aspect</th><th>Traditional MCP</th><th>WebMCP</th></tr>
+            <tr><td>Architecture</td><td>Client-server (JSON-RPC)</td><td>Browser-native (in-tab)</td></tr>
+            <tr><td>Runs in</td><td>Standalone server</td><td>Browser tab</td></tr>
+            <tr><td>Authentication</td><td>Requires separate setup</td><td>Inherits browser session (SSO, cookies)</td></tr>
+            <tr><td>Page state</td><td>No direct access</td><td>Full access to DOM, JS state</td></tr>
+            <tr><td>Scope</td><td>Tools + Resources + Prompts</td><td>Tools only (currently)</td></tr>
+            <tr><td>Status</td><td>Widely adopted, production</td><td>Chrome 146 preview, W3C track</td></tr>
+        </table>
+
+        <h3>Three-Step Agent Flow</h3>
+        <div class="impl">
+            <div class="impl-title">1. Discover</div>
+            <p style="margin-bottom:0.5rem">Agent arrives at page → browser exposes declared tools as structured schema</p>
+            <div class="impl-title">2. Read Schema</div>
+            <p style="margin-bottom:0.5rem">Agent reads tool definitions — parameters, types, descriptions — and selects the right one</p>
+            <div class="impl-title">3. Execute</div>
+            <p style="margin-bottom:0">One structured function call replaces entire chains of click → scroll → screenshot → parse</p>
+        </div>
+
+        <h3>Enable in Chrome</h3>
+        <div class="impl">
+            <p style="margin-bottom:0.3rem">1. Chrome 146.0.7672.0+ (Beta channel)</p>
+            <p style="margin-bottom:0.3rem">2. Navigate to <code>chrome://flags/#enable-webmcp-testing</code></p>
+            <p style="margin-bottom:0.3rem">3. Enable "WebMCP for testing" flag</p>
+            <p style="margin-bottom:0">4. Install Model Context Tool Inspector Extension from Chrome Web Store</p>
+        </div>
+
+        <!-- AGENTIC BROWSERS -->
+        <h2>Agentic Browser Products</h2>
+        <table>
+            <tr><th>Product</th><th>Company</th><th>Launched</th><th>Notes</th></tr>
+            <tr><td>Chrome Auto Browse</td><td>Google</td><td>Jan 2026</td><td>Gemini 3-powered, AI Pro/Ultra subscribers</td></tr>
+            <tr><td>Atlas Agent Mode</td><td>OpenAI</td><td>Oct 2025</td><td>Web task execution from ChatGPT</td></tr>
+            <tr><td>Comet</td><td>Perplexity</td><td>Jul 2025</td><td>Agentic web browser</td></tr>
+            <tr><td>Disco</td><td>Google Labs</td><td>Dec 2025</td><td>Experimental web agent</td></tr>
+        </table>
+
+        <!-- DESIGN PATTERNS -->
+        <h2>Agentic UX Patterns</h2>
+        <p>From Smashing Magazine (Feb 2026) — the emerging vocabulary for designing AI-native interfaces:</p>
+        <table>
+            <tr><th>Pattern</th><th>What It Does</th></tr>
+            <tr><td>Intent Preview</td><td>Show the agent's planned action before executing</td></tr>
+            <tr><td>Autonomy Dial</td><td>Let users adjust how much independence the agent has</td></tr>
+            <tr><td>Explainable Rationale</td><td>Transparent reasoning for every agent decision</td></tr>
+            <tr><td>Confidence Signal</td><td>Visual indicator of how certain the agent is</td></tr>
+            <tr><td>Action Audit &amp; Undo</td><td>Complete log of agent actions with rollback capability</td></tr>
+            <tr><td>Escalation Pathway</td><td>Clear handoff from agent to human when needed</td></tr>
+        </table>
+
+        <!-- WHERE IDEAFLOW FITS -->
+        <h2>Where Ideaflow Fits</h2>
+        <p>Every protocol in this stack assumes agents can <em>access external knowledge</em> — but nobody has built the canonical knowledge layer. That's what Noos is. The gap in the stack:</p>
+
+        <div class="impl">
+            <div class="impl-title" style="color: var(--green);">What exists</div>
+            <p style="margin-bottom:0.8rem">Agents can call tools (MCP), interact with websites (WebMCP), talk to each other (A2A), stream to frontends (AG-UI), and discover capabilities (.well-known)</p>
+            <div class="impl-title" style="color: var(--amber);">What's missing</div>
+            <p style="margin-bottom:0">A shared, persistent, queryable knowledge layer that agents can write to and read from. MCP gives agents hands. WebMCP gives them a browser. <em>Noos gives them a shared brain.</em></p>
+        </div>
+
+        <!-- SOURCES -->
+        <h2>Sources</h2>
+        <div class="links">
+            <a href="https://developer.chrome.com/blog/webmcp-epp">WebMCP — Chrome Developers Blog <span class="label">(official spec)</span></a>
+            <a href="https://webmcp.link">webmcp.link <span class="label">(community hub)</span></a>
+            <a href="https://www.semrush.com/blog/webmcp/">Semrush WebMCP Deep Dive <span class="label">(implementation guide, Mar 2026)</span></a>
+            <a href="https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/">MCP 2026 Roadmap <span class="label">(official)</span></a>
+            <a href="https://llms-txt.io/directory">llms.txt Directory <span class="label">(788+ verified sites)</span></a>
+            <a href="https://docs.ag-ui.com">AG-UI Documentation <span class="label">(CopilotKit)</span></a>
+            <a href="https://a2ui.org">A2UI Spec <span class="label">(Google, v0.8)</span></a>
+            <a href="https://hbr.org/2026/03/create-an-onboarding-plan-for-ai-agents">HBR: Onboarding Plan for AI Agents <span class="label">(Mar 2026)</span></a>
+            <a href="https://smashingmagazine.com/2026/02/designing-agentic-ai-practical-ux-patterns/">Smashing Mag: Agentic UX Patterns <span class="label">(Feb 2026)</span></a>
+        </div>
+
+        <p style="margin-top: 3rem; font-family: var(--mono); font-size: 0.65rem; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase;">Ideaflow Research &middot; Updated March 27, 2026</p>
+    </div>
+</body>
+</html>
