@@ -1,0 +1,282 @@
+/* ─────────────────────────────────────────────────
+   ListHub Sidebar Styles
+   Three-section persistent left sidebar: Your docs / Community / Focused @user
+   ───────────────────────────────────────────────── */
+
+:root {
+    --sb-width: 260px;
+    --sb-bg: var(--bg-secondary, #161b22);
+    --sb-border: var(--border, #30363d);
+}
+
+/* ── Layout wrapping ── */
+body.has-sidebar .app-layout {
+    display: grid;
+    grid-template-columns: var(--sb-width) minmax(0, 1fr);
+    min-height: calc(100vh - 64px);
+    max-width: 1200px;
+    margin: 0 auto;
+    gap: 0;
+}
+body.has-sidebar.sb-collapsed .app-layout {
+    grid-template-columns: 0 minmax(0, 1fr);
+}
+body.has-sidebar.sb-collapsed .sb-sidebar {
+    display: none;
+}
+
+body.has-sidebar .app-main {
+    min-width: 0;
+    padding: 24px 20px 40px;
+    max-width: none;
+}
+
+body.has-sidebar .app-main.container {
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.app-footer {
+    margin-top: 48px;
+    padding: 16px 0;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim, #484f58);
+}
+.app-footer a {
+    color: var(--text-muted, #8b949e);
+    margin: 0 4px;
+}
+
+/* ── Sidebar container ── */
+.sb-sidebar {
+    border-right: 1px solid var(--sb-border);
+    background: var(--sb-bg);
+    overflow-y: auto;
+    position: sticky;
+    top: 49px;
+    height: calc(100vh - 49px);
+}
+
+.sb-sidebar-inner {
+    padding: 8px 0 24px;
+}
+
+/* ── Section (collapsible group) ── */
+.sb-section {
+    border-bottom: 1px solid var(--sb-border);
+}
+.sb-section:last-child {
+    border-bottom: none;
+}
+
+.sb-section > .sb-section-header {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px 10px 10px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted, #8b949e);
+    font-weight: 600;
+}
+.sb-section > .sb-section-header::-webkit-details-marker {
+    display: none;
+}
+.sb-section > .sb-section-header:hover {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text, #e6edf3);
+}
+.sb-section-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sb-section-action {
+    color: var(--text-dim, #484f58);
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+.sb-section-action:hover {
+    color: var(--accent, #58a6ff);
+    background: rgba(88, 166, 255, 0.08);
+    text-decoration: none;
+}
+
+.sb-section .sb-chevron {
+    transition: transform 0.15s;
+    color: var(--text-dim, #484f58);
+    flex-shrink: 0;
+}
+.sb-section[open] > .sb-section-header .sb-chevron {
+    transform: rotate(90deg);
+}
+
+.sb-section-body {
+    padding-bottom: 8px;
+}
+
+.sb-empty {
+    font-size: 12px;
+    color: var(--text-dim, #484f58);
+    padding: 6px 16px 10px;
+    font-style: italic;
+}
+.sb-empty a {
+    color: var(--accent, #58a6ff);
+    font-style: normal;
+}
+
+/* ── Tree (recursive) ── */
+.sb-tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.sb-node {
+    margin: 0;
+}
+
+.sb-folder > .sb-details > .sb-summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text, #e6edf3);
+    user-select: none;
+    line-height: 1.5;
+}
+.sb-folder > .sb-details > .sb-summary::-webkit-details-marker {
+    display: none;
+}
+.sb-folder > .sb-details > .sb-summary:hover {
+    background: rgba(88, 166, 255, 0.06);
+}
+.sb-folder > .sb-details > .sb-summary .sb-chevron {
+    color: var(--text-dim, #484f58);
+    transition: transform 0.15s;
+    flex-shrink: 0;
+}
+.sb-folder > .sb-details[open] > .sb-summary > .sb-chevron {
+    transform: rotate(90deg);
+}
+.sb-folder .sb-folder-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+}
+.sb-folder .sb-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+.sb-count {
+    font-size: 11px;
+    color: var(--text-dim, #484f58);
+    font-variant-numeric: tabular-nums;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 1px 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.sb-file {
+    line-height: 1.5;
+}
+.sb-file-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 8px;
+    font-size: 13px;
+    color: var(--text-muted, #8b949e);
+    text-decoration: none;
+}
+.sb-file-link:hover {
+    background: rgba(88, 166, 255, 0.08);
+    color: var(--accent, #58a6ff);
+    text-decoration: none;
+}
+.sb-file-link.active {
+    background: rgba(88, 166, 255, 0.12);
+    color: var(--accent, #58a6ff);
+}
+.sb-file .sb-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sb-file .sb-vis {
+    font-size: 10px;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+/* ── Header sidebar toggle button ── */
+.sb-toggle {
+    background: transparent;
+    border: 1px solid var(--border, #30363d);
+    color: var(--text-muted, #8b949e);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sb-toggle:hover {
+    color: var(--text, #e6edf3);
+    border-color: var(--text-muted, #8b949e);
+}
+body.has-sidebar .header-inner {
+    gap: 0;
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+    body.has-sidebar .app-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .sb-sidebar {
+        position: fixed;
+        top: 49px;
+        left: 0;
+        width: 85vw;
+        max-width: 320px;
+        height: calc(100vh - 49px);
+        z-index: 90;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3);
+    }
+    body.sb-open .sb-sidebar {
+        transform: translateX(0);
+    }
+    body.sb-open::after {
+        content: '';
+        position: fixed;
+        top: 49px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 80;
+    }
+}

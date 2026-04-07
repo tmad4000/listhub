@@ -54,6 +54,170 @@ def render_md(text):
     )
 
 
+
+
+def _sidebar_build_user_tree_from_items(items):
+    """Build a nested sidebar tree from a list of DB item rows."""
+    root = {"__files": []}
+    for item in items:
+        path = (item["file_path"] or f'{item["slug"]}.md').strip("/")
+        parts = path.split("/")
+        node = root
+        for p in parts[:-1]:
+            if p not in node:
+                node[p] = {"__files": []}
+            node = node[p]
+        node["__files"].append(dict(item))
+
+    def count_recursive(n):
+        c = len(n.get("__files", []))
+        for k, v in n.items():
+            if k != "__files":
+                c += count_recursive(v)
+        return c
+
+    def to_nodes(node, prefix=""):
+        result = []
+        folders = sorted(k for k in node if k != "__files")
+        for folder in folders:
+            child_path = f"{prefix}{folder}" if prefix else folder
+            result.append({
+                "type": "folder",
+                "name": folder,
+                "path": child_path,
+                "count": count_recursive(node[folder]),
+                "children": to_nodes(node[folder], child_path + "/"),
+            })
+        for f in sorted(node.get("__files", []), key=lambda x: ((x.get("title") or x["slug"]) or "").lower()):
+            result.append({
+                "type": "file",
+                "name": f.get("title") or f["slug"],
+                "slug": f["slug"],
+                "visibility": f["visibility"],
+                "item_type": f["item_type"],
+            })
+        return result
+
+    return to_nodes(root)
+
+
+def _sidebar_user_tree(user):
+    """Build a nested-dict tree for the sidebar from a user items."""
+    if not user:
+        return []
+    db = get_db()
+    items = db.execute(
+        "SELECT id, slug, title, file_path, item_type, visibility FROM item WHERE owner_id = ? ORDER BY file_path, slug",
+        (user.id,),
+    ).fetchall()
+    return _sidebar_build_user_tree_from_items(items)
+
+
+def _sidebar_community_tree():
+    """Build a nested sidebar tree from the community directory git repo."""
+    repo = _directory_repo()
+    if not os.path.isdir(repo):
+        return []
+    head = _git_read(repo, "rev-parse", "--verify", "HEAD")
+    if not head:
+        return []
+    ls = _git_read(repo, "ls-tree", "-r", "--name-only", "HEAD")
+    if not ls:
+        return []
+    files = [f for f in ls.strip().split("\n") if f and f.endswith(".md")]
+    raw = {}
+    for fp in files:
+        parts = fp.strip().split("/")
+        node = raw
+        for part in parts[:-1]:
+            if part not in node:
+                node[part] = {"__files": []}
+            node = node[part]
+        fn = parts[-1]
+        node.setdefault("__files", []).append(fn)
+
+    def count_items(n):
+        c = sum(1 for f in n.get("__files", []) if f.endswith(".md"))
+        for k, v in n.items():
+            if k != "__files":
+                c += count_items(v)
+        return c
+
+    def to_nodes(node, prefix=""):
+        items = []
+        folders = sorted(k for k in node if k != "__files" and isinstance(node[k], dict))
+        for folder in folders:
+            path = f"{prefix}{folder}" if prefix else folder
+            child_node = node[folder]
+            items.append({
+                "type": "folder",
+                "name": folder,
+                "path": path,
+                "count": count_items(child_node),
+                "children": to_nodes(child_node, path + "/"),
+            })
+        for f in sorted(node.get("__files", [])):
+            if f == "index.md":
+                continue
+            path = f"{prefix}{f}" if prefix else f
+            items.append({
+                "type": "file",
+                "name": f[:-3] if f.endswith(".md") else f,
+                "path": path,
+            })
+        return items
+
+    return to_nodes(raw)
+
+
+def _sidebar_focused_user():
+    """Return {username, tree} if the current URL is viewing another user content."""
+    from flask import request
+    import re as _re
+    path = request.path
+    m = _re.match(r"^/@([a-zA-Z0-9_-]+)(?:/.*)?$", path)
+    if not m:
+        return None
+    username = m.group(1)
+    if current_user.is_authenticated and current_user.username == username:
+        return None
+    db = get_db()
+    from models import User as UserModel
+    user = UserModel.get_by_username(db, username)
+    if not user:
+        return None
+    items = db.execute(
+        "SELECT id, slug, title, file_path, item_type, visibility FROM item "
+        "WHERE owner_id = ? AND visibility IN ('public', 'public_edit') "
+        "ORDER BY file_path, slug",
+        (user.id,),
+    ).fetchall()
+    return {"username": username, "tree": _sidebar_build_user_tree_from_items(items)}
+
+
+@views_bp.app_context_processor
+def inject_sidebar_data():
+    """Inject sidebar tree data into every template render."""
+    try:
+        your_tree = _sidebar_user_tree(current_user) if current_user.is_authenticated else []
+    except Exception:
+        your_tree = []
+    try:
+        community_tree = _sidebar_community_tree()
+    except Exception:
+        community_tree = []
+    try:
+        focused = _sidebar_focused_user()
+    except Exception:
+        focused = None
+    return {
+        "sidebar_your_tree": your_tree,
+        "sidebar_community_tree": community_tree,
+        "sidebar_focused": focused,
+        "sidebar_current_username": current_user.username if current_user.is_authenticated else None,
+    }
+
+
 @views_bp.route('/api/docs')
 def api_docs():
     return render_template('api_docs.html')
