@@ -116,6 +116,8 @@
     sections.forEach(function (section) {
       const chevron = section.querySelector('.sb-section-chevron');
       const header = section.querySelector('.sb-section-header');
+      const title = section.querySelector('.sb-section-title');
+
       if (chevron) {
         chevron.addEventListener('click', function (e) {
           e.preventDefault();
@@ -123,8 +125,21 @@
           toggleSection(section);
         });
       }
+
+      // Title click toggles the section inline (does NOT navigate)
+      // Navigation to the full page is via the .sb-section-action ↗ icon
+      // The href is preserved so right-click → open in new tab still works
+      if (title) {
+        title.addEventListener('click', function (e) {
+          // Allow modifier-clicks (cmd/ctrl/middle/shift) to navigate normally
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+          e.preventDefault();
+          toggleSection(section);
+        });
+      }
+
       if (header) {
-        // Click anywhere on the header toggles — except on title/action links
+        // Click on empty header space toggles too (forgiving target)
         header.addEventListener('click', function (e) {
           if (e.target.closest('.sb-section-title, .sb-section-action, .sb-section-chevron')) return;
           e.preventDefault();
