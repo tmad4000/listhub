@@ -910,6 +910,9 @@ def public_item(username, slug):
     tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
     is_owner = current_user.is_authenticated and current_user.id == user.id
     rendered_content = render_md(item['content'], is_owner=is_owner)
+    # raw_content is used by the copy-to-clipboard textarea. For non-owners,
+    # strip private blocks so they never leak via that surface either.
+    raw_content = item['content'] if is_owner else strip_private_blocks(item['content'])
 
     # Determine edit permission
     can_edit = is_owner
@@ -923,6 +926,7 @@ def public_item(username, slug):
         profile_user=user,
         tags=[t['tag'] for t in tags],
         rendered_content=rendered_content,
+        raw_content=raw_content,
         is_owner=is_owner,
         can_edit=can_edit,
         breadcrumbs=item_breadcrumbs
