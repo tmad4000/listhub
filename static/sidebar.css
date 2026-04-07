@@ -82,7 +82,8 @@ body.has-sidebar.sb-collapsed .app-main.container {
     position: sticky;
     top: var(--sb-header-height);
     height: calc(100vh - var(--sb-header-height));
-    overflow: hidden; /* inner scroll happens in section bodies */
+    overflow-y: auto; /* fallback scroll when all sections expanded exceed viewport */
+    overscroll-behavior: contain;
 }
 
 .sb-sidebar-inner {
@@ -108,7 +109,7 @@ body.has-sidebar.sb-collapsed .app-main.container {
 }
 .sb-section.sb-expanded {
     flex: 1 1 0; /* expanded sections share remaining space */
-    min-height: 120px; /* don't shrink below usable */
+    min-height: 80px; /* compact minimum — fallback to sidebar scroll if sum overflows */
 }
 
 /* ── Section header ── */
@@ -121,6 +122,11 @@ body.has-sidebar.sb-collapsed .app-main.container {
     flex: 0 0 var(--sb-section-header-height);
     background: var(--sb-bg);
     border-bottom: 1px solid transparent;
+    cursor: pointer; /* whole row is a toggle target */
+    user-select: none;
+}
+.sb-section-header:hover {
+    background: rgba(255, 255, 255, 0.02);
 }
 .sb-section.sb-expanded > .sb-section-header {
     border-bottom-color: rgba(255, 255, 255, 0.04);
@@ -129,14 +135,18 @@ body.has-sidebar.sb-collapsed .app-main.container {
 .sb-section-chevron {
     background: transparent;
     border: none;
-    color: var(--text-dim, #484f58);
-    padding: 6px;
+    color: var(--text-muted, #8b949e);
+    padding: 8px 6px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 3px;
     flex-shrink: 0;
+}
+.sb-section-chevron svg {
+    width: 14px !important;
+    height: 14px !important;
 }
 .sb-section-chevron:hover {
     color: var(--text, #e6edf3);
@@ -295,9 +305,26 @@ body.has-sidebar.sb-collapsed .app-main.container {
     opacity: 0.7;
     flex-shrink: 0;
 }
+.sb-vis-right {
+    margin-left: auto;
+    padding-right: 2px;
+}
 .sb-vis-folder {
     opacity: 0.55;
-    margin-left: 2px;
+    margin-left: auto; /* push to the right of folder row */
+    padding-right: 4px;
+}
+.sb-home-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-right: 2px;
+}
+.sb-file-home .sb-file-link {
+    font-weight: 600;
+    color: var(--text, #e6edf3);
+}
+.sb-file-home .sb-name {
+    color: var(--text, #e6edf3);
 }
 
 /* ── Header sidebar toggle button ── */

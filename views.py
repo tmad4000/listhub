@@ -86,7 +86,16 @@ def render_md(text, is_owner=False):
 
 
 def _sidebar_build_user_tree_from_items(items):
-    """Build a nested sidebar tree from a list of DB item rows."""
+    """Build a nested sidebar tree from a list of DB item rows.
+
+    Behaviors:
+    - The item with slug `home` at the root is hoisted to the top of the
+      root listing and marked is_home=True so the template can render it
+      with a special icon.
+    - Folders get an aggregated `visibility_summary` derived from the
+      visibilities of their descendant files (single value if uniform,
+      "mixed" if multiple).
+    """
     root = {"__files": []}
     for item in items:
         path = (item["file_path"] or f'{item["slug"]}.md').strip("/")
@@ -105,8 +114,49 @@ def _sidebar_build_user_tree_from_items(items):
                 c += count_recursive(v)
         return c
 
+    def collect_visibilities(n):
+        """Gather the set of visibility values for all descendant files."""
+        s = set()
+        for f in n.get("__files", []):
+            v = f.get("visibility")
+            if v:
+                s.add(v)
+        for k, v in n.items():
+            if k != "__files":
+                s |= collect_visibilities(v)
+        return s
+
+    def folder_visibility_summary(n):
+        vis_set = collect_visibilities(n)
+        if not vis_set:
+            return None
+        if len(vis_set) == 1:
+            return next(iter(vis_set))
+        return "mixed"
+
+    def file_node(f, is_home=False):
+        return {
+            "type": "file",
+            "name": f.get("title") or f["slug"],
+            "slug": f["slug"],
+            "visibility": f["visibility"],
+            "item_type": f["item_type"],
+            "is_home": is_home,
+        }
+
     def to_nodes(node, prefix=""):
         result = []
+        # Hoist root-level `home` slug to the very top
+        home_files = []
+        other_files = []
+        for f in node.get("__files", []):
+            if prefix == "" and (f.get("slug") or "").lower() == "home":
+                home_files.append(f)
+            else:
+                other_files.append(f)
+        for f in home_files:
+            result.append(file_node(f, is_home=True))
+
         folders = sorted(k for k in node if k != "__files")
         for folder in folders:
             child_path = f"{prefix}{folder}" if prefix else folder
@@ -115,16 +165,11 @@ def _sidebar_build_user_tree_from_items(items):
                 "name": folder,
                 "path": child_path,
                 "count": count_recursive(node[folder]),
+                "visibility_summary": folder_visibility_summary(node[folder]),
                 "children": to_nodes(node[folder], child_path + "/"),
             })
-        for f in sorted(node.get("__files", []), key=lambda x: ((x.get("title") or x["slug"]) or "").lower()):
-            result.append({
-                "type": "file",
-                "name": f.get("title") or f["slug"],
-                "slug": f["slug"],
-                "visibility": f["visibility"],
-                "item_type": f["item_type"],
-            })
+        for f in sorted(other_files, key=lambda x: ((x.get("title") or x["slug"]) or "").lower()):
+            result.append(file_node(f))
         return result
 
     return to_nodes(root)

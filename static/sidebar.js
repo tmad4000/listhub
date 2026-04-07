@@ -102,20 +102,35 @@
       if (chevron) chevron.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     });
 
+    function toggleSection(section) {
+      const chevron = section.querySelector('.sb-section-chevron');
+      const expanded = section.classList.toggle('sb-expanded');
+      if (chevron) chevron.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      const snapshot = {};
+      sections.forEach(function (s) {
+        snapshot[s.getAttribute('data-sb-section')] = s.classList.contains('sb-expanded');
+      });
+      saveSectionState(snapshot);
+    }
+
     sections.forEach(function (section) {
       const chevron = section.querySelector('.sb-section-chevron');
-      if (!chevron) return;
-      chevron.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const expanded = section.classList.toggle('sb-expanded');
-        chevron.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        const snapshot = {};
-        sections.forEach(function (s) {
-          snapshot[s.getAttribute('data-sb-section')] = s.classList.contains('sb-expanded');
+      const header = section.querySelector('.sb-section-header');
+      if (chevron) {
+        chevron.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleSection(section);
         });
-        saveSectionState(snapshot);
-      });
+      }
+      if (header) {
+        // Click anywhere on the header toggles — except on title/action links
+        header.addEventListener('click', function (e) {
+          if (e.target.closest('.sb-section-title, .sb-section-action, .sb-section-chevron')) return;
+          e.preventDefault();
+          toggleSection(section);
+        });
+      }
     });
   }
 
