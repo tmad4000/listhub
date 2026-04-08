@@ -59,7 +59,7 @@
 
     {# ── Section 3: Focused on @user ── #}
     {% if sidebar_focused %}
-    <div class="sb-section" data-sb-section="focused" data-sb-focused-user="{{ sidebar_focused.username }}">
+    <div class="sb-section sb-section-focused-active" data-sb-section="focused" data-sb-focused-user="{{ sidebar_focused.username }}">
       <div class="sb-section-header">
         <button class="sb-section-chevron" aria-label="Toggle @{{ sidebar_focused.username }}" aria-expanded="true">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
