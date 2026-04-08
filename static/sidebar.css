@@ -82,14 +82,12 @@ body.has-sidebar.sb-collapsed .app-main.container {
     position: sticky;
     top: var(--sb-header-height);
     height: calc(100vh - var(--sb-header-height));
-    overflow: hidden; /* CRITICAL: parent must NOT scroll. Section bodies scroll instead. */
+    overflow-y: auto;  /* Finder pattern: sidebar scrolls when content exceeds height */
+    overscroll-behavior: contain;
 }
 
 .sb-sidebar-inner {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;  /* required for child flex items to shrink below content */
+    display: block;  /* sections stack naturally; sidebar handles scroll */
     padding: 0;
 }
 
@@ -98,22 +96,14 @@ body.has-sidebar.sb-collapsed .app-main.container {
    - Expanded: body grows to share remaining space (flex: 1 1 0)
    ───────────────────────────────────────── */
 .sb-section {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden; /* CRITICAL: prevents flex item from growing past its
-                         allocated share when inner content is taller than
-                         the share. Inner sb-section-body has its own
-                         overflow-y: auto so content still scrolls. */
+    display: block;  /* content-sized; no flex */
     border-bottom: 1px solid var(--sb-border);
-    flex: 0 0 auto; /* default: header-only height */
 }
 .sb-section:last-child {
     border-bottom: none;
 }
 .sb-section.sb-expanded {
-    flex: 1 1 0; /* expanded sections share remaining space */
-    min-height: 0;  /* let flex shrink fully — all section headers stay visible */
+    /* content-sized — body shows up via display: block below */
 }
 
 /* When viewing an arbitrary user's profile, hoist the Focused section to
@@ -129,11 +119,13 @@ body.has-sidebar.sb-collapsed .app-main.container {
     gap: 4px;
     padding: 0 8px 0 4px;
     height: var(--sb-section-header-height);
-    flex: 0 0 var(--sb-section-header-height);
     background: var(--sb-bg);
     border-bottom: 1px solid transparent;
     cursor: pointer; /* whole row is a toggle target */
     user-select: none;
+    position: sticky;  /* Finder-style: pin to top of viewport when scrolling past */
+    top: 0;
+    z-index: 2;
 }
 .sb-section-header:hover {
     background: rgba(255, 255, 255, 0.02);
@@ -204,10 +196,6 @@ body.has-sidebar.sb-collapsed .app-main.container {
 
 /* ── Section body (only visible when .sb-expanded) ── */
 .sb-section-body {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
     padding: 4px 0 8px;
     display: none; /* hidden when section is collapsed */
 }
