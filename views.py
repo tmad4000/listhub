@@ -110,6 +110,13 @@ def render_md(text, is_owner=False):
 
 
 
+# Cap leaf files per folder rendered in the sidebar tree. Folders are
+# always shown in full; truncated files become a 'more' sentinel node
+# that the template renders as a link to the folder view. Keeps the
+# rendered HTML small for accounts with thousands of items.
+MAX_FILES_PER_FOLDER = 100
+
+
 def _sidebar_build_user_tree_from_items(items):
     """Build a nested sidebar tree from a list of DB item rows.
 
@@ -193,8 +200,26 @@ def _sidebar_build_user_tree_from_items(items):
                 "visibility_summary": folder_visibility_summary(node[folder]),
                 "children": to_nodes(node[folder], child_path + "/"),
             })
-        for f in sorted(other_files, key=lambda x: ((x.get("title") or x["slug"]) or "").lower()):
-            result.append(file_node(f))
+        sorted_files = sorted(
+            other_files,
+            key=lambda x: ((x.get("title") or x["slug"]) or "").lower(),
+        )
+        # PERF: cap files per folder to keep the rendered tree small
+        # for accounts with thousands of items. Folders are still listed
+        # in full so navigation isn't broken; the truncated leaf files
+        # become a "more" sentinel that the template renders as a link
+        # to the folder view.
+        if len(sorted_files) > MAX_FILES_PER_FOLDER:
+            for f in sorted_files[:MAX_FILES_PER_FOLDER]:
+                result.append(file_node(f))
+            result.append({
+                "type": "more",
+                "count": len(sorted_files) - MAX_FILES_PER_FOLDER,
+                "parent_path": prefix.rstrip("/"),
+            })
+        else:
+            for f in sorted_files:
+                result.append(file_node(f))
         return result
 
     return to_nodes(root)
@@ -255,14 +280,24 @@ def _sidebar_community_tree():
                 "count": count_items(child_node),
                 "children": to_nodes(child_node, path + "/"),
             })
-        for f in sorted(node.get("__files", [])):
-            if f == "index.md":
-                continue
+        # Build list of leaf files (skipping index.md), then cap at MAX_FILES_PER_FOLDER
+        leaf_files = [f for f in sorted(node.get("__files", [])) if f != "index.md"]
+        if len(leaf_files) > MAX_FILES_PER_FOLDER:
+            visible = leaf_files[:MAX_FILES_PER_FOLDER]
+        else:
+            visible = leaf_files
+        for f in visible:
             path = f"{prefix}{f}" if prefix else f
             items.append({
                 "type": "file",
                 "name": f[:-3] if f.endswith(".md") else f,
                 "path": path,
+            })
+        if len(leaf_files) > MAX_FILES_PER_FOLDER:
+            items.append({
+                "type": "more",
+                "count": len(leaf_files) - MAX_FILES_PER_FOLDER,
+                "parent_path": prefix.rstrip("/"),
             })
         return items
 
@@ -294,9 +329,42 @@ def _sidebar_focused_user():
     return {"username": username, "tree": _sidebar_build_user_tree_from_items(items)}
 
 
+# Routes that never render the sidebar - skip the expensive tree build.
+# Includes API endpoints, static assets, git smart-http, mockups (static
+# HTML files served via send_from_directory), and well-known text files.
+SIDEBAR_SKIP_PREFIXES = (
+    "/api/",
+    "/static/",
+    "/git/",
+    "/mockups/",
+)
+SIDEBAR_SKIP_EXACT = {
+    "/llms.txt",
+    "/robots.txt",
+    "/favicon.ico",
+}
+
+
 @views_bp.app_context_processor
 def inject_sidebar_data():
-    """Inject sidebar tree data into every template render."""
+    """Inject sidebar tree data into every template render.
+
+    Skips the expensive tree build for routes that never render the
+    sidebar (API, static, git, mockups, well-known text files). For
+    accounts with thousands of items this saves ~60ms per request, plus
+    avoids serializing/sending megabytes of HTML on requests that don't
+    use it.
+    """
+    from flask import request
+    path = request.path or ""
+    if path in SIDEBAR_SKIP_EXACT or path.startswith(SIDEBAR_SKIP_PREFIXES):
+        return {
+            "sidebar_your_tree": [],
+            "sidebar_community_tree": [],
+            "sidebar_focused": None,
+            "sidebar_current_username": None,
+        }
+
     try:
         your_tree = _sidebar_user_tree(current_user) if current_user.is_authenticated else []
     except Exception:

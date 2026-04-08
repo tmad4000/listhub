@@ -24,7 +24,20 @@
 {% macro render_nodes(nodes, link_prefix, depth, storage_key) %}
   <ul class="sb-tree" data-depth="{{ depth }}">
     {% for node in nodes %}
-      {% if node.type == 'folder' %}
+      {% if node.type == 'more' %}
+        {% if node.parent_path %}
+          {% set more_url = link_prefix ~ node.parent_path ~ '/' %}
+        {% else %}
+          {% set more_url = link_prefix %}
+        {% endif %}
+        <li class="sb-node sb-more">
+          <a class="sb-more-link" href="{{ more_url }}" style="padding-left: {{ depth * 10 + 40 }}px;">
+            <span class="sb-more-arrow">…</span>
+            <span class="sb-name">{{ node.count }} more</span>
+            <span class="sb-more-arrow">→</span>
+          </a>
+        </li>
+      {% elif node.type == 'folder' %}
         {% set node_key = storage_key ~ ':' ~ node.path %}
         {% set folder_url = link_prefix ~ node.path ~ '/' %}
         <li class="sb-node sb-folder sb-folder-v2" data-sb-key="{{ node_key }}">

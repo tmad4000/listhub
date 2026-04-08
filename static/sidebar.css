@@ -499,3 +499,27 @@ body.has-sidebar .header-inner {
 .sb-folder-v2.sb-folder-open > .sb-folder-children {
     display: block;
 }
+
+/* "...N more" sentinel link emitted when a folder is truncated for perf */
+.sb-more-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 8px;
+    font-size: 12px;
+    color: var(--text-dim, #484f58);
+    text-decoration: none;
+    font-style: italic;
+}
+.sb-more-link:hover {
+    background: rgba(88, 166, 255, 0.08);
+    color: var(--accent, #58a6ff);
+    text-decoration: none;
+}
+.sb-more-arrow {
+    color: var(--text-dim, #484f58);
+    flex-shrink: 0;
+}
+.sb-more-link:hover .sb-more-arrow {
+    color: var(--accent, #58a6ff);
+}
