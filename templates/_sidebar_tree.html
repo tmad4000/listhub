@@ -48,7 +48,7 @@
       {% else %}
         {% set href = link_prefix ~ (node.slug if node.slug else node.path) %}
         <li class="sb-node sb-file{% if node.is_home %} sb-file-home{% endif %}">
-          <a class="sb-file-link" href="{{ href }}" style="padding-left: {{ depth * 10 + (8 if node.is_home else 24) }}px;">
+          <a class="sb-file-link" href="{{ href }}" style="padding-left: {{ depth * 10 + 24 }}px;">
             {% if node.is_home %}<span class="sb-home-icon" title="Home">&#127968;</span>{% endif %}
             <span class="sb-name">{{ node.name or node.title or node.slug }}</span>
             {% if node.visibility %}<span class="sb-vis sb-vis-right" title="{{ node.visibility }}">{{ vis_icon(node.visibility) }}</span>{% endif %}
