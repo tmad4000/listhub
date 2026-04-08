@@ -12,7 +12,7 @@
 
 :root {
     --sb-width: 260px;
-    --sb-header-height: 49px;
+    --sb-header-height: 79px;  /* actual: header 55px + margin-bottom 24px */
     --sb-section-header-height: 36px;
     --sb-bg: var(--bg-secondary, #161b22);
     --sb-border: var(--border, #30363d);
