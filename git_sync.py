@@ -64,6 +64,106 @@ def _git_bytes(repo_path, *args, env=None, input=None):
     return result.stdout
 
 
+# ───────────────────────────────────────────────────────
+# Folder metadata (.folder.yaml) helpers
+# See listhub-74j and listhub-r62.1 for design rationale.
+# ───────────────────────────────────────────────────────
+
+def _folder_meta_path(folder_path):
+    # Normalize a folder path to its .folder.yaml location.
+    if not folder_path:
+        return ".folder.yaml"
+    return folder_path.rstrip("/") + "/.folder.yaml"
+
+
+def read_folder_meta(username, folder_path):
+    # Read .folder.yaml for a given folder path in the user bare repo.
+    # Returns a dict of parsed metadata or None if no .folder.yaml exists.
+    # folder_path is relative to repo root (e.g. "chronicpain" or "foodslist/snacks").
+    # Empty string means the root folder.
+    import yaml
+    repo = _repo_path(username)
+    if not os.path.isdir(repo):
+        return None
+    head = _head_commit(repo)
+    if not head:
+        return None
+    meta_path = _folder_meta_path(folder_path)
+    try:
+        content = _git(repo, "show", f"HEAD:{meta_path}")
+    except subprocess.CalledProcessError:
+        return None
+    try:
+        return yaml.safe_load(content) or {}
+    except yaml.YAMLError:
+        return None
+
+
+def write_folder_meta(username, folder_path, meta):
+    # Write (create or update) a .folder.yaml file in the user bare repo.
+    # meta is a dict of YAML-serializable metadata (e.g. {"visibility": "public"}).
+    # Creates an appropriate commit.
+    import yaml
+    repo = _repo_path(username)
+    if not os.path.isdir(repo):
+        return None
+
+    meta_path = _folder_meta_path(folder_path)
+    content = yaml.safe_dump(meta, sort_keys=True, default_flow_style=False)
+
+    head = _head_commit(repo)
+    idx = tempfile.mktemp(prefix="listhub-foldermeta-", suffix=".idx")
+    env = {"GIT_INDEX_FILE": idx}
+
+    try:
+        if head:
+            _git(repo, "read-tree", "HEAD", env=env)
+        blob = _git_bytes(
+            repo, "hash-object", "-w", "--stdin",
+            input=content.encode("utf-8"),
+            env=env,
+        ).strip().decode()
+        _git(repo, "update-index", "--add", "--cacheinfo",
+             "100644", blob, meta_path, env=env)
+        new_tree = _git(repo, "write-tree", env=env)
+        old_tree = _head_tree(repo) if head else None
+        if new_tree == old_tree:
+            return None
+        commit_args = ["commit-tree", new_tree, "-m", f"Folder meta: {meta_path}"]
+        if head:
+            commit_args[2:2] = ["-p", head]
+        new_commit = _git(repo, *commit_args, env={**env, **_AUTHOR_ENV})
+        _git(repo, "update-ref", "refs/heads/main", new_commit)
+        return new_commit
+    finally:
+        if os.path.exists(idx):
+            os.unlink(idx)
+
+
+def resolve_folder_visibility(username, item_file_path):
+    # Walk ancestor folders and return the nearest explicit visibility.
+    # Used at item-creation time to cascade folder visibility to new items.
+    # Returns None if no ancestor has a .folder.yaml with a visibility field.
+    #
+    # Example: if item_file_path = "chronicpain/backpain/notes.md",
+    # walks in order: "chronicpain/backpain" -> "chronicpain" -> "" (root),
+    # returning the first .folder.yaml visibility value found.
+    # Strip filename from path to get the containing folder
+    parts = (item_file_path or "").strip("/").split("/")
+    folders = parts[:-1]  # e.g. ["chronicpain", "backpain"] for notes.md
+    while folders:
+        path = "/".join(folders)
+        meta = read_folder_meta(username, path)
+        if meta and "visibility" in meta:
+            return meta["visibility"]
+        folders.pop()
+    # Root folder fallback
+    meta = read_folder_meta(username, "")
+    if meta and "visibility" in meta:
+        return meta["visibility"]
+    return None
+
+
 def generate_frontmatter(item, tags):
     """Generate markdown content with YAML frontmatter from an item dict."""
     lines = ['---']

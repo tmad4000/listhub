@@ -9,7 +9,7 @@ from nanoid import generate as nanoid
 from db import get_db, reindex_item
 from models import User
 from auth import require_api_auth, get_current_api_user, api_has_scope, hash_api_key
-from git_sync import sync_item_to_repo, remove_from_repo
+from git_sync import sync_item_to_repo, remove_from_repo, resolve_folder_visibility, read_folder_meta, write_folder_meta
 
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
@@ -236,6 +236,14 @@ def create_item():
         item_type = 'note'
     if visibility not in VALID_VISIBILITIES:
         visibility = 'private'
+
+    # Folder visibility cascade (listhub-74j): if the client did NOT explicitly
+    # pass a visibility field, inherit from the nearest ancestor folder that
+    # has a .folder.yaml with visibility set.
+    if 'visibility' not in data:
+        inherited = resolve_folder_visibility(user.username, file_path)
+        if inherited and inherited in VALID_VISIBILITIES:
+            visibility = inherited
 
     # Ensure unique slug
     base_slug = slug
@@ -927,6 +935,63 @@ def delete_key(key_id):
     db.execute("DELETE FROM api_key WHERE id = ? AND user_id = ?", (key_id, current_user.id))
     db.commit()
     return jsonify({"ok": True})
+
+
+# ───────────────────────────────────────────────────────
+# Folder metadata (.folder.yaml)
+# See listhub-74j for the cascade-by-default-at-creation-time design.
+# ───────────────────────────────────────────────────────
+
+@api_bp.route('/folders/by-path/<path:folder_path>', methods=['GET'])
+@require_api_auth
+def get_folder_meta(folder_path):
+    # Read the .folder.yaml for a given folder path in the caller repo.
+    user = get_current_api_user()
+    meta = read_folder_meta(user.username, folder_path) or {}
+    meta['_path'] = folder_path
+    return jsonify(meta)
+
+
+@api_bp.route('/folders/by-path/<path:folder_path>', methods=['PUT'])
+@require_api_auth
+def put_folder_meta(folder_path):
+    # Create or update the .folder.yaml for a folder path.
+    # Accepts JSON body: {visibility, title, description, ...}.
+    # Visibility MUST be one of the valid values. Other fields pass through.
+    if not api_has_scope('write'):
+        return jsonify({"error": "Write scope required"}), 403
+    user = get_current_api_user()
+    data = request.get_json(silent=True) or {}
+
+    # Load current meta and merge
+    current = read_folder_meta(user.username, folder_path) or {}
+    current.update({k: v for k, v in data.items() if v is not None})
+
+    # Validate visibility if present
+    if 'visibility' in current and current['visibility'] not in (
+        'private', 'shared', 'public', 'public_edit', 'unlisted'
+    ):
+        return jsonify({"error": "Invalid visibility"}), 400
+
+    write_folder_meta(user.username, folder_path, current)
+    return jsonify({"ok": True, "path": folder_path, "meta": current})
+
+
+@api_bp.route('/folders/by-path/<path:folder_path>/visibility', methods=['PUT'])
+@require_api_auth
+def put_folder_visibility(folder_path):
+    # Shortcut to set only the visibility field of a .folder.yaml.
+    if not api_has_scope('write'):
+        return jsonify({"error": "Write scope required"}), 403
+    user = get_current_api_user()
+    data = request.get_json(silent=True) or {}
+    visibility = data.get('visibility')
+    if visibility not in ('private', 'shared', 'public', 'public_edit', 'unlisted'):
+        return jsonify({"error": "Invalid visibility"}), 400
+    current = read_folder_meta(user.username, folder_path) or {}
+    current['visibility'] = visibility
+    write_folder_meta(user.username, folder_path, current)
+    return jsonify({"ok": True, "path": folder_path, "visibility": visibility})
 
 
 # ---------------------------------------------------------------------------

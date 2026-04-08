@@ -9,7 +9,7 @@ from nanoid import generate as nanoid
 
 from db import get_db, reindex_item
 from api import slugify, VALID_VISIBILITIES
-from git_sync import sync_item_to_repo, remove_from_repo
+from git_sync import sync_item_to_repo, remove_from_repo, resolve_folder_visibility, read_folder_meta, write_folder_meta
 
 views_bp = Blueprint('views', __name__)
 
@@ -459,6 +459,30 @@ def user_folder(username, subpath):
 
     folder_name = folder_path.split("/")[-1]
 
+    # Folder visibility metadata (listhub-74j): read .folder.yaml and also
+    # resolve the effective visibility by walking ancestors, so the template
+    # can show "inherited from X" if this folder has no explicit setting.
+    folder_meta = read_folder_meta(username, folder_path) or {}
+    explicit_folder_vis = folder_meta.get("visibility")
+    effective_folder_vis = explicit_folder_vis or resolve_folder_visibility(
+        username, folder_path + "/_dummy.md"
+    )
+    inherited_from = None
+    if not explicit_folder_vis and effective_folder_vis:
+        # Walk ancestors to find which one set it (for display)
+        parts = folder_path.split("/")
+        while len(parts) > 1:
+            parts.pop()
+            ancestor = "/".join(parts)
+            amet = read_folder_meta(username, ancestor) or {}
+            if amet.get("visibility"):
+                inherited_from = ancestor
+                break
+        if not inherited_from:
+            amet = read_folder_meta(username, "") or {}
+            if amet.get("visibility"):
+                inherited_from = "(root)"
+
     return render_template(
         "folder.html",
         profile_user=user,
@@ -470,6 +494,10 @@ def user_folder(username, subpath):
         readme_is_editable=readme_is_editable,
         breadcrumbs=breadcrumbs,
         is_owner=is_owner,
+        folder_meta=folder_meta,
+        explicit_folder_visibility=explicit_folder_vis,
+        effective_folder_visibility=effective_folder_vis,
+        folder_visibility_inherited_from=inherited_from,
     )
 
 
@@ -680,6 +708,22 @@ def new_item():
 
         if visibility not in VALID_VISIBILITIES:
             visibility = 'private'
+
+        # Folder visibility cascade (listhub-74j): if the item is being created
+        # in a folder that has a .folder.yaml with an explicit visibility, and
+        # the user did NOT explicitly set a visibility in the form (i.e. it's
+        # still the default 'private'), inherit from the folder.
+        #
+        # Note: we check `folder_cascade` form field — if the user unchecked
+        # "inherit from folder", we don't cascade. Default is to cascade.
+        explicit_visibility = request.form.get('explicit_visibility') == '1'
+        # Compute the file_path we're about to use (same logic as below)
+        _tmp_slug = slugify(request.form.get('slug', '') or (request.form.get('title', '').strip() or 'Untitled'))
+        _tmp_file_path = request.form.get('file_path', '').strip() or f"{_tmp_slug}.md"
+        if not explicit_visibility and visibility == 'private':
+            inherited = resolve_folder_visibility(current_user.username, _tmp_file_path)
+            if inherited and inherited in VALID_VISIBILITIES:
+                visibility = inherited
 
         db = get_db()
 

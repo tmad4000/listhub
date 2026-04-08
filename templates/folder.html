@@ -13,6 +13,27 @@
   </h1>
   <div class="folder-meta">
     <span>{{ children|length }} item{{ 's' if children|length != 1 else '' }}</span>
+    {% if explicit_folder_visibility %}
+      <span class="badge badge-{{ explicit_folder_visibility }}" title="Folder visibility (explicit) — new items inherit this">
+        {% if explicit_folder_visibility == 'public' %}🌐 public
+        {% elif explicit_folder_visibility == 'public_edit' %}✏️ public edit
+        {% elif explicit_folder_visibility == 'unlisted' %}👁 unlisted
+        {% elif explicit_folder_visibility == 'shared' %}🔗 shared
+        {% elif explicit_folder_visibility == 'private' %}🔒 private
+        {% endif %}
+      </span>
+    {% elif effective_folder_visibility %}
+      <span class="badge badge-{{ effective_folder_visibility }}" title="Inherited from {{ folder_visibility_inherited_from or 'parent' }}" style="opacity: 0.75;">
+        ↳
+        {% if effective_folder_visibility == 'public' %}🌐 public
+        {% elif effective_folder_visibility == 'public_edit' %}✏️ public edit
+        {% elif effective_folder_visibility == 'unlisted' %}👁 unlisted
+        {% elif effective_folder_visibility == 'shared' %}🔗 shared
+        {% elif effective_folder_visibility == 'private' %}🔒 private
+        {% endif %}
+        (inherited)
+      </span>
+    {% endif %}
     {% if is_owner %}
     <a href="{{ url_for('views.new_item') }}?file_path={{ folder_path }}/" class="btn btn-sm btn-primary">+ New in this folder</a>
     {% endif %}
