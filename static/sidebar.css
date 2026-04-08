@@ -437,14 +437,18 @@ body.has-sidebar .header-inner {
 .sb-folder-chevron {
     background: transparent;
     border: none;
-    color: var(--text-dim, #484f58);
-    padding: 5px 4px;
+    color: var(--text-muted, #8b949e);
+    padding: 6px 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 3px;
     flex-shrink: 0;
+}
+.sb-folder-chevron svg {
+    width: 12px !important;
+    height: 12px !important;
 }
 .sb-folder-chevron:hover {
     color: var(--text, #e6edf3);
@@ -474,8 +478,9 @@ body.has-sidebar .header-inner {
     text-decoration: none;
 }
 .sb-folder-link .sb-folder-icon {
-    font-size: 13px;
+    font-size: 15px;
     flex-shrink: 0;
+    opacity: 1;
 }
 .sb-folder-link .sb-name {
     flex: 1;
