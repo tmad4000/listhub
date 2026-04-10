@@ -24,7 +24,7 @@
           {% set more_url = link_prefix %}
         {% endif %}
         <li class="sb-node sb-more">
-          <a class="sb-more-link" href="{{ more_url }}" style="padding-left: {{ depth * 10 + 40 }}px;">
+          <a class="sb-more-link" href="{{ more_url }}" style="padding-left: {{ depth * 16 + 32 }}px;">
             <span class="sb-more-arrow">…</span>
             <span class="sb-name">{{ node.count }} more</span>
             <span class="sb-more-arrow">→</span>
@@ -34,7 +34,7 @@
         {% set node_key = storage_key ~ ':' ~ node.path %}
         {% set folder_url = link_prefix ~ node.path ~ '/' %}
         <li class="sb-node sb-folder sb-folder-v2" data-sb-key="{{ node_key }}">
-          <div class="sb-folder-row" style="padding-left: {{ depth * 10 + 20 }}px;">
+          <div class="sb-folder-row" style="padding-left: {{ depth * 16 + 12 }}px;">
             <button type="button" class="sb-folder-chevron" aria-label="Toggle {{ node.name }}" aria-expanded="false">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
             </button>
@@ -54,7 +54,7 @@
       {% else %}
         {% set href = link_prefix ~ (node.slug if node.slug else node.path) %}
         <li class="sb-node sb-file{% if node.is_home %} sb-file-home{% endif %}">
-          <a class="sb-file-link" href="{{ href }}" style="padding-left: {{ depth * 10 + 40 }}px;">
+          <a class="sb-file-link" href="{{ href }}" style="padding-left: {{ depth * 16 + 32 }}px;">
             {% if node.is_home %}<span class="sb-home-icon" title="Home">&#127968;</span>{% endif %}
             <span class="sb-name">{{ node.name or node.title or node.slug }}</span>
             {% if node.visibility %}{{ visibility_icon(node.visibility) }}{% endif %}
