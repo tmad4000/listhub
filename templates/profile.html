@@ -1,16 +1,21 @@
 {% extends "base.html" %}
+{% from '_badges.html' import visibility_badge %}
 {% block title %}@{{ profile_user.username }} — ListHub{% endblock %}
 {% block content %}
 <div class="profile-header">
     <h1>{{ profile_user.display_name or profile_user.username }}</h1>
     <div class="username">@{{ profile_user.username }}</div>
-    {% if home_item %}
+    <div class="clone-url" style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
+      <code style="background: var(--bg-secondary); padding: 3px 8px; border-radius: 3px; font-size: 11px;">git clone https://listhub.globalbr.ai/@{{ profile_user.username }}.git</code>
+      <button onclick="navigator.clipboard.writeText('git clone https://listhub.globalbr.ai/@{{ profile_user.username }}.git')" class="btn btn-sm" style="font-size: 11px; padding: 2px 8px; margin-left: 4px;" title="Copy">Copy</button>
+    </div>
+    {% if home_item and not home_content %}
     <div style="margin-top: 10px;">
         <a href="/@{{ profile_user.username }}/{{ home_item.slug }}" class="btn btn-primary btn-sm" title="{{ home_item.title or 'Home page' }}">
             &#127968; {{ home_item.title or "Home page" }}
         </a>
     </div>
-    {% elif is_owner %}
+    {% elif is_owner and not home_item %}
     <div style="margin-top: 10px; font-size: 13px; color: var(--text-muted);">
         <a href="{{ url_for('views.new_item') }}?slug=home" style="color: var(--text-muted);" title="Create a home page for your profile">
             + Set up your home page
@@ -18,6 +23,69 @@
     </div>
     {% endif %}
 </div>
+
+{% if home_content %}
+<div class="rendered-content">
+    {{ home_content|safe }}
+</div>
+{% endif %}
+
+{% if wikis %}
+<div class="wikis-section">
+    <h2 class="wikis-heading">Wikis</h2>
+    <div class="wikis-grid">
+        {% for wiki in wikis %}
+        <a href="/@{{ profile_user.username }}/{{ wiki.name }}/" class="wiki-card">
+            <span class="wiki-card-name">{{ wiki.name|replace('-', ' ')|replace('_', ' ')|title }}</span>
+            <span class="wiki-card-count">{{ wiki.count }} item{{ 's' if wiki.count != 1 else '' }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.wikis-section {
+    margin-bottom: 28px;
+}
+.wikis-heading {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+.wikis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+.wiki-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-decoration: none;
+    transition: border-color 0.15s;
+}
+.wiki-card:hover {
+    border-color: var(--accent);
+    text-decoration: none;
+}
+.wiki-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+}
+.wiki-card-count {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+</style>
+{% endif %}
 
 {% if items %}
 
@@ -44,11 +112,9 @@
             <a href="/@{{ profile_user.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
             <div class="item-meta">
                 {% if is_owner %}
-                <span class="badge badge-{{ item.visibility }}" title="{{ item.visibility }}">
-                    {% if item.visibility == 'public_edit' %}&#9999;&#65039;{% elif item.visibility == 'public' %}&#127760;{% elif item.visibility == 'shared' %}&#128279;{% else %}&#128274;{% endif %}
-                </span>
+                {{ visibility_badge(item.visibility, show_label=false) }}
                 {% elif item.visibility == 'public_edit' %}
-                <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039;</span>
+                {{ visibility_badge('public_edit', show_label=false) }}
                 {% endif %}
                 <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
                 {% for tag in item.tags %}

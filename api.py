@@ -13,7 +13,7 @@ from git_sync import sync_item_to_repo, remove_from_repo
 
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
-VALID_VISIBILITIES = ('private', 'shared', 'public', 'public_edit')
+VALID_VISIBILITIES = ('private', 'shared', 'public', 'public_edit', 'unlisted')
 
 
 def slugify(text):
@@ -32,6 +32,7 @@ def item_to_dict(item, include_content=True):
         'item_type': item['item_type'],
         'visibility': item['visibility'],
         'revision': item['revision'],
+        'position': item['position'] if 'position' in item.keys() else 0,
         'created_at': item['created_at'],
         'updated_at': item['updated_at'],
     }
@@ -112,19 +113,23 @@ def list_items():
     if tag:
         result = [i for i in result if tag in i.get('tags', [])]
 
-    # Filter by search query using FTS5
+    # Filter by search query using FTS5 (title 10x, content 1x, tags 5x)
     if q:
-        fts_ids = set()
         fts_rows = db.execute(
-            "SELECT rowid FROM item_fts WHERE item_fts MATCH ?", (q,)
+            "SELECT rowid, bm25(item_fts, 3.0, 1.0, 2.0) AS rank "
+            "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
+            (q,)
         ).fetchall()
+        fts_ordered_ids = []
         for row in fts_rows:
             real = db.execute(
                 "SELECT id FROM item WHERE rowid = ?", (row['rowid'],)
             ).fetchone()
             if real:
-                fts_ids.add(real['id'])
-        result = [i for i in result if i['id'] in fts_ids]
+                fts_ordered_ids.append(real['id'])
+        id_set = set(fts_ordered_ids)
+        item_map = {i['id']: i for i in result if i['id'] in id_set}
+        result = [item_map[iid] for iid in fts_ordered_ids if iid in item_map]
 
     return jsonify(result)
 
@@ -184,6 +189,9 @@ def update_item_metadata(item_id):
     if 'item_type' in data and data['item_type'] in ('note', 'list', 'document'):
         updates.append("item_type = ?")
         params.append(data['item_type'])
+    if 'position' in data:
+        updates.append("position = ?")
+        params.append(int(data['position']))
 
     if updates:
         updates.append("updated_at = CURRENT_TIMESTAMP")
@@ -231,6 +239,7 @@ def create_item():
     visibility = data.get('visibility', 'private')
     tags = data.get('tags', [])
     file_path = data.get('file_path', f"{slug}.md")
+    position = int(data.get('position', 0))
 
     if item_type not in ('note', 'list', 'document'):
         item_type = 'note'
@@ -249,9 +258,9 @@ def create_item():
     item_id = nanoid()
 
     db.execute(
-        "INSERT INTO item (id, owner_id, slug, title, content, file_path, item_type, visibility) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (item_id, user.id, slug, title, content, file_path, item_type, visibility)
+        "INSERT INTO item (id, owner_id, slug, title, content, file_path, item_type, visibility, position) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (item_id, user.id, slug, title, content, file_path, item_type, visibility, position)
     )
 
     for tag in tags:
@@ -496,6 +505,9 @@ def upsert_item_by_slug(slug):
         if 'item_type' in data and data['item_type'] in ('note', 'list', 'document'):
             updates.append("item_type = ?")
             params.append(data['item_type'])
+        if 'position' in data:
+            updates.append("position = ?")
+            params.append(int(data['position']))
 
         params.extend([item_id, user.id])
         db.execute(
@@ -534,6 +546,7 @@ def upsert_item_by_slug(slug):
         visibility = data.get('visibility', 'private')
         tags = data.get('tags', [])
         file_path = data.get('file_path', f"{slug}.md")
+        position = int(data.get('position', 0))
 
         if item_type not in ('note', 'list', 'document'):
             item_type = 'note'
@@ -543,9 +556,9 @@ def upsert_item_by_slug(slug):
         item_id = nanoid()
 
         db.execute(
-            "INSERT INTO item (id, owner_id, slug, title, content, file_path, item_type, visibility) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (item_id, user.id, slug, title, content, file_path, item_type, visibility)
+            "INSERT INTO item (id, owner_id, slug, title, content, file_path, item_type, visibility, position) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (item_id, user.id, slug, title, content, file_path, item_type, visibility, position)
         )
 
         for tag in tags:
@@ -749,7 +762,9 @@ def search():
 
     try:
         fts_rows = db.execute(
-            "SELECT rowid FROM item_fts WHERE item_fts MATCH ?", (q,)
+            "SELECT rowid, bm25(item_fts, 3.0, 1.0, 2.0) AS rank "
+            "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
+            (q,)
         ).fetchall()
     except Exception:
         return jsonify({"error": "Invalid search query"}), 400
@@ -764,6 +779,55 @@ def search():
             d = item_to_dict(item, include_content=False)
             tags = db.execute("SELECT tag FROM item_tag WHERE item_id = ?", (item['id'],)).fetchall()
             d['tags'] = [t['tag'] for t in tags]
+            results.append(d)
+
+    return jsonify(results)
+
+
+@api_bp.route('/search/quick', methods=['GET'])
+def quick_search():
+    """Public quick-search for Cmd+K modal. Returns public items (no auth required).
+    If authenticated, also includes the user's own private items."""
+    db = get_db()
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify([])
+
+    # Append wildcard for prefix matching
+    fts_q = q + '*' if not any(c in q for c in '"*') else q
+
+    try:
+        fts_rows = db.execute(
+            "SELECT rowid, bm25(item_fts, 3.0, 1.0, 2.0) AS rank "
+            "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank LIMIT 20",
+            (fts_q,)
+        ).fetchall()
+    except Exception:
+        return jsonify([])
+
+    user_id = None
+    if current_user.is_authenticated:
+        user_id = current_user.id
+
+    results = []
+    for row in fts_rows:
+        item = db.execute(
+            "SELECT i.*, u.username FROM item i JOIN user u ON i.owner_id = u.id "
+            "WHERE i.rowid = ?",
+            (row['rowid'],)
+        ).fetchone()
+        if not item:
+            continue
+        # Include if: public/public_edit/unlisted, OR user owns it
+        vis = item['visibility']
+        if vis in ('public', 'public_edit', 'unlisted') or (user_id and item['owner_id'] == user_id):
+            d = {
+                'title': item['title'] or item['slug'],
+                'slug': item['slug'],
+                'username': item['username'],
+                'item_type': item['item_type'],
+                'visibility': vis,
+            }
             results.append(d)
 
     return jsonify(results)

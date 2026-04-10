@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from '_badges.html' import visibility_badge %}
 {% block title %}{{ item.title or item.slug }} — @{{ profile_user.username }} — ListHub{% endblock %}
 {% block content %}
 
@@ -15,17 +16,7 @@
             <div class="item-header-meta">
                 <a href="/@{{ profile_user.username }}">@{{ profile_user.username }}</a>
                 <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
-                {% if item.visibility == 'public' %}
-                    <span class="badge badge-public" title="Anyone can view this item">&#127760; public</span>
-                {% elif item.visibility == 'public_edit' %}
-                    <span class="badge badge-public_edit" title="Anyone can view and edit">&#9999;&#65039; public edit</span>
-                {% elif item.visibility == 'unlisted' %}
-                    <span class="badge badge-unlisted" title="Not listed publicly; only reachable via direct link">&#128065; unlisted</span>
-                {% elif item.visibility == 'shared' %}
-                    <span class="badge badge-shared" title="Shared with specific users">&#128279; shared</span>
-                {% elif item.visibility == 'private' %}
-                    <span class="badge badge-private" title="Only you can see this">&#128274; private</span>
-                {% endif %}
+                {{ visibility_badge(item.visibility) }}
                 {% for tag in tags %}
                     <span class="tag">{{ tag }}</span>
                 {% endfor %}

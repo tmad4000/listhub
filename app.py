@@ -41,6 +41,12 @@ def create_app():
     app.register_blueprint(views_bp)
     app.register_blueprint(git_bp)
 
+    # Custom error pages
+    @app.errorhandler(404)
+    def page_not_found(e):
+        from flask import render_template as _rt
+        return _rt('404.html'), 404
+
     # Teardown
     app.teardown_appcontext(close_db)
 

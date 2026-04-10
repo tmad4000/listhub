@@ -12,14 +12,7 @@
      depth         — (optional) starting depth, default 0
      storage_key   — (optional) localStorage key prefix for collapse state
    ────────────────────────────────────────────────── #}
-{% macro vis_icon(vis) -%}
-  {%- if vis == 'private' -%}🔒
-  {%- elif vis == 'public' -%}🌐
-  {%- elif vis == 'public_edit' -%}✏️
-  {%- elif vis == 'shared' -%}🔗
-  {%- elif vis == 'mixed' -%}◐
-  {%- endif -%}
-{%- endmacro %}
+{% from '_badges.html' import visibility_icon %}
 
 {% macro render_nodes(nodes, link_prefix, depth, storage_key) %}
   <ul class="sb-tree" data-depth="{{ depth }}">
@@ -31,7 +24,7 @@
           {% set more_url = link_prefix %}
         {% endif %}
         <li class="sb-node sb-more">
-          <a class="sb-more-link" href="{{ more_url }}" style="padding-left: {{ depth * 10 + 40 }}px;">
+          <a class="sb-more-link" href="{{ more_url }}" style="padding-left: {{ depth * 16 + 32 }}px;">
             <span class="sb-more-arrow">…</span>
             <span class="sb-name">{{ node.count }} more</span>
             <span class="sb-more-arrow">→</span>
@@ -41,14 +34,14 @@
         {% set node_key = storage_key ~ ':' ~ node.path %}
         {% set folder_url = link_prefix ~ node.path ~ '/' %}
         <li class="sb-node sb-folder sb-folder-v2" data-sb-key="{{ node_key }}">
-          <div class="sb-folder-row" style="padding-left: {{ depth * 10 + 20 }}px;">
+          <div class="sb-folder-row" style="padding-left: {{ depth * 16 + 12 }}px;">
             <button type="button" class="sb-folder-chevron" aria-label="Toggle {{ node.name }}" aria-expanded="false">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
             </button>
             <a class="sb-folder-link" href="{{ folder_url }}">
-              <span class="sb-folder-icon">📁</span>
+              <span class="sb-folder-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
               <span class="sb-name">{{ node.name }}</span>
-              {% if node.visibility_summary %}<span class="sb-vis sb-vis-folder" title="folder visibility: {{ node.visibility_summary }}">{{ vis_icon(node.visibility_summary) }}</span>{% endif %}
+              {% if node.visibility_summary %}{{ visibility_icon(node.visibility_summary) }}{% endif %}
               {% if node.count is defined and node.count > 0 %}<span class="sb-count">{{ node.count }}</span>{% endif %}
             </a>
           </div>
@@ -61,10 +54,10 @@
       {% else %}
         {% set href = link_prefix ~ (node.slug if node.slug else node.path) %}
         <li class="sb-node sb-file{% if node.is_home %} sb-file-home{% endif %}">
-          <a class="sb-file-link" href="{{ href }}" style="padding-left: {{ depth * 10 + 40 }}px;">
+          <a class="sb-file-link" href="{{ href }}" style="padding-left: {{ depth * 16 + 32 }}px;">
             {% if node.is_home %}<span class="sb-home-icon" title="Home">&#127968;</span>{% endif %}
             <span class="sb-name">{{ node.name or node.title or node.slug }}</span>
-            {% if node.visibility %}<span class="sb-vis sb-vis-right" title="{{ node.visibility }}">{{ vis_icon(node.visibility) }}</span>{% endif %}
+            {% if node.visibility %}{{ visibility_icon(node.visibility) }}{% endif %}
           </a>
         </li>
       {% endif %}

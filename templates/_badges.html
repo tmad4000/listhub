@@ -1,0 +1,51 @@
+{# ── Visibility Badge Macros ──────────────────────────
+   Renders inline SVG icons for visibility levels.
+   Usage:
+     {% from '_badges.html' import visibility_badge %}
+     {{ visibility_badge('public') }}
+     {{ visibility_badge(item.visibility) }}
+   ────────────────────────────────────────────────── #}
+
+{% macro _svg_globe() -%}
+<svg class="vis-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+{%- endmacro %}
+
+{% macro _svg_lock() -%}
+<svg class="vis-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+{%- endmacro %}
+
+{% macro _svg_link() -%}
+<svg class="vis-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+{%- endmacro %}
+
+{% macro _svg_pencil() -%}
+<svg class="vis-icon vis-icon-sm" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+{%- endmacro %}
+
+{% macro _svg_mixed() -%}
+<svg class="vis-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor" opacity="0.4"/></svg>
+{%- endmacro %}
+
+{# ── Main macro: renders icon + optional label ── #}
+{% macro visibility_badge(vis, show_label=true) -%}
+<span class="vis-badge vis-badge--{{ vis }}" title="{{ vis }}">
+  {%- if vis == 'public' -%}
+    {{ _svg_globe() }}{% if show_label %} <span class="vis-label">public</span>{% endif %}
+  {%- elif vis == 'private' -%}
+    {{ _svg_lock() }}{% if show_label %} <span class="vis-label">private</span>{% endif %}
+  {%- elif vis == 'unlisted' -%}
+    {{ _svg_link() }}{% if show_label %} <span class="vis-label">unlisted</span>{% endif %}
+  {%- elif vis == 'shared' -%}
+    {{ _svg_link() }}{% if show_label %} <span class="vis-label">shared</span>{% endif %}
+  {%- elif vis == 'public_edit' -%}
+    {{ _svg_globe() }}{{ _svg_pencil() }}{% if show_label %} <span class="vis-label">public edit</span>{% endif %}
+  {%- elif vis == 'mixed' -%}
+    {{ _svg_mixed() }}{% if show_label %} <span class="vis-label">mixed</span>{% endif %}
+  {%- endif -%}
+</span>
+{%- endmacro %}
+
+{# ── Compact icon-only version for tight spaces (sidebar, tree) ── #}
+{% macro visibility_icon(vis) -%}
+{{ visibility_badge(vis, show_label=false) }}
+{%- endmacro %}
