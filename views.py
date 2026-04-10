@@ -499,15 +499,17 @@ def user_folder(username, subpath):
             readme_is_editable = is_owner
             break
 
-    # Find index item (slug "index", "home", or "readme") to show
-    # above the folder listing.  Priority: index > home > readme.
+    # Find index item to show above the folder listing.
+    # Match by slug OR by file_path basename. Priority: index > home > readme.
     index_content = None
     index_item_id = None
     index_is_editable = False
     for candidate in ("index", "home", "readme"):
         for r in direct_files:
             slug_lower = (r["slug"] or "").lower()
-            if slug_lower == candidate:
+            fp = (r["file_path"] or "").lower()
+            fp_stem = fp.rsplit("/", 1)[-1].replace(".md", "") if "/" in fp else fp.replace(".md", "")
+            if slug_lower == candidate or fp_stem == candidate:
                 index_content = render_md(r["content"] or "", is_owner=is_owner)
                 index_item_id = r["id"]
                 index_is_editable = is_owner
