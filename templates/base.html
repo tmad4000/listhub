@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}ListHub{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6-amber">
     <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css') }}?v=10-perf">
     <meta name="description" content="ListHub - A publishing and sharing layer for notes, lists, and knowledge. Agent-native REST API for programmatic access. Register, create, search, and collaborate.">
     <link rel="api" href="/api/docs" title="API Documentation">
@@ -18,7 +21,7 @@
             <button class="sb-toggle" id="sb-toggle" aria-label="Toggle sidebar" title="Toggle sidebar">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
-            <a href="/" class="logo">ListHub</a>
+            <a href="/" class="logo"><span class="bracket">[[</span><span class="name">listhub</span><span class="bracket">]]</span></a>
             <nav class="header-nav">
                 <a href="{{ url_for('views.browse') }}">Browse</a>
                 <a href="{{ url_for('views.community') }}">People</a>
