@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from '_badges.html' import visibility_badge %}
 {% block title %}{{ folder_name }} — @{{ profile_user.username }} — ListHub{% endblock %}
 {% block content %}
 
@@ -18,6 +19,17 @@
     {% endif %}
   </div>
 </div>
+
+{% if index_content %}
+<div class="folder-index">
+  <div class="folder-index-header">
+    {% if index_is_editable %}
+    <a href="{{ url_for('views.edit_item', item_id=index_item_id) }}" class="btn btn-sm">Edit</a>
+    {% endif %}
+  </div>
+  <div class="rendered-content">{{ index_content | safe }}</div>
+</div>
+{% endif %}
 
 {% if children %}
 <div class="folder-listing">
@@ -55,24 +67,9 @@
         {% if is_owner %}
         <td class="folder-col-vis">
           {% if child.type == 'folder' and child.visibility_summary %}
-            <span class="vis-badge" title="folder: {{ child.visibility_summary }}">
-              {% if child.visibility_summary == 'private' %}🔒
-              {% elif child.visibility_summary == 'public' %}🌐
-              {% elif child.visibility_summary == 'public_edit' %}✏️
-              {% elif child.visibility_summary == 'shared' %}🔗
-              {% elif child.visibility_summary == 'mixed' %}◐
-              {% endif %}
-              {{ child.visibility_summary }}
-            </span>
+            {{ visibility_badge(child.visibility_summary) }}
           {% elif child.type == 'file' %}
-            <span class="vis-badge" title="{{ child.visibility }}">
-              {% if child.visibility == 'private' %}🔒
-              {% elif child.visibility == 'public' %}🌐
-              {% elif child.visibility == 'public_edit' %}✏️
-              {% elif child.visibility == 'shared' %}🔗
-              {% endif %}
-              {{ child.visibility }}
-            </span>
+            {{ visibility_badge(child.visibility) }}
           {% endif %}
         </td>
         {% endif %}
@@ -210,6 +207,17 @@
   letter-spacing: 0.05em;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+.folder-index {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.folder-index-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
 }
 </style>
 

@@ -102,10 +102,17 @@ def render_md(text, is_owner=False):
     blocks first so non-owners never see per-section private content."""
     if not is_owner:
         text = strip_private_blocks(text)
-    return markdown.markdown(
+    html = markdown.markdown(
         text or '',
         extensions=['tables', 'fenced_code', 'toc', 'nl2br', 'sane_lists']
     )
+    # Open external links in new tab
+    html = re.sub(
+        r'<a\s+href="(https?://[^"]*)"',
+        r'<a href="\1" target="_blank" rel="noopener noreferrer"',
+        html
+    )
+    return html
 
 
 
@@ -492,6 +499,19 @@ def user_folder(username, subpath):
             readme_is_editable = is_owner
             break
 
+    # Find index item (slug "index" or file_path "folder/index.md") to show
+    # above the folder listing.  Falls back to README if no index found.
+    index_content = None
+    index_item_id = None
+    index_is_editable = False
+    for r in direct_files:
+        slug_lower = (r["slug"] or "").lower()
+        if slug_lower == "index":
+            index_content = render_md(r["content"] or "", is_owner=is_owner)
+            index_item_id = r["id"]
+            index_is_editable = is_owner
+            break
+
     # Build children list for the template: folders first, then files (sans README)
     children = []
     for subname in sorted(folders_map.keys()):
@@ -536,6 +556,9 @@ def user_folder(username, subpath):
         readme_html=readme_html,
         readme_item_id=readme_item_id,
         readme_is_editable=readme_is_editable,
+        index_content=index_content,
+        index_item_id=index_item_id,
+        index_is_editable=index_is_editable,
         breadcrumbs=breadcrumbs,
         is_owner=is_owner,
     )
@@ -601,8 +624,8 @@ def landing():
                            active_users=[dict(u) for u in active_users])
 
 
-@views_bp.route('/community')
-def community():
+@views_bp.route('/people')
+def people():
     db = get_db()
     users = db.execute(
         "SELECT u.id, u.username, u.display_name, u.created_at, "
@@ -630,10 +653,10 @@ def community():
                            users_with_home=users_with_home)
 
 
-@views_bp.route('/people')
-def people():
+@views_bp.route('/community')
+def community():
     """Legacy redirect."""
-    return redirect(url_for('views.community'), 301)
+    return redirect(url_for('views.people'), 301)
 
 
 @views_bp.route('/browse')
@@ -1008,9 +1031,21 @@ def user_profile(username):
     if home_item and not is_owner and home_item['visibility'] not in ('public', 'public_edit', 'unlisted'):
         home_item = None
 
+    # Build wikis: top-level folders (distinct first path segments from items
+    # with file_path containing '/'). Each wiki shows folder name + item count.
+    vis_filter = "" if is_owner else " AND visibility IN ('public', 'public_edit')"
+    wiki_rows = db.execute(
+        "SELECT SUBSTR(file_path, 1, INSTR(file_path, '/') - 1) AS folder, COUNT(*) AS cnt "
+        "FROM item WHERE owner_id = ? AND file_path LIKE '%%/%%'" + vis_filter +
+        " GROUP BY folder ORDER BY folder",
+        (user.id,),
+    ).fetchall()
+    wikis = [{'name': r['folder'], 'count': r['cnt']} for r in wiki_rows if r['folder']]
+
     return render_template('profile.html', profile_user=user, items=items_with_tags,
                            view_mode=view_mode, folder_tree=folder_tree, is_owner=is_owner,
-                           home_item=dict(home_item) if home_item else None)
+                           home_item=dict(home_item) if home_item else None,
+                           wikis=wikis)
 
 
 @views_bp.route('/@<username>/<slug>')
@@ -1171,21 +1206,21 @@ def _extract_frontmatter(content):
     return metadata, body
 
 
-@views_bp.route('/directory')
-@views_bp.route('/directory/<path:subpath>')
-def directory(subpath=''):
+@views_bp.route('/featured')
+@views_bp.route('/featured/<path:subpath>')
+def featured(subpath=''):
     repo = _directory_repo()
     if not os.path.isdir(repo):
         return render_template('directory.html', content_html=None,
                                nav_items=[], breadcrumbs=[], subpath='',
-                               title='Directory', empty=True)
+                               title='Featured', empty=True)
 
     # Check if repo has commits
     head = _git_read(repo, 'rev-parse', '--verify', 'HEAD')
     if not head:
         return render_template('directory.html', content_html=None,
                                nav_items=[], breadcrumbs=[], subpath='',
-                               title='Directory', empty=True)
+                               title='Featured', empty=True)
 
     # Get full file listing
     ls_output = _git_read(repo, 'ls-tree', '-r', '--name-only', 'HEAD')
@@ -1210,7 +1245,7 @@ def directory(subpath=''):
     raw_content = _git_read(repo, 'show', f'HEAD:{index_path}')
 
     content_html = None
-    title = subpath.split('/')[-1].replace('-', ' ').title() if subpath else 'Directory'
+    title = subpath.split('/')[-1].replace('-', ' ').title() if subpath else 'Featured'
 
     if raw_content:
         metadata, body = _extract_frontmatter(raw_content)
@@ -1227,6 +1262,13 @@ def directory(subpath=''):
     return render_template('directory.html', content_html=content_html,
                            full_tree=full_tree, breadcrumbs=breadcrumbs,
                            subpath=subpath, title=title, empty=False)
+
+
+@views_bp.route('/directory')
+@views_bp.route('/directory/<path:subpath>')
+def directory(subpath=''):
+    """Legacy redirect."""
+    return redirect(url_for('views.featured', subpath=subpath) if subpath else url_for('views.featured'), 301)
 
 
 @views_bp.route('/i/<item_id>')
@@ -1256,7 +1298,7 @@ def directory_edit(subpath=""):
     repo = _directory_repo()
     if not os.path.isdir(repo):
         flash("Directory not initialized.", "error")
-        return redirect(url_for("views.directory"))
+        return redirect(url_for("views.featured"))
 
     # Determine file path
     prefix = (subpath.strip("/") + "/") if subpath else ""
@@ -1289,7 +1331,7 @@ def directory_edit(subpath=""):
             view_path = view_path[:-9]
         elif view_path.endswith("index.md"):
             view_path = ""
-        return redirect(url_for("views.directory", subpath=view_path))
+        return redirect(url_for("views.featured", subpath=view_path))
 
     # GET: load current content
     raw_content = _git_read(repo, "show", f"HEAD:{file_path}")
@@ -1425,7 +1467,7 @@ Items with `public_edit` visibility can be edited by any authenticated user:
 
 - [Full API Documentation](https://listhub.globalbr.ai/api/docs)
 - [Explore Public Items](https://listhub.globalbr.ai/explore)
-- [Community Directory](https://listhub.globalbr.ai/directory)
+- [Featured Directory](https://listhub.globalbr.ai/featured)
 - [People](https://listhub.globalbr.ai/people)
 """
     return Response(content, mimetype="text/plain")
