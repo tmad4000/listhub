@@ -9,19 +9,19 @@
 </div>
 
 {% if not q %}
-{% if directory_topics %}
+{% if featured_topics %}
 <section style="margin-bottom: 28px;">
     <h2 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Featured Lists</h2>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 8px;">
-        {% for topic in directory_topics %}
-        <a href="/directory/{{ topic.path }}" style="display: block; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; text-decoration: none; transition: border-color 0.15s;">
+        {% for topic in featured_topics %}
+        <a href="/featured/{{ topic.path }}" style="display: block; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; text-decoration: none; transition: border-color 0.15s;">
             <div style="font-size: 14px; font-weight: 600; color: var(--text);">{{ topic.name }}</div>
             {% if topic.description %}<div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">{{ topic.description }}</div>{% endif %}
             <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">{{ topic.count }} item{{ 's' if topic.count != 1 }}</div>
         </a>
         {% endfor %}
     </div>
-    <a href="{{ url_for('views.directory') }}" style="font-size: 13px; color: var(--text-muted);">View full directory &rarr;</a>
+    <a href="{{ url_for('views.featured') }}" style="font-size: 13px; color: var(--text-muted);">View Featured &rarr;</a>
 </section>
 {% endif %}
 {% endif %}

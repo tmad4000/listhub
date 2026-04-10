@@ -2,7 +2,7 @@ import re
 import secrets
 
 import bcrypt
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, redirect
 from flask_login import current_user, login_required
 from nanoid import generate as nanoid
 
@@ -930,7 +930,7 @@ def delete_key(key_id):
 
 
 # ---------------------------------------------------------------------------
-# Directory API (shared community repo)
+# Featured API (shared community repo)
 # ---------------------------------------------------------------------------
 
 import os
@@ -938,9 +938,10 @@ import subprocess
 import tempfile
 
 
-def _directory_repo_path():
-    """Return path to the shared directory bare repo."""
+def _featured_repo_path():
+    """Return path to the shared featured bare repo."""
     repo_root = os.environ.get("LISTHUB_REPO_ROOT", "/home/ubuntu/listhub/repos")
+    # Keep the on-disk repo path as directory.git to avoid moving git repos.
     return os.path.join(repo_root, "directory.git")
 
 
@@ -968,21 +969,21 @@ def _dir_git_bytes(repo_path, *args, env=None, input_bytes=None):
     return result.stdout
 
 
-_DIR_AUTHOR_ENV = {
+_FEATURED_AUTHOR_ENV = {
     "GIT_AUTHOR_NAME": "ListHub",
-    "GIT_AUTHOR_EMAIL": "directory@listhub",
+    "GIT_AUTHOR_EMAIL": "featured@listhub",
     "GIT_COMMITTER_NAME": "ListHub",
-    "GIT_COMMITTER_EMAIL": "directory@listhub",
+    "GIT_COMMITTER_EMAIL": "featured@listhub",
 }
 
 
-def _dir_commit_file(repo, file_path, content, message, author_name=None, author_email=None):
-    """Write a file to the directory bare repo and commit it."""
+def _featured_commit_file(repo, file_path, content, message, author_name=None, author_email=None):
+    """Write a file to the featured bare repo and commit it."""
     head = _dir_git(repo, "rev-parse", "--verify", "HEAD")
     idx = tempfile.mktemp(prefix="listhub-dir-", suffix=".idx")
     env = {"GIT_INDEX_FILE": idx}
 
-    author_env = dict(_DIR_AUTHOR_ENV)
+    author_env = dict(_FEATURED_AUTHOR_ENV)
     if author_name:
         author_env["GIT_AUTHOR_NAME"] = author_name
         author_env["GIT_COMMITTER_NAME"] = author_name
@@ -1024,8 +1025,8 @@ def _dir_commit_file(repo, file_path, content, message, author_name=None, author
             os.unlink(idx)
 
 
-def _dir_remove_file(repo, file_path, message, author_name=None):
-    """Remove a file from the directory bare repo and commit."""
+def _featured_remove_file(repo, file_path, message, author_name=None):
+    """Remove a file from the featured bare repo and commit."""
     head = _dir_git(repo, "rev-parse", "--verify", "HEAD")
     if not head:
         return None
@@ -1033,7 +1034,7 @@ def _dir_remove_file(repo, file_path, message, author_name=None):
     idx = tempfile.mktemp(prefix="listhub-dir-", suffix=".idx")
     env = {"GIT_INDEX_FILE": idx}
 
-    author_env = dict(_DIR_AUTHOR_ENV)
+    author_env = dict(_FEATURED_AUTHOR_ENV)
     if author_name:
         author_env["GIT_AUTHOR_NAME"] = author_name
         author_env["GIT_COMMITTER_NAME"] = author_name
@@ -1064,11 +1065,21 @@ def _dir_remove_file(repo, file_path, message, author_name=None):
 
 
 @api_bp.route("/directory", methods=["GET"])
-def api_directory_tree():
-    """List the community directory tree structure."""
-    repo = _directory_repo_path()
+def api_directory_redirect_root():
+    return redirect("/api/v1/featured", 301)
+
+
+@api_bp.route("/directory/<path:file_path>", methods=["GET", "PUT", "DELETE"])
+def api_directory_redirect(file_path):
+    return redirect(f"/api/v1/featured/{file_path}", 308)
+
+
+@api_bp.route("/featured", methods=["GET"])
+def api_featured_tree():
+    """List the featured tree structure."""
+    repo = _featured_repo_path()
     if not os.path.isdir(repo):
-        return jsonify({"tree": [], "message": "Directory not initialized"}), 200
+        return jsonify({"tree": [], "message": "Featured not initialized"}), 200
 
     ls_output = _dir_git(repo, "ls-tree", "-r", "--name-only", "HEAD")
     if not ls_output:
@@ -1078,12 +1089,12 @@ def api_directory_tree():
     return jsonify({"tree": files}), 200
 
 
-@api_bp.route("/directory/<path:file_path>", methods=["GET"])
-def api_directory_read(file_path):
-    """Read a file from the community directory."""
-    repo = _directory_repo_path()
+@api_bp.route("/featured/<path:file_path>", methods=["GET"])
+def api_featured_read(file_path):
+    """Read a file from featured."""
+    repo = _featured_repo_path()
     if not os.path.isdir(repo):
-        return jsonify({"error": "Directory not initialized"}), 404
+        return jsonify({"error": "Featured not initialized"}), 404
 
     content = _dir_git(repo, "show", f"HEAD:{file_path}")
     if content is None:
@@ -1092,10 +1103,10 @@ def api_directory_read(file_path):
     return jsonify({"path": file_path, "content": content}), 200
 
 
-@api_bp.route("/directory/<path:file_path>", methods=["PUT"])
+@api_bp.route("/featured/<path:file_path>", methods=["PUT"])
 @require_api_auth
-def api_directory_write(file_path):
-    """Create or update a file in the community directory. Any authenticated user can write."""
+def api_featured_write(file_path):
+    """Create or update a file in featured. Any authenticated user can write."""
     if not api_has_scope("write"):
         return jsonify({"error": "Write scope required"}), 403
 
@@ -1107,11 +1118,11 @@ def api_directory_write(file_path):
     if content is None:
         return jsonify({"error": "content field required"}), 400
 
-    repo = _directory_repo_path()
+    repo = _featured_repo_path()
     if not os.path.isdir(repo):
-        return jsonify({"error": "Directory not initialized"}), 404
+        return jsonify({"error": "Featured not initialized"}), 404
 
-    commit = _dir_commit_file(
+    commit = _featured_commit_file(
         repo, file_path, content, message,
         author_name=user.username,
         author_email=f"{user.username}@listhub"
@@ -1122,21 +1133,21 @@ def api_directory_write(file_path):
     return jsonify({"ok": True, "path": file_path, "commit": commit}), 200
 
 
-@api_bp.route("/directory/<path:file_path>", methods=["DELETE"])
+@api_bp.route("/featured/<path:file_path>", methods=["DELETE"])
 @require_api_auth
-def api_directory_delete(file_path):
-    """Remove a file from the community directory."""
+def api_featured_delete(file_path):
+    """Remove a file from featured."""
     if not api_has_scope("write"):
         return jsonify({"error": "Write scope required"}), 403
 
     user = get_current_api_user()
     message = f"Remove {file_path} (by {user.username})"
 
-    repo = _directory_repo_path()
+    repo = _featured_repo_path()
     if not os.path.isdir(repo):
-        return jsonify({"error": "Directory not initialized"}), 404
+        return jsonify({"error": "Featured not initialized"}), 404
 
-    commit = _dir_remove_file(repo, file_path, message, author_name=user.username)
+    commit = _featured_remove_file(repo, file_path, message, author_name=user.username)
     if not commit:
         return jsonify({"error": "File not found or already removed"}), 404
 

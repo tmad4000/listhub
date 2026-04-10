@@ -140,7 +140,7 @@ Note: 13,000+ llms.txt sites exist. This is a sample of the canonical/most-cited
 - **Fern** — https://buildwithfern.com — Auto-generates llms.txt and serves markdown to detected LLM UAs.
 - **GitBook** — https://gitbook.com — Added llms.txt + llms-full.txt + per-page .md serving in 2025.
 - **llms-txt-hub** — https://llmstxthub.com/ — The meta-directory. Source: https://github.com/thedaviddias/llms-txt-hub
-- **directory.llmstxt.cloud** — https://directory.llmstxt.cloud/ — Alternative directory, ~1000 entries.
+- **directory.llmstxt.cloud** — directory.llmstxt.cloud — Alternative directory, ~1000 entries.
 - **llmtxt.app** — https://llmtxt.app/ — Largest (~13k sites, crawl-based).
 
 ---
@@ -169,7 +169,7 @@ Note: Wikipedia banned LLM-generated article content in March 2026 — the tradi
 
 Local-first / structured-note apps with MCP bridges:
 - **Anytype + anytype-mcp** — https://github.com/anyproto/anytype-mcp — Encrypted local-first collaborative wiki; official MCP.
-- **Tana (Local API + MCP)** — https://outliner.tana.inc/docs/local-api-mcp — Community MCP: https://github.com/tim-mcdonnell/tana-mcp
+- **Tana (Local API + MCP)** — https://outliner.tana.inc/docs/local-api-mcp — community MCP: https://github.com/tim-mcdonnell/tana-mcp
 - **Notion MCP (official)** — https://developers.notion.com/docs/mcp — Source: https://github.com/makenotion/notion-mcp-server
 
 Traditional wiki engines with MCP bridges:

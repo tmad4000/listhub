@@ -94,7 +94,7 @@ git push
 | Auto-generate slug from title | ✅ server-side | ❌ no JS autofill |
 | Short link `/i/<id>` | n/a | ✅ |
 | Folder/tree view | n/a | ✅ |
-| Directory (shared community repo) | n/a | ✅ |
+| Featured (curated shared repo) | n/a | ✅ |
 
 ## Stack
 

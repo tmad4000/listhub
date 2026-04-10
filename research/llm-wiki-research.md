@@ -70,7 +70,7 @@ Every directory I could find covers exactly **one** sense, mostly sense 3:
 - **llms-txt-hub** — https://llmstxthub.com/ (David Dias, PR-based, 500+ entries — most credible)
 - **llmtxt.app** — https://llmtxt.app/ (~13,000 entries, crawl-based — largest)
 - **directory.llmstxt.cloud** — ~1,000 entries, Tally form submissions
-- **llms-txt.io/directory** — 90+ companies, curated by category
+- **llms-txt.io (directory page)** — 90+ companies, curated by category
 - **llmstxt.site**, **llmsdirectory.com**, **llmstxtdirectory.org** — smaller variants
 - **DeepWiki Directory** — https://deepwiki.directory/ (sense 2 narrowly, repo wikis only)
 - **SecretiveShell/Awesome-llms-txt** — GitHub awesome-list
@@ -212,7 +212,7 @@ This gives a graceful "we are archiving this" story without hyperbole, and creat
 - Wikipedia bans AI-generated content — https://www.404media.co/wikipedia-bans-ai-generated-content/
 
 ### Directory landscape
-- llmtxt.app, directory.llmstxt.cloud, llmstxthub.com, llms-txt.io/directory, llmstxt.site, llmsdirectory.com, llmstxtdirectory.org
+- llmtxt.app, directory.llmstxt.cloud, llmstxthub.com, llms-txt.io, llmstxt.site, llmsdirectory.com, llmstxtdirectory.org
 - mcp.so, Smithery, mcpservers.org, ToolSDK MCP Registry, GitHub MCP Registry
 - agentsapis.com, agent.ai, e2b-dev/awesome-ai-agents, Postman API Network
 - doanhthong/awesome-pkm, tehtbl/awesome-note-taking, brettkromkamp/awesome-knowledge-management

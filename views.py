@@ -237,9 +237,9 @@ def _sidebar_user_tree(user):
     return _sidebar_build_user_tree_from_items(items)
 
 
-def _sidebar_community_tree():
-    """Build a nested sidebar tree from the community directory git repo."""
-    repo = _directory_repo()
+def _sidebar_featured_tree():
+    """Build a nested sidebar tree from the featured git repo."""
+    repo = _featured_repo()
     if not os.path.isdir(repo):
         return []
     head = _git_read(repo, "rev-parse", "--verify", "HEAD")
@@ -360,7 +360,7 @@ def inject_sidebar_data():
     if path in SIDEBAR_SKIP_EXACT or path.startswith(SIDEBAR_SKIP_PREFIXES):
         return {
             "sidebar_your_tree": [],
-            "sidebar_community_tree": [],
+            "sidebar_featured_tree": [],
             "sidebar_focused": None,
             "sidebar_current_username": None,
         }
@@ -370,16 +370,16 @@ def inject_sidebar_data():
     except Exception:
         your_tree = []
     try:
-        community_tree = _sidebar_community_tree()
+        featured_tree = _sidebar_featured_tree()
     except Exception:
-        community_tree = []
+        featured_tree = []
     try:
         focused = _sidebar_focused_user()
     except Exception:
         focused = None
     return {
         "sidebar_your_tree": your_tree,
-        "sidebar_community_tree": community_tree,
+        "sidebar_featured_tree": featured_tree,
         "sidebar_focused": focused,
         "sidebar_current_username": current_user.username if current_user.is_authenticated else None,
     }
@@ -546,9 +546,9 @@ def api_docs():
     return render_template('api_docs.html')
 
 
-def _get_directory_topics():
-    """Get top-level directory topics with descriptions from index.md files."""
-    repo = _directory_repo()
+def _get_featured_topics():
+    """Get top-level featured topics with descriptions from index.md files."""
+    repo = _featured_repo()
     if not os.path.isdir(repo):
         return []
     ls_output = _git_read(repo, 'ls-tree', '-r', '--name-only', 'HEAD')
@@ -583,8 +583,8 @@ def landing():
         "WHERE i.visibility IN ('public', 'public_edit') ORDER BY i.updated_at DESC LIMIT 12"
     ).fetchall()
 
-    # Get directory topics
-    directory_topics = _get_directory_topics()
+    # Get featured topics
+    featured_topics = _get_featured_topics()
 
     # Get active users (with public content)
     active_users = db.execute(
@@ -597,7 +597,7 @@ def landing():
     ).fetchall()
 
     return render_template('landing.html', items=public_items,
-                           directory_topics=directory_topics,
+                           featured_topics=featured_topics,
                            active_users=[dict(u) for u in active_users])
 
 
@@ -665,9 +665,9 @@ def browse():
         except Exception:
             flash('Invalid search query.', 'error')
 
-    directory_topics = _get_directory_topics()
+    featured_topics = _get_featured_topics()
 
-    return render_template('browse.html', items=items, q=q, directory_topics=directory_topics)
+    return render_template('browse.html', items=items, q=q, featured_topics=featured_topics)
 
 
 @views_bp.route('/explore')
@@ -1071,13 +1071,14 @@ def public_item(username, slug):
     )
 
 
-# --- Directory (shared community repo) ---
+# --- Featured (shared community repo) ---
 
 REPO_ROOT = os.environ.get('LISTHUB_REPO_ROOT', '/home/ubuntu/listhub/repos')
 
 
-def _directory_repo():
-    """Return path to the shared directory bare repo."""
+def _featured_repo():
+    """Return path to the shared featured bare repo."""
+    # Keep the on-disk repo path as directory.git to avoid moving git repos.
     return os.path.join(REPO_ROOT, 'directory.git')
 
 
@@ -1174,18 +1175,24 @@ def _extract_frontmatter(content):
 @views_bp.route('/directory')
 @views_bp.route('/directory/<path:subpath>')
 def directory(subpath=''):
-    repo = _directory_repo()
+    return redirect(url_for('views.featured', subpath=subpath), 301)
+
+
+@views_bp.route('/featured')
+@views_bp.route('/featured/<path:subpath>')
+def featured(subpath=''):
+    repo = _featured_repo()
     if not os.path.isdir(repo):
-        return render_template('directory.html', content_html=None,
+        return render_template('featured.html', content_html=None,
                                nav_items=[], breadcrumbs=[], subpath='',
-                               title='Directory', empty=True)
+                               title='Featured', empty=True)
 
     # Check if repo has commits
     head = _git_read(repo, 'rev-parse', '--verify', 'HEAD')
     if not head:
-        return render_template('directory.html', content_html=None,
+        return render_template('featured.html', content_html=None,
                                nav_items=[], breadcrumbs=[], subpath='',
-                               title='Directory', empty=True)
+                               title='Featured', empty=True)
 
     # Get full file listing
     ls_output = _git_read(repo, 'ls-tree', '-r', '--name-only', 'HEAD')
@@ -1210,7 +1217,7 @@ def directory(subpath=''):
     raw_content = _git_read(repo, 'show', f'HEAD:{index_path}')
 
     content_html = None
-    title = subpath.split('/')[-1].replace('-', ' ').title() if subpath else 'Directory'
+    title = subpath.split('/')[-1].replace('-', ' ').title() if subpath else 'Featured'
 
     if raw_content:
         metadata, body = _extract_frontmatter(raw_content)
@@ -1224,7 +1231,7 @@ def directory(subpath=''):
             title = metadata.get('title', subpath.split('/')[-1])
             content_html = render_md(body)
 
-    return render_template('directory.html', content_html=content_html,
+    return render_template('featured.html', content_html=content_html,
                            full_tree=full_tree, breadcrumbs=breadcrumbs,
                            subpath=subpath, title=title, empty=False)
 
@@ -1246,17 +1253,17 @@ def short_link(item_id):
 
 
 
-@views_bp.route("/directory/edit", methods=["GET", "POST"])
-@views_bp.route("/directory/edit/<path:subpath>", methods=["GET", "POST"])
-def directory_edit(subpath=""):
-    """Web UI for editing community directory files."""
+@views_bp.route("/featured/edit", methods=["GET", "POST"])
+@views_bp.route("/featured/edit/<path:subpath>", methods=["GET", "POST"])
+def featured_edit(subpath=""):
+    """Web UI for editing featured files."""
     if not current_user.is_authenticated:
-        flash("Sign in to edit this page. Or use the API: POST /api/v1/auth/register to create an account, then PUT /api/v1/directory/:path to edit programmatically.", "info")
+        flash("Sign in to edit this page. Or use the API: POST /api/v1/auth/register to create an account, then PUT /api/v1/featured/:path to edit programmatically.", "info")
         return redirect(url_for("auth.login_local", next=request.path))
-    repo = _directory_repo()
+    repo = _featured_repo()
     if not os.path.isdir(repo):
-        flash("Directory not initialized.", "error")
-        return redirect(url_for("views.directory"))
+        flash("Featured not initialized.", "error")
+        return redirect(url_for("views.featured"))
 
     # Determine file path
     prefix = (subpath.strip("/") + "/") if subpath else ""
@@ -1271,9 +1278,9 @@ def directory_edit(subpath=""):
         if not commit_message:
             commit_message = f"Edit {file_path}"
 
-        from api import _directory_repo_path, _dir_commit_file
-        api_repo = _directory_repo_path()
-        commit = _dir_commit_file(
+        from api import _featured_repo_path, _featured_commit_file
+        api_repo = _featured_repo_path()
+        commit = _featured_commit_file(
             api_repo, file_path, new_content,
             f"{commit_message} (by {current_user.username})",
             author_name=current_user.username,
@@ -1289,7 +1296,7 @@ def directory_edit(subpath=""):
             view_path = view_path[:-9]
         elif view_path.endswith("index.md"):
             view_path = ""
-        return redirect(url_for("views.directory", subpath=view_path))
+        return redirect(url_for("views.featured", subpath=view_path))
 
     # GET: load current content
     raw_content = _git_read(repo, "show", f"HEAD:{file_path}")
@@ -1425,7 +1432,7 @@ Items with `public_edit` visibility can be edited by any authenticated user:
 
 - [Full API Documentation](https://listhub.globalbr.ai/api/docs)
 - [Explore Public Items](https://listhub.globalbr.ai/explore)
-- [Community Directory](https://listhub.globalbr.ai/directory)
+- [Featured](https://listhub.globalbr.ai/featured)
 - [People](https://listhub.globalbr.ai/people)
 """
     return Response(content, mimetype="text/plain")

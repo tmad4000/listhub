@@ -644,13 +644,13 @@ git clone https://user:key@listhub.globalbr.ai/git/user.git ~/listhub-data
 <span class="code-comment"># Periodic sync (cron, timer, or after API writes)</span>
 git -C ~/listhub-data pull --ff-only</code></div>
 
-<h2>Community Directory</h2>
+<h2>Featured</h2>
 
-<p>ListHub hosts a shared <strong>Community Directory</strong> — a curated, hierarchical index of lists and collections, browsable at <a href="/directory">/directory</a>. The directory is a git repo that any authenticated user can contribute to.</p>
+<p>ListHub hosts <strong>Featured</strong> — a curated, hierarchical index of lists and collections, browsable at <a href="/featured">/featured</a>. Featured is a git repo that any authenticated user can contribute to.</p>
 
 <h3>How it works</h3>
 <ul>
-    <li>The directory lives in a shared bare git repo at <code>/git/directory.git</code></li>
+    <li>Featured lives in a shared bare git repo at <code>/git/directory.git</code></li>
     <li>The folder structure in git is the browsable tree hierarchy on the web</li>
     <li>Each folder has an <code>index.md</code> with content and links to ListHub items</li>
     <li>Any authenticated user can clone, edit, and push — no pull requests needed</li>
@@ -659,8 +659,8 @@ git -C ~/listhub-data pull --ff-only</code></div>
 
 <h3>Contributing</h3>
 
-<div class="code-block"><code><span class="code-comment"># Clone the directory</span>
-git clone https://username:password@listhub.globalbr.ai/git/directory.git
+<div class="code-block"><code><span class="code-comment"># Clone Featured</span>
+git clone https://username:password@listhub.globalbr.ai/git/directory.git featured
 
 <span class="code-comment"># Add a new category</span>
 mkdir music
@@ -682,10 +682,10 @@ echo "- [My Reading List](/@alice/reading-list)" >> reading/index.md
 <span class="code-comment"># Push changes</span>
 git add . && git commit -m "add music category" && git push</code></div>
 
-<h3>Directory structure</h3>
+<h3>Featured structure</h3>
 <p>Folders are categories, <code>index.md</code> files are the content displayed for each category. Links use the format <code>/@username/item-slug</code> to point to ListHub items.</p>
 
-<div class="code-block"><code>directory/
+<div class="code-block"><code>featured/
 ├── index.md              ← root page
 ├── tech/
 │   └── index.md          ← "- [AI Tools](/@jacob/ai-tools)"
@@ -695,35 +695,35 @@ git add . && git commit -m "add music category" && git push</code></div>
     └── index.md</code></div>
 
 <h3>For assistants</h3>
-<p>Assistants can contribute to the directory by cloning and pushing, just like a human user. Use git HTTP Basic Auth with the user's credentials or API key as the password.</p>
+<p>Assistants can contribute to Featured by cloning and pushing, just like a human user. Use git HTTP Basic Auth with the user's credentials or API key as the password.</p>
 
 <div class="code-block"><code><span class="code-comment"># Clone with API key as password</span>
-git clone https://alice:mem_abc123...@listhub.globalbr.ai/git/directory.git</code></div>
+git clone https://alice:mem_abc123...@listhub.globalbr.ai/git/directory.git featured</code></div>
 
-<h2>Community Directory API</h2>
+<h2>Featured API</h2>
 
-<p>The community directory is a shared, collaboratively-edited knowledge structure. Any authenticated user can read, write, and delete files. Changes are committed to the underlying git repo.</p>
+<p>Featured is a shared, collaboratively-edited knowledge structure. Any authenticated user can read, write, and delete files. Changes are committed to the underlying git repo.</p>
 
-<h3>List directory tree</h3>
-<p><code>GET /api/v1/directory</code> — no authentication required</p>
-<p>Returns the full list of file paths in the directory.</p>
+<h3>List Featured tree</h3>
+<p><code>GET /api/v1/featured</code> — no authentication required</p>
+<p>Returns the full list of file paths in Featured.</p>
 
-<div class="code-block"><code>curl https://listhub.globalbr.ai/api/v1/directory</code></div>
+<div class="code-block"><code>curl https://listhub.globalbr.ai/api/v1/featured</code></div>
 
 <p><strong>Response:</strong></p>
 <div class="code-block"><code>{"tree": ["index.md", "tech/index.md", "reading/index.md"]}</code></div>
 
-<h3>Read a directory file</h3>
-<p><code>GET /api/v1/directory/:path</code> — no authentication required</p>
+<h3>Read a Featured file</h3>
+<p><code>GET /api/v1/featured/:path</code> — no authentication required</p>
 
-<div class="code-block"><code>curl https://listhub.globalbr.ai/api/v1/directory/tech/index.md</code></div>
+<div class="code-block"><code>curl https://listhub.globalbr.ai/api/v1/featured/tech/index.md</code></div>
 
 <p><strong>Response:</strong></p>
 <div class="code-block"><code>{"path": "tech/index.md", "content": "---\ntitle: Tech\n---\n# Tech\n..."}</code></div>
 
-<h3>Create or update a directory file</h3>
-<p><code>PUT /api/v1/directory/:path</code> — requires <code>write</code> scope</p>
-<p>Creates or overwrites a file in the directory. The change is committed to git with the authenticated user as the author.</p>
+<h3>Create or update a Featured file</h3>
+<p><code>PUT /api/v1/featured/:path</code> — requires <code>write</code> scope</p>
+<p>Creates or overwrites a file in Featured. The change is committed to git with the authenticated user as the author.</p>
 
 <div class="code-block"><code>curl -X PUT -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" \
@@ -731,7 +731,7 @@ git clone https://alice:mem_abc123...@listhub.globalbr.ai/git/directory.git</cod
     "content": "---\ntitle: Music\n---\n# Music\n\n- [My Playlist](/@alice/playlist)",
     "message": "Add music category"
   }' \
-  https://listhub.globalbr.ai/api/v1/directory/music/index.md</code></div>
+  https://listhub.globalbr.ai/api/v1/featured/music/index.md</code></div>
 
 <p><strong>Fields:</strong></p>
 <ul>
@@ -742,11 +742,11 @@ git clone https://alice:mem_abc123...@listhub.globalbr.ai/git/directory.git</cod
 <p><strong>Response:</strong></p>
 <div class="code-block"><code>{"ok": true, "path": "music/index.md", "commit": "abc123..."}</code></div>
 
-<h3>Delete a directory file</h3>
-<p><code>DELETE /api/v1/directory/:path</code> — requires <code>write</code> scope</p>
+<h3>Delete a Featured file</h3>
+<p><code>DELETE /api/v1/featured/:path</code> — requires <code>write</code> scope</p>
 
 <div class="code-block"><code>curl -X DELETE -H "Authorization: Bearer $KEY" \
-  https://listhub.globalbr.ai/api/v1/directory/music/index.md</code></div>
+  https://listhub.globalbr.ai/api/v1/featured/music/index.md</code></div>
 
 <p><strong>Response:</strong> <code>{"ok": true, "path": "music/index.md", "commit": "def456..."}</code></p>
 
