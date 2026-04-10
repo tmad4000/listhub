@@ -5,13 +5,13 @@
 <div class="profile-header">
     <h1>{{ profile_user.display_name or profile_user.username }}</h1>
     <div class="username">@{{ profile_user.username }}</div>
-    {% if home_item %}
+    {% if home_item and not home_content %}
     <div style="margin-top: 10px;">
         <a href="/@{{ profile_user.username }}/{{ home_item.slug }}" class="btn btn-primary btn-sm" title="{{ home_item.title or 'Home page' }}">
             &#127968; {{ home_item.title or "Home page" }}
         </a>
     </div>
-    {% elif is_owner %}
+    {% elif is_owner and not home_item %}
     <div style="margin-top: 10px; font-size: 13px; color: var(--text-muted);">
         <a href="{{ url_for('views.new_item') }}?slug=home" style="color: var(--text-muted);" title="Create a home page for your profile">
             + Set up your home page
@@ -19,6 +19,12 @@
     </div>
     {% endif %}
 </div>
+
+{% if home_content %}
+<div class="rendered-content">
+    {{ home_content|safe }}
+</div>
+{% endif %}
 
 {% if wikis %}
 <div class="wikis-section">

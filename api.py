@@ -112,19 +112,23 @@ def list_items():
     if tag:
         result = [i for i in result if tag in i.get('tags', [])]
 
-    # Filter by search query using FTS5
+    # Filter by search query using FTS5 (title 10x, content 1x, tags 5x)
     if q:
-        fts_ids = set()
         fts_rows = db.execute(
-            "SELECT rowid FROM item_fts WHERE item_fts MATCH ?", (q,)
+            "SELECT rowid, bm25(item_fts, 10.0, 1.0, 5.0) AS rank "
+            "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
+            (q,)
         ).fetchall()
+        fts_ordered_ids = []
         for row in fts_rows:
             real = db.execute(
                 "SELECT id FROM item WHERE rowid = ?", (row['rowid'],)
             ).fetchone()
             if real:
-                fts_ids.add(real['id'])
-        result = [i for i in result if i['id'] in fts_ids]
+                fts_ordered_ids.append(real['id'])
+        id_set = set(fts_ordered_ids)
+        item_map = {i['id']: i for i in result if i['id'] in id_set}
+        result = [item_map[iid] for iid in fts_ordered_ids if iid in item_map]
 
     return jsonify(result)
 
@@ -749,7 +753,9 @@ def search():
 
     try:
         fts_rows = db.execute(
-            "SELECT rowid FROM item_fts WHERE item_fts MATCH ?", (q,)
+            "SELECT rowid, bm25(item_fts, 10.0, 1.0, 5.0) AS rank "
+            "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
+            (q,)
         ).fetchall()
     except Exception:
         return jsonify({"error": "Invalid search query"}), 400

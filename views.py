@@ -682,14 +682,18 @@ def browse():
     if q:
         try:
             fts_rows = db.execute(
-                "SELECT rowid FROM item_fts WHERE item_fts MATCH ?", (q,)
+                "SELECT rowid, bm25(item_fts, 10.0, 1.0, 5.0) AS rank "
+                "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
+                (q,)
             ).fetchall()
-            fts_ids = set()
+            fts_ordered_ids = []
             for row in fts_rows:
                 real = db.execute("SELECT id FROM item WHERE rowid = ?", (row['rowid'],)).fetchone()
                 if real:
-                    fts_ids.add(real['id'])
-            items = [i for i in items if i['id'] in fts_ids]
+                    fts_ordered_ids.append(real['id'])
+            id_set = set(fts_ordered_ids)
+            item_map = {i['id']: i for i in items if i['id'] in id_set}
+            items = [item_map[iid] for iid in fts_ordered_ids if iid in item_map]
         except Exception:
             flash('Invalid search query.', 'error')
 
@@ -734,14 +738,18 @@ def dashboard():
     if q:
         try:
             fts_rows = db.execute(
-                "SELECT rowid FROM item_fts WHERE item_fts MATCH ?", (q,)
+                "SELECT rowid, bm25(item_fts, 10.0, 1.0, 5.0) AS rank "
+                "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
+                (q,)
             ).fetchall()
-            fts_rowids = set()
+            fts_ordered_ids = []
             for row in fts_rows:
                 real = db.execute("SELECT id FROM item WHERE rowid = ?", (row['rowid'],)).fetchone()
                 if real:
-                    fts_rowids.add(real['id'])
-            items_with_tags = [i for i in items_with_tags if i['id'] in fts_rowids]
+                    fts_ordered_ids.append(real['id'])
+            id_set = set(fts_ordered_ids)
+            item_map = {i['id']: i for i in items_with_tags if i['id'] in id_set}
+            items_with_tags = [item_map[iid] for iid in fts_ordered_ids if iid in item_map]
         except Exception:
             flash('Invalid search query.', 'error')
 
@@ -1027,14 +1035,18 @@ def user_profile(username):
     if view_mode == 'folders':
         folder_tree = build_folder_tree(items_with_tags)
 
-    # Look up the user's "home" item (special slug). Shows a prominent button
-    # on the profile header if present. Non-owners only see it when public.
+    # Look up the user's "home" item (special slug). Render its markdown
+    # content inline on the profile page. Non-owners only see it when public.
     home_item = db.execute(
-        "SELECT id, slug, title, visibility FROM item WHERE owner_id = ? AND slug = 'home'",
+        "SELECT id, slug, title, visibility, content FROM item WHERE owner_id = ? AND slug = 'home'",
         (user.id,)
     ).fetchone()
     if home_item and not is_owner and home_item['visibility'] not in ('public', 'public_edit', 'unlisted'):
         home_item = None
+
+    home_content = None
+    if home_item and home_item['content']:
+        home_content = render_md(home_item['content'], is_owner=is_owner)
 
     # Build wikis: top-level folders (distinct first path segments from items
     # with file_path containing '/'). Each wiki shows folder name + item count.
@@ -1050,6 +1062,7 @@ def user_profile(username):
     return render_template('profile.html', profile_user=user, items=items_with_tags,
                            view_mode=view_mode, folder_tree=folder_tree, is_owner=is_owner,
                            home_item=dict(home_item) if home_item else None,
+                           home_content=home_content,
                            wikis=wikis)
 
 
