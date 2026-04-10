@@ -36,25 +36,8 @@
         {% endif %}
     </div>
 
-    <div class="form-group">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <label for="content">Content <span style="color: var(--text-muted);">(Markdown)</span></label>
-            <button type="button" id="toggle-editor" class="btn btn-sm">Switch to Raw</button>
-        </div>
-        <div id="milkdown-editor"></div>
-        <textarea id="content" name="content" class="raw-editor" style="display: none;">{{ item.content if item else '' }}</textarea>
-    </div>
-
     {% if not (public_edit_mode is defined and public_edit_mode) %}
     <div class="form-row">
-        <div class="form-group">
-            <label for="item_type">Type</label>
-            <select id="item_type" name="item_type">
-                <option value="note" {% if item and item.item_type == 'note' %}selected{% endif %}>Note</option>
-                <option value="list" {% if item and item.item_type == 'list' %}selected{% endif %}>List</option>
-                <option value="document" {% if item and item.item_type == 'document' %}selected{% endif %}>Document</option>
-            </select>
-        </div>
         <div class="form-group">
             <label for="visibility">Visibility</label>
             <select id="visibility" name="visibility">
@@ -63,6 +46,14 @@
                 <option value="public" {% if item and item.visibility == 'public' %}selected{% endif %}>Public (view only)</option>
                 <option value="unlisted" {% if item and item.visibility == 'unlisted' %}selected{% endif %}>Unlisted (accessible via link)</option>
                 <option value="public_edit" {% if item and item.visibility == 'public_edit' %}selected{% endif %}>Public (anyone can edit)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="item_type">Type</label>
+            <select id="item_type" name="item_type">
+                <option value="note" {% if item and item.item_type == 'note' %}selected{% endif %}>Note</option>
+                <option value="list" {% if item and item.item_type == 'list' %}selected{% endif %}>List</option>
+                <option value="document" {% if item and item.item_type == 'document' %}selected{% endif %}>Document</option>
             </select>
         </div>
         <div class="form-group">
@@ -80,6 +71,15 @@
         </div>
     </div>
     {% endif %}
+
+    <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label for="content">Content <span style="color: var(--text-muted);">(Markdown)</span></label>
+            <button type="button" id="toggle-editor" class="btn btn-sm">Switch to Raw</button>
+        </div>
+        <div id="milkdown-editor"></div>
+        <textarea id="content" name="content" class="raw-editor" style="display: none;">{{ item.content if item else '' }}</textarea>
+    </div>
 
     <div style="display: flex; gap: 12px; margin-top: 8px;">
         <button type="submit" class="btn btn-primary">{% if item %}Save Changes{% else %}Create List{% endif %}</button>
