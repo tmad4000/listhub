@@ -664,6 +664,25 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     border: 1px solid rgba(212, 160, 74, 0.3);
 }
 
+/* SVG visibility badges */
+.vis-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    line-height: 1;
+    vertical-align: middle;
+}
+.vis-badge .vis-icon { flex-shrink: 0; vertical-align: middle; }
+.vis-badge .vis-icon-sm { margin-left: -2px; }
+.vis-badge .vis-label { white-space: nowrap; }
+.vis-badge--public  { color: var(--green); }
+.vis-badge--private { color: var(--red); }
+.vis-badge--shared  { color: var(--purple); }
+.vis-badge--unlisted { color: var(--text-muted); }
+.vis-badge--public_edit { color: var(--accent); }
+.vis-badge--mixed   { color: var(--text-muted); }
+
 /* Nav dropdown */
 .nav-dropdown {
     position: relative;

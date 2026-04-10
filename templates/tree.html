@@ -4,6 +4,7 @@
      tree_owner   — username string for URL construction
      tree_editable — bool, whether to show Edit buttons
    ────────────────────────────────────────────────── #}
+{% from '_badges.html' import visibility_icon %}
 <div class="tree-container">
   {% for node in folder_tree %}
     {% if node.type == 'folder' %}
@@ -19,7 +20,7 @@
         </span>
         <span class="tree-name"><a href="/@{{ tree_owner }}/{{ node.path }}/" title="Open folder">{{ node.name }}</a></span>
         {% if node.visibility_summary %}
-        <span class="tree-vis tree-vis-folder" title="folder visibility: {{ node.visibility_summary }}">{% if node.visibility_summary == 'private' %}&#128274;{% elif node.visibility_summary == 'public' %}&#127760;{% elif node.visibility_summary == 'public_edit' %}&#9999;&#65039;{% elif node.visibility_summary == 'shared' %}&#128279;{% elif node.visibility_summary == 'mixed' %}&#9680;{% endif %}</span>
+        {{ visibility_icon(node.visibility_summary) }}
         {% endif %}
         <span class="tree-count">{{ node.count }}</span>
       </div>
@@ -46,7 +47,7 @@
         </span>
         <span class="tree-name"><a href="/@{{ tree_owner }}/{{ node.item.slug }}">{{ node.item.title or node.item.slug }}</a></span>
         <div class="tree-meta">
-          <span class="tree-vis" title="{{ node.item.visibility }}">{% if node.item.visibility == 'private' %}&#128274;{% elif node.item.visibility == 'public' %}&#127760;{% else %}&#128279;{% endif %}</span>
+          {{ visibility_icon(node.item.visibility) }}
           <span class="tree-badge tree-badge--{{ node.item.item_type }}">{{ node.item.item_type }}</span>
           {% for tag in node.item.tags %}<span class="tree-tag">{{ tag }}</span>{% endfor %}
         </div>
