@@ -67,7 +67,7 @@ def build_folder_tree(items_list):
                 'visibility_summary': folder_visibility_summary(child),
             })
             result.extend(tree_to_list(child, depth + 1, full_path + '/'))
-        for f in node['files']:
+        for f in sorted(node['files'], key=lambda x: (x.get('position', 0), (x.get('title') or x.get('slug') or '').lower())):
             result.append({'type': 'file', 'item': f, 'depth': depth})
         return result
 
@@ -534,7 +534,7 @@ def user_folder(username, subpath):
             "count": len(sub_rows),
             "visibility_summary": vis_summary,
         })
-    for r in sorted(direct_files, key=lambda x: ((x["title"] or x["slug"]) or "").lower()):
+    for r in sorted(direct_files, key=lambda x: (x["position"] if "position" in x.keys() else 0, ((x["title"] or x["slug"]) or "").lower())):
         if (r["slug"] or "").lower() == "readme":
             continue  # skip README in the listing; it gets rendered separately
         children.append({

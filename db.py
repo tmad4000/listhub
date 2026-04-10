@@ -101,6 +101,12 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
 
+    # Add position column for folder ordering
+    try:
+        conn.execute("ALTER TABLE item ADD COLUMN position INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
     conn.commit()
     conn.close()
 
