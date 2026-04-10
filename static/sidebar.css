@@ -148,22 +148,23 @@ body.has-sidebar.sb-collapsed .app-main.container {
 .sb-section-chevron {
     background: transparent;
     border: none;
-    color: var(--text-muted, #8b949e);
-    padding: 8px 6px;
+    color: var(--text-dim, #5a5248);
+    padding: 6px 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 3px;
+    border-radius: 4px;
     flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
 }
 .sb-section-chevron svg {
     width: 14px !important;
     height: 14px !important;
 }
 .sb-section-chevron:hover {
-    color: var(--text, #e6edf3);
-    background: rgba(200, 180, 150, 0.04);
+    color: var(--text, #e8e0d4);
+    background: rgba(200, 180, 150, 0.1);
 }
 .sb-section-chevron svg {
     transition: transform 0.15s;
@@ -191,17 +192,22 @@ body.has-sidebar.sb-collapsed .app-main.container {
 }
 
 .sb-section-action {
-    color: var(--text-dim, #484f58);
+    color: var(--text-dim, #5a5248);
     font-size: 14px;
     line-height: 1;
-    padding: 2px 6px;
-    border-radius: 3px;
+    padding: 4px 8px;
+    border-radius: 4px;
     text-decoration: none;
     flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.12s, background 0.12s;
+}
+.sb-section-header:hover .sb-section-action {
+    opacity: 1;
 }
 .sb-section-action:hover {
-    color: var(--accent, #58a6ff);
-    background: rgba(200, 180, 150, 0.08);
+    color: var(--accent, #d4a04a);
+    background: rgba(200, 180, 150, 0.1);
     text-decoration: none;
 }
 

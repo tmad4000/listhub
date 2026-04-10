@@ -417,13 +417,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     top: 0;
     bottom: 0;
     width: 1px;
-    background: var(--border);
-    opacity: 0.45;
+    background: rgba(200, 180, 150, 0.08);
     transition: opacity 0.15s, background 0.15s;
 }
 .tree-row:hover .tree-guide::after {
-    opacity: 0.9;
-    background: rgba(212, 160, 74, 0.25);
+    background: rgba(200, 180, 150, 0.15);
 }
 
 .tree-row-inner {
@@ -470,7 +468,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* Labels */
 .tree-name {
-    font-size: 13px;
+    font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -479,7 +477,13 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .tree-row--folder .tree-name {
     font-weight: 600;
     color: var(--text);
-    font-family: var(--font-mono);
+}
+.tree-row--folder .tree-name a {
+    color: inherit;
+    text-decoration: none;
+}
+.tree-row--folder .tree-name a:hover {
+    color: var(--accent);
 }
 .tree-row--file .tree-name a {
     color: var(--text-muted);
