@@ -5,6 +5,10 @@
 <div class="profile-header">
     <h1>{{ profile_user.display_name or profile_user.username }}</h1>
     <div class="username">@{{ profile_user.username }}</div>
+    <div class="clone-url" style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
+      <code style="background: var(--bg-secondary); padding: 3px 8px; border-radius: 3px; font-size: 11px;">git clone https://listhub.globalbr.ai/@{{ profile_user.username }}.git</code>
+      <button onclick="navigator.clipboard.writeText('git clone https://listhub.globalbr.ai/@{{ profile_user.username }}.git')" class="btn btn-sm" style="font-size: 11px; padding: 2px 8px; margin-left: 4px;" title="Copy">Copy</button>
+    </div>
     {% if home_item and not home_content %}
     <div style="margin-top: 10px;">
         <a href="/@{{ profile_user.username }}/{{ home_item.slug }}" class="btn btn-primary btn-sm" title="{{ home_item.title or 'Home page' }}">

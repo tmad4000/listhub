@@ -52,6 +52,9 @@
         <a href="{{ url_for('views.featured') }}" class="sb-section-action" title="Open featured">↗</a>
       </div>
       <div class="sb-section-body">
+        <a href="/featured" class="sb-file-link" style="display: block; padding: 2px 0 6px 4px; font-size: 13px; color: var(--accent); text-decoration: none; font-weight: 500;">
+          <span class="sb-name">Featured</span>
+        </a>
         {% if sidebar_community_tree %}
           {% with nodes=sidebar_community_tree, link_prefix='/featured/', storage_key='sb_community' %}
             {% include '_sidebar_tree.html' %}
