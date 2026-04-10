@@ -54,13 +54,17 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
 .header {
     border-bottom: 1px solid var(--border);
-    padding: 12px 0;
-    margin-bottom: 24px;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
 }
 .header-inner {
-    max-width: var(--max-width);
+    max-width: calc(var(--max-width) + 300px);
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 0 24px;
+    height: 56px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -68,13 +72,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .logo {
     font-family: var(--font-mono);
     font-size: 1.125rem;
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: -0.02em;
     color: var(--text);
 }
-.logo .bracket { color: var(--text-dim); }
-.logo .name { color: var(--text); }
-.logo:hover { color: var(--text); text-decoration: none; }
+.logo:hover { color: var(--accent); text-decoration: none; }
 .header-nav { display: flex; gap: 16px; align-items: center; }
 .header-nav a { color: var(--text-muted); font-size: 14px; }
 .header-nav a:hover { color: var(--text); text-decoration: none; }

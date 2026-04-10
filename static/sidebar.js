@@ -173,6 +173,15 @@
     });
   }
 
+  // Expand button (visible when collapsed)
+  var expandBtn = document.getElementById('sb-expand');
+  if (expandBtn) {
+    expandBtn.addEventListener('click', function () {
+      body.classList.remove('sb-collapsed');
+      try { localStorage.setItem(COLLAPSED_KEY, '0'); } catch (e) {}
+    });
+  }
+
   document.querySelectorAll('.sb-sidebar .sb-file-link, .sb-sidebar .sb-folder-link').forEach(function (a) {
     a.addEventListener('click', function () {
       if (isMobile()) body.classList.remove('sb-open');

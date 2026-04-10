@@ -30,20 +30,20 @@ body.has-sidebar .app-layout {
     display: grid;
     grid-template-columns: var(--sb-width) minmax(0, 1fr);
     min-height: calc(100vh - var(--sb-header-height));
-    max-width: calc(var(--sb-width) + 900px + 40px);
-    margin: 0 auto;
+    max-width: none;
+    margin: 0;
     gap: 0;
 }
 
 body.has-sidebar .app-main {
     min-width: 0;
-    padding: 24px 20px 40px;
+    padding: 24px 40px 40px;
 }
 
 body.has-sidebar .app-main.container {
     max-width: 900px;
-    margin-left: 0;
-    margin-right: 0;
+    margin-left: 40px;
+    margin-right: auto;
 }
 
 /* COLLAPSED — behave exactly like the pre-sidebar layout */
@@ -348,23 +348,52 @@ body.has-sidebar.sb-collapsed .app-main.container {
     color: var(--text, #e6edf3);
 }
 
-/* ── Header sidebar toggle button ── */
+/* ── Sidebar header (contains collapse button) ── */
+.sb-sidebar-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 8px 0;
+}
 .sb-toggle {
     background: transparent;
-    border: 1px solid var(--border, #30363d);
-    color: var(--text-muted, #8b949e);
-    padding: 4px 8px;
+    border: none;
+    color: var(--text-dim, #5a5248);
+    padding: 6px;
     border-radius: 4px;
     cursor: pointer;
-    margin-right: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: color 0.12s, background 0.12s;
 }
 .sb-toggle:hover {
-    color: var(--text, #e6edf3);
-    border-color: var(--text-muted, #8b949e);
+    color: var(--text, #e8e0d4);
+    background: rgba(200, 180, 150, 0.1);
 }
+
+/* Expand button — visible only when sidebar is collapsed */
+.sb-expand {
+    display: none;
+    position: fixed;
+    left: 0;
+    top: 68px;
+    z-index: 50;
+    background: var(--bg-secondary);
+    border: none;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 6px;
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    transition: color 0.12s, background 0.12s;
+}
+.sb-expand:hover {
+    color: var(--text);
+    background: var(--bg-tertiary);
+}
+body.has-sidebar.sb-collapsed .sb-expand { display: flex; }
+
 body.has-sidebar .header-inner {
     gap: 0;
 }
@@ -478,13 +507,17 @@ body.has-sidebar .header-inner {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     padding: 5px 8px 5px 2px;
     font-size: 14px;
     color: var(--text, #e8e0d4);
     text-decoration: none;
     font-weight: 500;
     min-width: 0;
+}
+.sb-folder-link .vis-badge {
+    margin-left: 2px;
+    flex-shrink: 0;
 }
 .sb-folder-link:hover {
     color: var(--accent, #d4a04a);
