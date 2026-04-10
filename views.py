@@ -499,17 +499,20 @@ def user_folder(username, subpath):
             readme_is_editable = is_owner
             break
 
-    # Find index item (slug "index" or file_path "folder/index.md") to show
-    # above the folder listing.  Falls back to README if no index found.
+    # Find index item (slug "index", "home", or "readme") to show
+    # above the folder listing.  Priority: index > home > readme.
     index_content = None
     index_item_id = None
     index_is_editable = False
-    for r in direct_files:
-        slug_lower = (r["slug"] or "").lower()
-        if slug_lower == "index":
-            index_content = render_md(r["content"] or "", is_owner=is_owner)
-            index_item_id = r["id"]
-            index_is_editable = is_owner
+    for candidate in ("index", "home", "readme"):
+        for r in direct_files:
+            slug_lower = (r["slug"] or "").lower()
+            if slug_lower == candidate:
+                index_content = render_md(r["content"] or "", is_owner=is_owner)
+                index_item_id = r["id"]
+                index_is_editable = is_owner
+                break
+        if index_content:
             break
 
     # Build children list for the template: folders first, then files (sans README)
