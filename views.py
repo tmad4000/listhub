@@ -681,19 +681,40 @@ def browse():
 
     if q:
         try:
+            # bm25 weights: title 3x, content 1x, tags 2x
             fts_rows = db.execute(
-                "SELECT rowid, bm25(item_fts, 10.0, 1.0, 5.0) AS rank "
+                "SELECT rowid, bm25(item_fts, 3.0, 1.0, 2.0) AS rank "
                 "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
                 (q,)
             ).fetchall()
             fts_ordered_ids = []
+            match_info = {}
+            q_lower = q.lower()
             for row in fts_rows:
-                real = db.execute("SELECT id FROM item WHERE rowid = ?", (row['rowid'],)).fetchone()
+                real = db.execute("SELECT id, title, slug FROM item WHERE rowid = ?", (row['rowid'],)).fetchone()
                 if real:
                     fts_ordered_ids.append(real['id'])
+                    # Detect where the match occurred for visual indicator
+                    title_l = (real['title'] or '').lower()
+                    slug_l = (real['slug'] or '').lower()
+                    if q_lower in title_l or q_lower in slug_l:
+                        match_info[real['id']] = 'title'
+                    else:
+                        # Check tags
+                        tags_row = db.execute(
+                            "SELECT GROUP_CONCAT(tag, ' ') as t FROM item_tag WHERE item_id = ?",
+                            (real['id'],)
+                        ).fetchone()
+                        if tags_row and tags_row['t'] and q_lower in tags_row['t'].lower():
+                            match_info[real['id']] = 'tag'
+                        else:
+                            match_info[real['id']] = 'content'
             id_set = set(fts_ordered_ids)
             item_map = {i['id']: i for i in items if i['id'] in id_set}
             items = [item_map[iid] for iid in fts_ordered_ids if iid in item_map]
+            # Attach match_type to each item
+            for item in items:
+                item['match_type'] = match_info.get(item['id'], 'content')
         except Exception:
             flash('Invalid search query.', 'error')
 
@@ -738,7 +759,7 @@ def dashboard():
     if q:
         try:
             fts_rows = db.execute(
-                "SELECT rowid, bm25(item_fts, 10.0, 1.0, 5.0) AS rank "
+                "SELECT rowid, bm25(item_fts, 3.0, 1.0, 2.0) AS rank "
                 "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
                 (q,)
             ).fetchall()

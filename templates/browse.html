@@ -49,6 +49,9 @@
                     {% for tag in item.tags %}
                         <span class="tag">{{ tag }}</span>
                     {% endfor %}
+                    {% if q and item.match_type %}
+                    <span class="match-indicator match-{{ item.match_type }}">{{ item.match_type }}</span>
+                    {% endif %}
                     <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
                 </div>
             </div>

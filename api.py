@@ -115,7 +115,7 @@ def list_items():
     # Filter by search query using FTS5 (title 10x, content 1x, tags 5x)
     if q:
         fts_rows = db.execute(
-            "SELECT rowid, bm25(item_fts, 10.0, 1.0, 5.0) AS rank "
+            "SELECT rowid, bm25(item_fts, 3.0, 1.0, 2.0) AS rank "
             "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
             (q,)
         ).fetchall()
@@ -753,7 +753,7 @@ def search():
 
     try:
         fts_rows = db.execute(
-            "SELECT rowid, bm25(item_fts, 10.0, 1.0, 5.0) AS rank "
+            "SELECT rowid, bm25(item_fts, 3.0, 1.0, 2.0) AS rank "
             "FROM item_fts WHERE item_fts MATCH ? ORDER BY rank",
             (q,)
         ).fetchall()
