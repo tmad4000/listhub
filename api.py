@@ -13,7 +13,7 @@ from git_sync import sync_item_to_repo, remove_from_repo
 
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
-VALID_VISIBILITIES = ('private', 'shared', 'public', 'public_edit')
+VALID_VISIBILITIES = ('private', 'shared', 'public', 'public_edit', 'unlisted')
 
 
 def slugify(text):

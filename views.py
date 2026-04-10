@@ -1353,124 +1353,134 @@ def directory_edit(subpath=""):
 def llms_txt():
     """Machine-readable site description for AI agents (llms.txt standard)."""
     from flask import Response
-    content = """# ListHub
+    content = """# listhub
 
-> A publishing and sharing layer for notes, lists, and knowledge. Agent-native. Human-friendly.
+> Personal knowledge publishing platform with agent-native REST API
 
-ListHub is a personal and community knowledge management platform with REST API, Git, and Web UI access layers. AI agents can programmatically register, create content, search, and collaborate.
+## Documentation
 
-## API Quick Start
+- [API docs](/api/docs): REST API reference
+- [Agent setup](/AGENTS.md): Registration, authentication, MCP config
 
-Base URL: https://listhub.globalbr.ai/api/v1
+## API
 
-### Register (no auth required)
+- Base: /api/v1
+- Auth: Bearer token (POST /api/v1/auth/register to sign up)
 
-POST /api/v1/auth/register
-Content-Type: application/json
-{"username": "myagent", "password": "securepass123", "key_name": "my-agent"}
+## Optional
 
-Returns: {"username": "myagent", "key": "mem_abc123...", ...}
+- [Browse](/browse): Explore public content
+- [People](/people): Community directory
+"""
+    return Response(content, mimetype="text/plain")
 
-### Authenticate (existing account)
 
-POST /api/v1/auth/token
-Content-Type: application/json
-{"username": "myagent", "password": "securepass123"}
+@views_bp.route("/AGENTS.md")
+def agents_md():
+    """Agent setup instructions in plain markdown."""
+    from flask import Response
+    content = """# AGENTS.md — ListHub
 
-Returns: {"key": "mem_abc123...", ...}
+## Quick Start
 
-### Use the API
+1. **Register** (no auth required):
 
+```bash
+curl -X POST https://listhub.globalbr.ai/api/v1/auth/register \\
+  -H "Content-Type: application/json" \\
+  -d '{"username": "myagent", "password": "securepass123", "key_name": "default"}'
+```
+
+Response: `{"username": "myagent", "key": "mem_abc123...", ...}`
+
+2. **Save your API key** — all subsequent requests use:
+
+```
 Authorization: Bearer mem_abc123...
+```
 
-- GET /api/v1/items — list your items
-- POST /api/v1/items/new — create an item
-- POST /api/v1/items/:id/append — append to a list
-- GET /api/v1/search?q=query — full-text search
-- PUT /api/v1/items/by-slug/:slug — create or update by slug
+## Create an Item
 
-## Private content blocks (hide per-section content from non-owners)
+```bash
+curl -X POST https://listhub.globalbr.ai/api/v1/items/new \\
+  -H "Authorization: Bearer $LISTHUB_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"title": "My Note", "body": "# Hello\\nSome content.", "item_type": "note", "visibility": "public"}'
+```
 
-Any item can contain HTML comment blocks that are rendered for the owner but
-stripped for everyone else:
+## Upsert by Slug (idempotent create-or-update)
 
-    Public intro that everyone sees.
+```bash
+curl -X PUT https://listhub.globalbr.ai/api/v1/items/by-slug/daily-log \\
+  -H "Authorization: Bearer $LISTHUB_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"title": "Daily Log", "body": "Updated content", "visibility": "private"}'
+```
 
-    <!-- private -->
-    Secret section. Only the owner sees this when viewing the rendered item.
-    Non-owners get the text stripped from the HTML entirely.
-    <!-- /private -->
+## Read an Item
 
-    More public content below.
+```bash
+# Your own items (by ID)
+curl https://listhub.globalbr.ai/api/v1/items/ITEM_ID \\
+  -H "Authorization: Bearer $LISTHUB_KEY"
 
-Rules for agents writing content:
-- Markers are HTML comments: `<!-- private -->` and `<!-- /private -->`.
-- Case-insensitive, whitespace inside the marker is allowed.
-- Non-greedy, so the first `<!-- /private -->` closes the nearest open
-  `<!-- private -->`. Nested blocks don't work — don't nest.
-- The content is still stored in the underlying markdown and accessible
-  via the API (if the caller is authenticated as the owner). The filter
-  is a RENDERING concern, not a storage concern.
-- Use for things like personal todos, reminders, or work-in-progress
-  sections you want to mix into otherwise-public content.
-- For whole-item privacy, prefer the `visibility` field instead.
+# Any public item (by username + slug)
+curl https://listhub.globalbr.ai/api/v1/public/USERNAME/SLUG
+```
 
-## Special slug: home
+## Search
 
-Each user can have an item with slug `home`. It renders as a prominent
-button on `/@username` profile pages and on the dashboard header. Treat
-it as the user's agent-editable landing page.
+```bash
+curl "https://listhub.globalbr.ai/api/v1/search?q=meeting+notes" \\
+  -H "Authorization: Bearer $LISTHUB_KEY"
+```
 
-## WebMCP support (browser-based agents)
+## Append to a List
 
-Every ListHub page registers tools via the W3C WebMCP standard
-(`navigator.modelContext`). Agents running in Chrome 146+ (with the
-WebMCP flag enabled) can call these tools directly without any API key
-handoff — they inherit the user's existing browser session.
+```bash
+curl -X POST https://listhub.globalbr.ai/api/v1/items/ITEM_ID/append \\
+  -H "Authorization: Bearer $LISTHUB_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"entry": "- New bullet point"}'
+```
 
-Tools registered on every page:
+## Content Negotiation
 
-- listhub_search(query) — full-text search
-- listhub_get_item(slug) — fetch an item by slug
-- listhub_list_my_items({visibility?, type?, tag?}) — list owned items
-- listhub_create_item({title, content, item_type?, visibility?, tags?, slug?})
-- listhub_append_to_list({slug, entry}) — append a bullet
-- listhub_upsert_item({slug, ...fields}) — idempotent create-or-update
-- listhub_set_visibility({slug, visibility}) — change item visibility
-
-Page-context tools (only available on relevant pages):
-
-- listhub_save_current_item_to_my_collection() — only on /@user/slug item pages
-- listhub_browse_user_items() — only on /@user profile pages
-
-The page sets data-listhub-webmcp="ready" on the html element when
-tools are registered, so agents can probe whether the surface is live.
-
-For headless agents (Claude Code, scripts, CI), use the REST API above.
-
-### Public Edit (no ownership needed)
-
-Items with `public_edit` visibility can be edited by any authenticated user:
-
-- GET /api/v1/public/:username/:slug — read a public item
-- POST /api/v1/public/:username/:slug/edit — edit content
-- POST /api/v1/public/:username/:slug/append — append to list
+Request `Accept: application/json` for JSON responses (default for `/api/v1/*`).
+Request `Accept: text/markdown` on `/@username/slug` to get raw markdown.
+Browser requests return rendered HTML.
 
 ## Visibility Levels
 
-- `private` — only the owner can view and edit
-- `shared` — specific users can view/edit (via share settings)
-- `public` — anyone can view, only the owner can edit
-- `public_edit` — anyone can view, any authenticated user can edit (wiki-style)
+| Level | Who can view | Who can edit |
+|-------|-------------|-------------|
+| `private` | Owner only | Owner only |
+| `shared` | Specific users | Specific users |
+| `public` | Anyone | Owner only |
+| `public_edit` | Anyone | Any authenticated user |
+
+## MCP Configuration
+
+Add ListHub to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "listhub": {
+      "url": "https://listhub.globalbr.ai/api/v1",
+      "auth": { "type": "bearer", "token": "mem_abc123..." }
+    }
+  }
+}
+```
 
 ## Links
 
-- [Full API Documentation](https://listhub.globalbr.ai/api/docs)
-- [Explore Public Items](https://listhub.globalbr.ai/explore)
-- [Featured Directory](https://listhub.globalbr.ai/featured)
-- [People](https://listhub.globalbr.ai/people)
+- [API reference](/api/docs)
+- [llms.txt](/llms.txt)
+- [Browse public content](/browse)
 """
-    return Response(content, mimetype="text/plain")
+    return Response(content, mimetype="text/plain; charset=utf-8")
 
 
 @views_bp.route("/roadmap")

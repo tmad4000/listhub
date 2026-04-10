@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Edit: {{ file_path }} — Directory — ListHub{% endblock %}
+{% block title %}Edit: {{ file_path }} — Featured — ListHub{% endblock %}
 {% block content %}
 <div class="toolbar">
     <div class="directory-breadcrumbs">
-        <a href="{{ url_for('views.directory') }}">Directory</a>
+        <a href="{{ url_for('views.featured') }}">Featured</a>
         <span style="color: var(--text-muted);"> / </span>
         <span>Editing: <code>{{ file_path }}</code></span>
     </div>
@@ -20,7 +20,7 @@
     <div style="display: flex; gap: 12px; align-items: center;">
         <input type="text" name="message" placeholder="Commit message (optional)" style="flex: 1; padding: 8px 12px; background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px;">
         <button type="submit" class="btn btn-primary">Save</button>
-        <a href="{{ url_for('views.directory', subpath=subpath) }}" class="btn">Cancel</a>
+        <a href="{{ url_for('views.featured', subpath=subpath) }}" class="btn">Cancel</a>
     </div>
 </form>
 {% endblock %}

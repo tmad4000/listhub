@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from '_badges.html' import visibility_badge %}
 {% block title %}ListHub — Publish and share lists, notes, and knowledge{% endblock %}
 {% block content %}
 <div class="hero">
@@ -46,7 +47,7 @@
     </div>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px;">
         {% for topic in directory_topics %}
-        <a href="/directory/{{ topic.path }}" style="display: block; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-decoration: none; transition: border-color 0.15s;">
+        <a href="/featured/{{ topic.path }}" style="display: block; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-decoration: none; transition: border-color 0.15s;">
             <div style="font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px;">{{ topic.name }}</div>
             {% if topic.description %}<div style="font-size: 12px; color: var(--text-muted); margin-bottom: 2px;">{{ topic.description }}</div>{% endif %}
             <div style="font-size: 11px; color: var(--text-dim);">{{ topic.count }} item{{ 's' if topic.count != 1 }}</div>
@@ -70,7 +71,7 @@
                 <div class="item-meta">
                     <a href="/@{{ item.username }}" style="color: var(--text-muted);">@{{ item.username }}</a>
                     {% if item.visibility == 'public_edit' %}
-                    <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039;</span>
+                    {{ visibility_badge('public_edit', show_label=false) }}
                     {% endif %}
                     <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
                     <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
@@ -89,7 +90,7 @@
 <section style="margin-bottom: 32px;">
     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
         <h2 style="font-size: 15px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Contributors</h2>
-        <a href="{{ url_for('views.community') }}" style="font-size: 13px;">All people &rarr;</a>
+        <a href="{{ url_for('views.people') }}" style="font-size: 13px;">All people &rarr;</a>
     </div>
     <div style="display: flex; flex-wrap: wrap; gap: 10px;">
         {% for user in active_users %}

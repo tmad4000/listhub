@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}{{ title }} — Directory — ListHub{% endblock %}
+{% block title %}{{ title }} — Featured — ListHub{% endblock %}
 {% block content %}
 {# Build shared-partial-shaped crumbs from the directory view data #}
-{% set crumb_list = [{"name": "Directory", "url": url_for('views.directory')}] %}
+{% set crumb_list = [{"name": "Featured", "url": url_for('views.featured')}] %}
 {% for crumb in breadcrumbs %}
   {% set is_last = loop.last %}
-  {% set _ = crumb_list.append({"name": crumb.name, "url": None if is_last else url_for('views.directory', subpath=crumb.path)}) %}
+  {% set _ = crumb_list.append({"name": crumb.name, "url": None if is_last else url_for('views.featured', subpath=crumb.path)}) %}
 {% endfor %}
 {# If no subpath, mark Directory as current #}
 {% if not breadcrumbs %}
-  {% set crumb_list = [{"name": "Directory", "url": None}] %}
+  {% set crumb_list = [{"name": "Featured", "url": None}] %}
 {% endif %}
 {% with crumbs=crumb_list %}
   {% include '_breadcrumbs.html' %}
@@ -48,7 +48,7 @@
                         <div class="dir-node" data-path="{{ node.path }}">
                             <div class="dir-row {% if is_active %}dir-active{% endif %}" style="padding-left: {{ 12 + depth * 16 }}px;">
                                 {% if node.children %}<span class="dir-toggle {% if is_active or is_ancestor %}dir-open{% endif %}" onclick="toggleDir(this)"></span>{% else %}<span class="dir-toggle-spacer"></span>{% endif %}
-                                <a href="{{ url_for('views.directory', subpath=node.path) }}" class="dir-link">
+                                <a href="{{ url_for('views.featured', subpath=node.path) }}" class="dir-link">
                                     {{ node.name }}
                                 </a>
                                 {% if node.count > 0 %}
@@ -62,7 +62,7 @@
                     {% else %}
                         <div class="dir-row" style="padding-left: {{ 12 + depth * 16 }}px;">
                             <span class="dir-toggle-spacer"></span>
-                            <a href="{{ url_for('views.directory', subpath=node.path) }}" class="dir-link dir-file-link">
+                            <a href="{{ url_for('views.featured', subpath=node.path) }}" class="dir-link dir-file-link">
                                 {{ node.name }}
                             </a>
                         </div>

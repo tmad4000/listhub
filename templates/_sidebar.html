@@ -43,12 +43,12 @@
         <button class="sb-section-chevron" aria-label="Toggle Community" aria-expanded="true">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
         </button>
-        <a href="{{ url_for('views.directory') }}" class="sb-section-title">Community</a>
-        <a href="{{ url_for('views.directory') }}" class="sb-section-action" title="Open directory">↗</a>
+        <a href="{{ url_for('views.featured') }}" class="sb-section-title">Community</a>
+        <a href="{{ url_for('views.featured') }}" class="sb-section-action" title="Open featured">↗</a>
       </div>
       <div class="sb-section-body">
         {% if sidebar_community_tree %}
-          {% with nodes=sidebar_community_tree, link_prefix='/directory/', storage_key='sb_community' %}
+          {% with nodes=sidebar_community_tree, link_prefix='/featured/', storage_key='sb_community' %}
             {% include '_sidebar_tree.html' %}
           {% endwith %}
         {% else %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from '_badges.html' import visibility_badge %}
 {% block title %}Community — ListHub{% endblock %}
 {% block content %}
 <h1 style="margin-bottom: 24px;">Community</h1>
@@ -36,7 +37,7 @@
                 <a href="/@{{ item.username }}/{{ item.slug }}" class="item-title">{{ item.title or item.slug }}</a>
                 <div class="item-meta">
                     <a href="/@{{ item.username }}" style="color: var(--text-muted);">@{{ item.username }}</a>
-                    <span class="badge badge-public_edit" title="Anyone can edit">&#9999;&#65039; editable</span>
+                    {{ visibility_badge('public_edit') }}
                     <span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span>
                     <span>{{ item.updated_at[:10] if item.updated_at else '' }}</span>
                 </div>
@@ -51,7 +52,7 @@
     <h2 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Featured Lists</h2>
     <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
         A shared, curated index of topics and lists — maintained by the community via git.
-        <a href="{{ url_for('views.directory') }}">Browse the directory &rarr;</a>
+        <a href="{{ url_for('views.featured') }}">Browse the directory &rarr;</a>
     </p>
 </section>
 {% endblock %}

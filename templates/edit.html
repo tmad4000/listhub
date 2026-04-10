@@ -61,6 +61,7 @@
                 <option value="private" {% if item and item.visibility == 'private' %}selected{% endif %}>Private</option>
                 <option value="shared" {% if item and item.visibility == 'shared' %}selected{% endif %}>Shared (WIP)</option>
                 <option value="public" {% if item and item.visibility == 'public' %}selected{% endif %}>Public (view only)</option>
+                <option value="unlisted" {% if item and item.visibility == 'unlisted' %}selected{% endif %}>Unlisted (accessible via link)</option>
                 <option value="public_edit" {% if item and item.visibility == 'public_edit' %}selected{% endif %}>Public (anyone can edit)</option>
             </select>
         </div>
@@ -108,6 +109,19 @@ document.addEventListener('DOMContentLoaded', function() {
     titleInput.addEventListener('input', function() {
         if (userEditedSlug) return;
         const title = titleInput.value;
+        const slug = title.toLowerCase().trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_]+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+        slugInput.value = slug;
+    });
+
+    // On blur, auto-fill slug if it's still empty
+    titleInput.addEventListener('blur', function() {
+        if (slugInput.value.trim() !== '') return;
+        const title = titleInput.value;
+        if (!title.trim()) return;
         const slug = title.toLowerCase().trim()
             .replace(/[^\w\s-]/g, '')
             .replace(/[\s_]+/g, '-')

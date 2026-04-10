@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}404 — Not Found — ListHub{% endblock %}
+{% block content %}
+<div style="text-align: center; padding: 80px 20px;">
+    <h1 style="font-size: 72px; font-weight: 700; color: var(--accent); margin-bottom: 8px;">404</h1>
+    <p style="font-size: 18px; color: var(--text-muted); margin-bottom: 24px;">This page doesn't exist.</p>
+    <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 32px;">The item may have been moved, made private, or never existed.</p>
+    <div style="display: flex; gap: 12px; justify-content: center;">
+        <a href="{{ url_for('views.browse') }}" class="btn btn-primary">Browse</a>
+        <a href="/" class="btn">Home</a>
+    </div>
+</div>
+{% endblock %}
