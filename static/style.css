@@ -379,17 +379,17 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 /* Tree view */
 .tree-container {
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: 10px;
     background: var(--bg-secondary);
     overflow: hidden;
 }
 .tree-row {
     display: flex;
     align-items: stretch;
-    height: 34px;
+    height: 38px;
     padding-left: 12px;
-    padding-right: 8px;
-    border-bottom: 1px solid rgba(48, 54, 61, 0.4);
+    padding-right: 10px;
+    border-bottom: 1px solid rgba(200, 180, 150, 0.04);
     animation: treeEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
     animation-delay: calc(var(--i, 0) * 10ms);
 }
@@ -482,11 +482,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     font-family: var(--font-mono);
 }
 .tree-row--file .tree-name a {
-    color: var(--accent);
+    color: var(--text-muted);
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 400;
 }
-.tree-row--file .tree-name a:hover { color: var(--accent-hover); text-decoration: underline; }
+.tree-row--file .tree-name a:hover { color: var(--accent); text-decoration: none; }
 .tree-count {
     font-size: 11px;
     color: var(--text-dim);
