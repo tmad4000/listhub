@@ -12,7 +12,9 @@ ListHub is a place to create, share, and publish lists, notes, and documents. It
 ## Quick Start
 
 ### Web
-Visit https://listhub.globalbr.ai and sign up, or sign in with Ideaflow, Noos OAuth, or a local password.
+Visit https://listhub.globalbr.ai and sign up or sign in with Noos. Existing local-password users can use [/login/local](https://listhub.globalbr.ai/login/local).
+
+When enabled, the sign-in page also offers Ideaflow. To link an existing ListHub account, sign in with its current method, then choose **Link Ideaflow** in **Settings**. See the [Ideaflow login reference](docs/ideaflow-login.md) for the identity contract and rollout settings.
 
 ### API
 ```bash
@@ -80,7 +82,7 @@ git push
 | People directory | n/a | ✅ |
 | **Auth** | | |
 | Register (local) | ✅ | ✅ |
-| Login/link via Ideaflow OIDC | n/a | ✅ (kill flag; exact issuer/subject; audience validation; session-bound links; bounded attempts) |
+| Login/link via Ideaflow OIDC | n/a | ✅ ([default-off rollout](docs/ideaflow-login.md#rollout)) |
 | Login via Noos OAuth | n/a | ✅ |
 | Login via local password | n/a | ✅ (fallback) |
 | Create/list/revoke API key | ✅ (revoke is session-only, see listhub-bnr) | ✅ |
@@ -107,9 +109,7 @@ See [CLAUDE.md](CLAUDE.md) for full architecture, conventions, and deploy instru
 
 ## Deploy
 
-```bash
-ssh noos-prod "cd /home/ubuntu/listhub && git pull origin main && sudo systemctl restart listhub"
-```
+See [production routing and activation prerequisites](docs/listhub-production-routing.md).
 
 ## Docs &amp; history
 

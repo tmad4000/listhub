@@ -1,6 +1,7 @@
 """Run the stamped vhost configuration locally, without Docker or host changes."""
 from contextlib import ExitStack
 import hashlib
+import json
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import os
@@ -131,12 +132,19 @@ class NginxRuntimeTests(unittest.TestCase):
                         self.fail('nginx did not start: ' + log.read())
                     time.sleep(.05)
 
+            responses = []
+            evidence = os.environ.get('LISTHUB_TEST_EVIDENCE')
+
             def get(host, path):
                 connection = HTTPConnection('127.0.0.1', listen_port, timeout=5)
                 try:
                     connection.request('GET', path, headers={'Host': host})
                     response = connection.getresponse()
-                    return response.status, dict(response.getheaders()), response.read().decode()
+                    body = response.read().decode()
+                    headers = dict(response.getheaders())
+                    responses.append({'host': host, 'path': path, 'status': response.status,
+                                      'headers': headers, 'body': body})
+                    return response.status, headers, body
                 finally:
                     connection.close()
 
@@ -183,6 +191,18 @@ class NginxRuntimeTests(unittest.TestCase):
             self.assertEqual(status, 302)
             self.assertIn('/auth/noos/login', headers['Location'])
             self.assertEqual(get('listhub.globalbr.ai', '/auth/ideaflow/callback')[0], 404)
+
+            if evidence:
+                destination = Path(evidence)
+                destination.mkdir(parents=True, exist_ok=True)
+                (destination / 'nginx-runtime-responses.json').write_text(json.dumps({
+                    'scope': 'Isolated loopback nginx; actual ListHub Flask app; other upstreams are stand-ins',
+                    'nginx_version': subprocess.run([nginx, '-v'], capture_output=True,
+                                                     text=True, check=True).stderr.strip(),
+                    'configuration_check': checked.stderr,
+                    'production_modified': False,
+                    'responses': responses,
+                }, indent=2))
 
 
 if __name__ == '__main__':

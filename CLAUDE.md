@@ -4,15 +4,15 @@
 ListHub is a personal knowledge/list management app. Users create items (notes, lists, documents) via a web UI or REST API. Items are mirrored to per-user bare git repos, enabling `git clone`/`git pull`/`git push` workflows.
 
 **Live:** https://listhub.globalbr.ai/
-**Server:** AWS Lightsail (3.216.129.34), code at `/home/ubuntu/listhub/`
+**Server:** See the [production routing runbook](docs/listhub-production-routing.md).
 
 ## Stack
 - **Backend:** Flask + SQLite + Gunicorn
-- **Auth:** bcrypt passwords, SHA-256 API keys, Flask-Login sessions, Noos OAuth SSO
+- **Auth:** bcrypt passwords, SHA-256 API keys, Flask-Login sessions, Noos OAuth SSO; [Ideaflow OIDC](docs/ideaflow-login.md)
 - **Search:** SQLite FTS5
 - **Git:** Smart HTTP backend with bare repos, plumbing-based DB→git sync
 - **Frontend:** Server-rendered Jinja2 templates, dark theme, no JS framework
-- **Proxy:** Cloudflare → Docker nginx (`noos_nginx`) → Gunicorn on port 3200
+- **Proxy:** See the [production routing runbook](docs/listhub-production-routing.md).
 
 ## Architecture
 
@@ -20,7 +20,7 @@ ListHub is a personal knowledge/list management app. Users create items (notes, 
 app.py          — Flask app factory, blueprint registration
 api.py          — REST API (/api/v1/*)
 views.py        — Web UI routes + /api/docs
-auth.py         — Auth blueprint, API key decorator, admin token, Noos OAuth
+auth.py         — Auth blueprint, API key decorator, admin token, Noos OAuth, Ideaflow OIDC
 models.py       — User model
 db.py           — SQLite connection, schema, FTS reindexing
 git_backend.py  — Git Smart HTTP (clone/push), repo init, hook install
@@ -98,16 +98,8 @@ The docs page is publicly accessible and linked from the site header.
 
 ## Deployment
 
-```bash
-# SCP changed files to Lightsail
-scp -i ~/.ssh/lightsail-noos.pem <files> ubuntu@3.216.129.34:/home/ubuntu/listhub/
-
-# Restart service
-ssh -i ~/.ssh/lightsail-noos.pem ubuntu@3.216.129.34 "sudo systemctl restart listhub"
-
-# Run full git sync (after schema or sync logic changes)
-ssh -i ~/.ssh/lightsail-noos.pem ubuntu@3.216.129.34 "cd /home/ubuntu/listhub && source venv/bin/activate && python git_sync.py"
-```
+Use the [production routing and activation runbook](docs/listhub-production-routing.md).
+The [Ideaflow reference](docs/ideaflow-login.md) owns its migration and rollout settings.
 
 ## Environment variables (in systemd unit)
 - `LISTHUB_SECRET` — Flask session secret
@@ -115,29 +107,5 @@ ssh -i ~/.ssh/lightsail-noos.pem ubuntu@3.216.129.34 "cd /home/ubuntu/listhub &&
 - `LISTHUB_REPO_ROOT` — Bare repo directory (default: `/home/ubuntu/listhub/repos`)
 - `LISTHUB_DB` — SQLite database path
 - `LISTHUB_BASE_URL` — Base URL for hook API calls (default: `http://localhost:3200`)
-- `LISTHUB_PUBLIC_URL` — Public-facing URL for OAuth callbacks (default: `https://listhub.globalbr.ai`)
+- `LISTHUB_PUBLIC_URL` and `IDEAFLOW_OIDC_*` — See [OIDC rollout settings](docs/ideaflow-login.md#rollout)
 - `NOOS_AUTH_URL` — Noos OAuth provider URL (default: `https://globalbr.ai`)
-
-## Deploy Workflow (git pull)
-
-Production now has a git repo tracking `origin/main`. Deploy with:
-
-```bash
-# From Mac mini (develop + push):
-cd /Users/Jacob/listhub && git push origin main
-
-# On production (deploy):
-ssh noos-prod "cd /home/ubuntu/listhub && git pull origin main && sudo systemctl restart listhub"
-
-# One-liner from Mac mini:
-ssh noos-prod "cd /home/ubuntu/listhub && git pull origin main && sudo systemctl restart listhub"
-```
-
-**No more SCP.** All code changes go through git.
-
-### Production Server
-- **Host:** AWS Lightsail (3.216.129.34)
-- **SSH:** `ssh noos-prod`
-- **Code:** `/home/ubuntu/listhub/`
-- **Service:** `listhub` (systemd)
-- **Git remote:** `https://github.com/tmad4000/listhub.git` (main branch)

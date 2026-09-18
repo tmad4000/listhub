@@ -38,11 +38,21 @@ is unavailable; the source preservation tests always run. A local nginx 1.26.3
 build passed these checks; this does not validate the live Docker network or
 authorize production changes.
 
+## Production activation
+
+This change prepares source artifacts only; it does not deploy or mutate the
+shared host. The retired Lightsail host and `noos-prod` SSH alias must not be
+used. The current access route is:
+
+```bash
+gcloud compute ssh noos --project=lightsail-migration --zone=us-central1-a
+```
+
 Before production activation:
 
-1. Obtain fresh authorized read access to the shared GCE host and record the
-   live Noos git SHA, nginx image ID, nginx config checksum, ListHub service
-   health, and current host routing responses.
+1. Obtain fresh gcloud authorization for read access to the shared GCE host and
+   record the live Noos git SHA, nginx image ID, nginx config checksum, ListHub
+   service health, and current host routing responses.
 2. Rebase/regenerate the patch if the live nginx source differs from the
    stamped base. Never apply it with fuzz or offset.
 3. Coordinate one shared-host window with the Noos owner. Back up
@@ -54,3 +64,12 @@ Before production activation:
 
 Rollback is the inverse source change followed by `nginx -t` and a reload.
 DNS, ListHub data, and application processes are unchanged by this route patch.
+
+Application deployment is separate from the nginx reload and shares the same
+authorization and coordination gates. Changes go through git, not SCP. Before
+planning a pull/restart, verify the checkout path, branch, systemd unit, virtual
+environment, and persistent database/repository paths on the live host. Use the
+[OIDC migration and rollout reference](ideaflow-login.md#migration) for this app
+change. A full `python git_sync.py` from the app checkout's virtual environment
+is for changes that require rebuilding git mirrors; the additive identity table
+does not require it.
