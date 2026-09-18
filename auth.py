@@ -32,6 +32,10 @@ _IDEAFLOW_STATE_PREFIX = '_state_ideaflow_'
 _IDEAFLOW_SESSION_KEY = 'ideaflow_link_session'
 _IDEAFLOW_CONTEXT_TTL = 600
 _IDEAFLOW_MAX_CONTEXTS = 3
+# "Last used" hint: a server-set cookie holding only a method id, written after
+# a login handler has established the session (never on click, never on restore).
+_LOGIN_HINT_COOKIE = 'listhub_last_login'
+_LOGIN_HINT_MAX_AGE = 365 * 24 * 60 * 60
 
 
 def ideaflow_oidc_enabled(config):
@@ -41,6 +45,37 @@ def ideaflow_oidc_enabled(config):
         and config.get('IDEAFLOW_OIDC_CLIENT_ID')
         and config.get('IDEAFLOW_OIDC_CLIENT_SECRET')
     )
+
+
+def enabled_login_methods(config):
+    """Method ids currently offered on the sign-in screens."""
+    methods = ['password']
+    if NOOS_AUTH_URL:
+        methods.append('noos')
+    if ideaflow_oidc_enabled(config):
+        methods.append('ideaflow')
+    return methods
+
+
+def _remember_login_method(response, method):
+    """Record the method of a login that just succeeded on this browser."""
+    if method not in enabled_login_methods(current_app.config):
+        return response
+    try:
+        response.set_cookie(
+            _LOGIN_HINT_COOKIE, method, max_age=_LOGIN_HINT_MAX_AGE,
+            httponly=True, samesite='Lax',
+        )
+    except Exception:
+        pass  # The hint is best-effort; never break a completed login.
+    return response
+
+
+def _login_hint_context():
+    """Template context: last successful method, only if 2+ methods are offered."""
+    methods = enabled_login_methods(current_app.config)
+    stored = request.cookies.get(_LOGIN_HINT_COOKIE)
+    return {'last_method': stored if len(methods) > 1 and stored in methods else None}
 
 
 def init_oauth(app):
@@ -223,7 +258,7 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('views.dashboard'))
     if ideaflow_oidc_enabled(current_app.config):
-        return render_template('login_choice.html', next_url=_safe_next_url())
+        return render_template('login_choice.html', next_url=_safe_next_url(), **_login_hint_context())
     return redirect(url_for('auth.noos_login'))
 
 
@@ -245,13 +280,14 @@ def login_local():
                 if bcrypt.checkpw(password.encode(), user.password_hash.encode()):
                     login_user(user, remember=True)
                     next_page = request.args.get('next')
-                    return redirect(next_page or url_for('views.dashboard'))
+                    return _remember_login_method(
+                        redirect(next_page or url_for('views.dashboard')), 'password')
             except Exception:
                 pass
 
         flash('Invalid username or password.', 'error')
 
-    return render_template('login.html')
+    return render_template('login.html', **_login_hint_context())
 
 
 @auth_bp.route('/logout')
@@ -376,7 +412,7 @@ def noos_callback():
 
     login_user(user, remember=True)
     next_page = request.args.get('next')
-    return redirect(next_page or url_for('views.dashboard'))
+    return _remember_login_method(redirect(next_page or url_for('views.dashboard')), 'noos')
 
 
 # Ideaflow ID is an additive OIDC relying party. Existing Noos OAuth, local
@@ -467,7 +503,7 @@ def _login_external_identity(db, identity, context):
         flash('This Ideaflow identity is linked to an account that no longer exists.', 'error')
         return redirect(url_for('auth.login'))
     login_user(user, remember=True)
-    return redirect(_safe_next_url(context.get('next')))
+    return _remember_login_method(redirect(_safe_next_url(context.get('next'))), 'ideaflow')
 
 
 def _unique_oidc_username(db, email, name):
@@ -529,7 +565,7 @@ def _complete_ideaflow_signin(context, issuer, subject, email, email_verified, n
     except Exception:
         pass
     login_user(User.get(db, user_id), remember=True)
-    return redirect(_safe_next_url(context.get('next')))
+    return _remember_login_method(redirect(_safe_next_url(context.get('next'))), 'ideaflow')
 
 
 def _complete_ideaflow_link(context, issuer, subject, email):
@@ -621,6 +657,6 @@ def register():
 
         user = User.get(db, user_id)
         login_user(user, remember=True)
-        return redirect(url_for('views.dashboard'))
+        return _remember_login_method(redirect(url_for('views.dashboard')), 'password')
 
     return render_template('register.html')

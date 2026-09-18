@@ -14,7 +14,7 @@ ListHub is a place to create, share, and publish lists, notes, and documents. It
 ### Web
 Visit https://listhub.globalbr.ai and sign up or sign in with Noos. Existing local-password users can use [/login/local](https://listhub.globalbr.ai/login/local).
 
-When Ideaflow is enabled, the sign-in page offers **Continue with Noos**, **Continue with Ideaflow**, and **Use a local password**. Otherwise, sign-in redirects directly to Noos. To link an existing ListHub account, sign in with its current method, then choose **Link Ideaflow** in **Settings**. See the [Ideaflow login reference](docs/ideaflow-login.md) for the identity contract and rollout settings.
+When Ideaflow is enabled, the sign-in page offers **Continue with Noos**, **Continue with Ideaflow**, and **Use a local password**. Otherwise, sign-in redirects directly to Noos. To link an existing ListHub account, sign in with its current method, then choose **Link Ideaflow** in **Settings**. See the [Ideaflow login reference](docs/ideaflow-login.md) for the identity contract and rollout settings. The sign-in screen marks the method last used successfully on this browser with a **Last used** label; see [Last-used hint](docs/ideaflow-login.md#last-used-hint).
 
 ### API
 ```bash
