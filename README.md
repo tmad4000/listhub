@@ -12,7 +12,7 @@ ListHub is a place to create, share, and publish lists, notes, and documents. It
 ## Quick Start
 
 ### Web
-Visit https://listhub.globalbr.ai and sign up, or sign in with Noos OAuth.
+Visit https://listhub.globalbr.ai and sign up, or sign in with Ideaflow, Noos OAuth, or a local password.
 
 ### API
 ```bash
@@ -79,7 +79,8 @@ git push
 | User profile page | n/a | ✅ |
 | People directory | n/a | ✅ |
 | **Auth** | | |
-| Register (local) | ❌ | ✅ |
+| Register (local) | ✅ | ✅ |
+| Login/link via Ideaflow OIDC | n/a | ✅ (kill flag; exact issuer/subject) |
 | Login via Noos OAuth | n/a | ✅ |
 | Login via local password | n/a | ✅ (fallback) |
 | Create/list/revoke API key | ✅ (revoke is session-only, see listhub-bnr) | ✅ |

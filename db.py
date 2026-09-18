@@ -80,6 +80,20 @@ def init_db():
         scopes TEXT DEFAULT 'read,write',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS external_identity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+        issuer TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        email TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(issuer, subject),
+        UNIQUE(user_id, issuer)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_external_identity_user_id
+        ON external_identity(user_id);
     """)
 
     # FTS5 virtual table for full-text search

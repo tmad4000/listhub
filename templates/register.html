@@ -3,6 +3,9 @@
 {% block content %}
 <div class="auth-card">
     <h1>Sign Up</h1>
+    {% if config.IDEAFLOW_OIDC_ENABLED and config.IDEAFLOW_OIDC_CLIENT_ID and config.IDEAFLOW_OIDC_CLIENT_SECRET %}
+    <a class="btn btn-primary" style="display: block; text-align: center; margin-bottom: 16px;" href="{{ url_for('auth.ideaflow_login') }}">Continue with Ideaflow</a>
+    {% endif %}
     <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
