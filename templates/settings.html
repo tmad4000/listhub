@@ -3,6 +3,22 @@
 {% block content %}
 <h1 style="margin-bottom: 24px;">Settings</h1>
 
+{% if ideaflow_enabled %}
+<div class="setup-section" style="margin-bottom: 24px;">
+    <h2 style="font-size: 16px; margin-bottom: 12px;">Connected identity</h2>
+    {% if ideaflow_identity %}
+    <p style="font-size: 14px; color: var(--text-muted);">
+        Ideaflow is linked{% if ideaflow_identity.email %} as {{ ideaflow_identity.email }}{% endif %}.
+    </p>
+    {% else %}
+    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">
+        Link your signed-in ListHub account to an Ideaflow identity. This never merges accounts by email.
+    </p>
+    <a class="btn btn-primary" href="{{ url_for('auth.ideaflow_link') }}">Link Ideaflow</a>
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="setup-section">
     <h2 style="font-size: 16px; margin-bottom: 12px;">Getting Started</h2>
     <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">

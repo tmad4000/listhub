@@ -3,7 +3,7 @@ import re
 import subprocess
 
 import markdown
-from flask import Blueprint, render_template, redirect, url_for, request, flash, abort
+from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, current_app
 from flask_login import login_required, current_user
 from nanoid import generate as nanoid
 
@@ -963,7 +963,23 @@ def settings():
         "SELECT id, name, scopes, created_at FROM api_key WHERE user_id = ? ORDER BY created_at DESC",
         (current_user.id,)
     ).fetchall()
-    return render_template('settings.html', keys=keys)
+    ideaflow_enabled = bool(
+        current_app.config.get('IDEAFLOW_OIDC_ENABLED')
+        and current_app.config.get('IDEAFLOW_OIDC_CLIENT_ID')
+        and current_app.config.get('IDEAFLOW_OIDC_CLIENT_SECRET')
+    )
+    ideaflow_identity = None
+    if ideaflow_enabled:
+        ideaflow_identity = db.execute(
+            'SELECT email, created_at FROM external_identity WHERE user_id = ? AND issuer = ?',
+            (current_user.id, current_app.config['IDEAFLOW_OIDC_ISSUER']),
+        ).fetchone()
+    return render_template(
+        'settings.html',
+        keys=keys,
+        ideaflow_enabled=ideaflow_enabled,
+        ideaflow_identity=ideaflow_identity,
+    )
 
 
 # --- Public routes ---
@@ -1343,6 +1359,15 @@ Content-Type: application/json
 {"username": "myagent", "password": "securepass123"}
 
 Returns: {"key": "mem_abc123...", ...}
+
+Browser sign-in may also offer Ideaflow ID. That OIDC flow preserves local
+ListHub user IDs and sessions and never links accounts by matching email.
+Links must finish in the same authenticated session; signing in again or
+signing out cancels pending links. Authorization attempts expire after ten
+minutes, and only the three newest attempts are retained. Provider failures
+return a retry message; ID tokens must include ListHub in their audience.
+Agents continue to use programmatic registration and Bearer API keys; the
+browser flow does not change these endpoints.
 
 ### Use the API
 

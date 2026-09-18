@@ -7,7 +7,7 @@ from flask_wtf.csrf import CSRFProtect
 
 from db import init_db, get_db, close_db
 from models import User
-from auth import auth_bp
+from auth import auth_bp, init_oauth
 from api import api_bp
 from views import views_bp
 from git_backend import git_bp
@@ -19,6 +19,17 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get('LISTHUB_SECRET', secrets.token_hex(32))
     app.config['REMEMBER_COOKIE_DURATION'] = 30 * 24 * 60 * 60  # 30 days
+    app.config['IDEAFLOW_OIDC_ENABLED'] = os.environ.get('IDEAFLOW_OIDC_ENABLED', '').lower() == 'true'
+    app.config['IDEAFLOW_OIDC_ISSUER'] = 'https://id.ideaflow.app/api/auth'
+    app.config['IDEAFLOW_OIDC_DISCOVERY_URL'] = (
+        app.config['IDEAFLOW_OIDC_ISSUER'] + '/.well-known/openid-configuration'
+    )
+    app.config['IDEAFLOW_OIDC_CLIENT_ID'] = os.environ.get('IDEAFLOW_OIDC_CLIENT_ID', '')
+    app.config['IDEAFLOW_OIDC_CLIENT_SECRET'] = os.environ.get('IDEAFLOW_OIDC_CLIENT_SECRET', '')
+    app.config['LISTHUB_PUBLIC_URL'] = os.environ.get(
+        'LISTHUB_PUBLIC_URL', 'https://listhub.globalbr.ai'
+    ).rstrip('/')
+    init_oauth(app)
 
     # CSRF protection (exempts API and git blueprints)
     csrf.init_app(app)
