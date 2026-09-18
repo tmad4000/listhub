@@ -2,9 +2,9 @@
 {% block title %}Login — ListHub{% endblock %}
 {% block content %}
 <div class="auth-card">
-    <h1>Local Login</h1>
+    <h1>Local Login{% if last_method == 'password' %} <span class="last-used">Last used</span>{% endif %}</h1>
     <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 16px;">
-        This is the local account login. Most users should <a href="{{ url_for('auth.noos_login') }}">sign in with Noos</a> instead.
+        This is the local account login. Most users should <a href="{{ url_for('auth.noos_login') }}">sign in with Noos</a>{% if last_method == 'noos' %} <span class="last-used">Last used</span>{% endif %} instead.
     </p>
     <form method="post" action="{{ url_for('auth.login_local') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

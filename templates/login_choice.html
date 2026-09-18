@@ -6,8 +6,8 @@
     <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">
         Choose the account you already use. Your ListHub data and account ID stay local to ListHub.
     </p>
-    <a class="btn btn-primary" style="display: block; text-align: center; margin-bottom: 12px;" href="{{ url_for('auth.ideaflow_login', next=next_url) }}">Continue with Ideaflow</a>
-    <a class="btn" style="display: block; text-align: center; margin-bottom: 12px;" href="{{ url_for('auth.noos_login', next=next_url) }}">Continue with Noos</a>
-    <a style="display: block; text-align: center; font-size: 14px;" href="{{ url_for('auth.login_local', next=next_url) }}">Use a local password</a>
+    <a class="btn btn-primary" style="display: block; text-align: center; margin-bottom: 12px;" href="{{ url_for('auth.ideaflow_login', next=next_url) }}">Continue with Ideaflow{% if last_method == 'ideaflow' %} <span class="last-used">Last used</span>{% endif %}</a>
+    <a class="btn" style="display: block; text-align: center; margin-bottom: 12px;" href="{{ url_for('auth.noos_login', next=next_url) }}">Continue with Noos{% if last_method == 'noos' %} <span class="last-used">Last used</span>{% endif %}</a>
+    <a style="display: block; text-align: center; font-size: 14px;" href="{{ url_for('auth.login_local', next=next_url) }}">Use a local password{% if last_method == 'password' %} <span class="last-used">Last used</span>{% endif %}</a>
 </div>
 {% endblock %}

@@ -192,6 +192,21 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
     border-radius: 10px;
     border: 1px solid;
 }
+.last-used {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--accent-muted);
+    color: var(--text);
+    vertical-align: middle;
+}
+.btn-primary .last-used { color: #0f0e0c; background: rgba(15, 14, 12, 0.12); border-color: rgba(15, 14, 12, 0.35); }
+
 .badge-public { color: var(--green); border-color: rgba(122,158,107,0.3); }
 .badge-private { color: var(--red); border-color: rgba(196,92,60,0.3); }
 .badge-shared { color: var(--purple); border-color: rgba(122,155,181,0.3); }

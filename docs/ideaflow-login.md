@@ -38,6 +38,18 @@ New Ideaflow-only users have no local password. For git authentication, create
 an API key in Settings and use it as the HTTP Basic password. Linking an existing
 account preserves its password and git credentials.
 
+## Last-used hint
+
+The sign-in screens label the method last used successfully on this browser
+(**Last used**) whenever two or more methods are offered. After a completed login
+(the local password handler, the validated Noos callback, or a validated Ideaflow
+callback that signs a user in) the server sets the `listhub_last_login` cookie
+(HttpOnly, SameSite=Lax, one year) holding only `password`, `noos`, or
+`ideaflow`. Clicking a button, failed or cancelled attempts, restoring an existing
+session, and Ideaflow linking from Settings never write or clear it. The value is
+ignored unless it is one of the methods currently enabled, and it never contains
+tokens, emails, or user IDs. It does not change account mapping or sessions.
+
 ## Migration
 
 [`create_app()`](../app.py) calls [`init_db()`](../db.py) at startup. The
