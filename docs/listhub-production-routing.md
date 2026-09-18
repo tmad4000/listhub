@@ -16,12 +16,27 @@ Notes, Thoughtstreams, OpenChat, Agent-First, and default-server blocks remain
 byte-for-byte unchanged. The corresponding base `nginx.conf` SHA-256 is recorded
 in `deploy/noos-nginx-base.sha256` so drift fails closed.
 
-Validate from this repository with a local Noos checkout that contains the
-stamped commit:
+Validate from this repository using the checksum-pinned source fixture in
+`tests/fixtures/noos-nginx.conf` (the stamped commit's original configuration):
 
 ```bash
-NOOS_CHECKOUT=~/code/noos python3 -m unittest tests.test_nginx_route
+python3 -m unittest discover -s tests -p 'test_nginx*.py' -v
 ```
+
+`NOOS_CHECKOUT` optionally checks the original commit from a local Noos checkout
+instead of the fixture. The fixture matches `deploy/noos-nginx-base.sha256`;
+it was recovered from the prior source-grounded validation capture by removing
+the exact additive patch and verifying that checksum.
+
+Set `NGINX_BINARY=/absolute/path/to/nginx` (or put nginx on `PATH`) to also run
+the runtime test. It starts an isolated, unprivileged nginx on loopback with
+temporary data, substituting only listen/upstream addresses and filesystem
+paths. It checks configuration loading, ListHub Flask responses, existing
+vhosts and route prefixes, forwarded headers, and the unknown-host fallback.
+Other services use local stand-ins. The runtime test skips explicitly if nginx
+is unavailable; the source preservation tests always run. A local nginx 1.26.3
+build passed these checks; this does not validate the live Docker network or
+authorize production changes.
 
 Before production activation:
 

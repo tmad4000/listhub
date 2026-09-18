@@ -1,4 +1,10 @@
 import os
+import base64
+import hashlib
+import io
+import json
+from pathlib import Path
+import re
 import secrets
 import tempfile
 import time
@@ -58,6 +64,7 @@ class IdeaflowOidcTests(unittest.TestCase):
             db = get_db()
             db.execute('DELETE FROM external_identity')
             db.execute('DELETE FROM api_key')
+            db.execute('DELETE FROM item')
             db.execute('DELETE FROM user')
             db.commit()
 
@@ -399,6 +406,191 @@ class IdeaflowOidcTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertTrue(response.get_json()['key'].startswith('mem_'))
+
+    def test_existing_account_journey_with_signed_provider_and_evidence(self):
+        """Exercise the browser routes, real token exchange and legacy access.
+
+        Only the provider HTTP transport is replaced; Authlib still sends Basic
+        authentication/PKCE and verifies the Ed25519 ID token and nonce.
+        Optional evidence contains synthetic account data and rendered pages.
+        """
+        from requests import Response
+        from db import init_db
+
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        password = 'journey-test-password'
+        raw_key = 'mem_journey-test-key'
+        self._create_user('stable-user-id', 'journey', 'journey@example.test')
+        with self.app.app_context():
+            db = get_db()
+            db.execute('UPDATE user SET password_hash = ?, noos_id = ? WHERE id = ?', (
+                bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
+                'existing-noos-id', 'stable-user-id',
+            ))
+            db.execute('INSERT INTO api_key (id, user_id, key_hash, name) VALUES (?, ?, ?, ?)', (
+                'existing-key', 'stable-user-id', auth.hash_api_key(raw_key), 'Existing agent key',
+            ))
+            db.execute('INSERT INTO item (id, owner_id, slug, title, content) VALUES (?, ?, ?, ?, ?)', (
+                'existing-note', 'stable-user-id', 'kept-note', 'My existing private note', 'Keep my content',
+            ))
+            db.commit()
+            before = {table: [dict(row) for row in db.execute(f'SELECT * FROM {table}')]
+                      for table in ('user', 'api_key', 'item')}
+            # Upgrade a pre-OIDC schema, then rerun the migration for idempotency.
+            db.execute('DROP TABLE external_identity')
+            db.commit()
+            init_db()
+            init_db()
+
+        pages = {}
+        pages['login'] = self.client.get('/login').get_data(as_text=True)
+        pages['register'] = self.client.get('/register').get_data(as_text=True)
+
+        def local_login(browser):
+            form = browser.get('/login/local').get_data(as_text=True)
+            csrf = re.search(r'name="csrf_token" value="([^"]+)"', form).group(1)
+            response = browser.post('/login/local', data={
+                'username': 'journey', 'password': password, 'csrf_token': csrf,
+            })
+            self.assertEqual(response.status_code, 302)
+            with browser.session_transaction() as sess:
+                self.assertEqual(sess['_user_id'], 'stable-user-id')
+
+        local_login(self.client)
+        preserved_session = self.app.test_client()
+        local_login(preserved_session)
+        pages['settings-before-link'] = self.client.get('/dash/settings').get_data(as_text=True)
+        self.assertIn('Link Ideaflow', pages['settings-before-link'])
+
+        private = Ed25519PrivateKey.generate()
+        pem = private.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                    serialization.NoEncryption())
+        key = JsonWebKey.import_key(pem, {'kty': 'OKP', 'crv': 'Ed25519', 'kid': 'journey'})
+        metadata = self._provider_metadata()
+        requests_seen = []
+        consent = {}
+        subject = 'journey-subject'
+
+        def provider_send(prepared, **kwargs):
+            nonlocal consent
+            requests_seen.append({'method': prepared.method, 'url': prepared.url})
+            self.assertEqual(kwargs['timeout'], 5)
+            if prepared.url == self.app.config['IDEAFLOW_OIDC_DISCOVERY_URL']:
+                payload = metadata
+            elif prepared.url == metadata['jwks_uri']:
+                payload = {'keys': [key.as_dict(is_private=False)]}
+            elif prepared.url == metadata['token_endpoint']:
+                expected = base64.b64encode(b'test-client-id:test-client-secret').decode()
+                self.assertEqual(prepared.headers['Authorization'], 'Basic ' + expected)
+                body = parse_qs(prepared.body)
+                self.assertNotIn('client_secret', body)
+                self.assertEqual(body['redirect_uri'], ['https://listhub.globalbr.ai/auth/ideaflow/callback'])
+                self.assertEqual(body['code'], ['local-test-code'])
+                challenge = base64.urlsafe_b64encode(
+                    hashlib.sha256(body['code_verifier'][0].encode()).digest()
+                ).rstrip(b'=').decode()
+                self.assertEqual(challenge, consent['code_challenge'][0])
+                claims = self._claims(sub=subject, email='journey@example.test', name='journey',
+                                      aud='test-client-id', iat=int(time.time()), exp=int(time.time()) + 300,
+                                      nonce=consent['nonce'][0])
+                payload = {'access_token': 'local-test-access-token', 'token_type': 'Bearer',
+                           'id_token': jose_jwt.encode({'alg': 'EdDSA', 'kid': 'journey'}, claims, key).decode()}
+            else:
+                self.fail('Unexpected provider request: ' + prepared.url)
+            response = Response()
+            response.status_code = 200
+            response._content = json.dumps(payload).encode()
+            response.headers['Content-Type'] = 'application/json'
+            return response
+
+        def oidc(browser, path):
+            nonlocal consent
+            started = browser.get(path)
+            self.assertEqual(started.status_code, 302)
+            location = urlparse(started.headers['Location'])
+            self.assertEqual(location.netloc, 'id.ideaflow.app')
+            consent = parse_qs(location.query)
+            self.assertEqual(consent['code_challenge_method'], ['S256'])
+            self.assertEqual(consent['redirect_uri'], ['https://listhub.globalbr.ai/auth/ideaflow/callback'])
+            return browser.get('/auth/ideaflow/callback', query_string={
+                'state': consent['state'][0], 'code': 'local-test-code',
+            }, follow_redirects=True)
+
+        auth.oauth.ideaflow.server_metadata.clear()
+        with patch('requests.sessions.Session.send', side_effect=provider_send):
+            # Same email/name must fail closed before an explicit settings link.
+            unlinked = self.app.test_client()
+            pages['email-collision'] = oidc(unlinked, '/auth/ideaflow').get_data(as_text=True)
+            self.assertIn('then link Ideaflow from Settings', pages['email-collision'])
+            with unlinked.session_transaction() as sess:
+                self.assertNotIn('_user_id', sess)
+            linked = oidc(self.client, '/auth/ideaflow/link')
+            self.assertEqual(linked.status_code, 200)
+            pages['settings-linked'] = linked.get_data(as_text=True)
+            self.assertIn('Ideaflow is linked as journey@example.test', pages['settings-linked'])
+            self.client.get('/logout')
+            signed_in = oidc(self.client, '/auth/ideaflow')
+            self.assertEqual(signed_in.status_code, 200)
+            pages['dashboard-after-oidc'] = signed_in.get_data(as_text=True)
+            self.assertIn('My existing private note', pages['dashboard-after-oidc'])
+
+        api_client = self.app.test_client()
+        note = api_client.get('/api/v1/items/existing-note', headers={'Authorization': 'Bearer ' + raw_key})
+        self.assertEqual(note.status_code, 200)
+        self.assertEqual(note.json['content'], 'Keep my content')
+        self.assertEqual(preserved_session.get('/dash/settings').status_code, 200)
+        local_login(self.app.test_client())
+        git_evidence = []
+        for credential in (password, raw_key):
+            basic = base64.b64encode(('journey:' + credential).encode()).decode()
+            response = api_client.get('/git/journey.git/info/refs?service=git-upload-pack',
+                                      headers={'Authorization': 'Basic ' + basic})
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'# service=git-upload-pack', response.data)
+            git_evidence.append({'auth': 'password' if credential == password else 'existing API key',
+                                 'status': response.status_code, 'content_type': response.content_type,
+                                 'service': '# service=git-upload-pack'})
+
+        noos_browser = self.app.test_client()
+        started = noos_browser.get('/auth/noos/login')
+        noos_state = parse_qs(urlparse(started.headers['Location']).query)['state'][0]
+        noos_body = json.dumps({'user': {'id': 'existing-noos-id', 'email': 'journey@example.test'}}).encode()
+        with patch('auth.urllib.request.urlopen', return_value=io.BytesIO(noos_body)):
+            self.assertEqual(noos_browser.get('/auth/noos/callback', query_string={
+                'code': 'noos-test-code', 'state': noos_state,
+            }).status_code, 302)
+        with noos_browser.session_transaction() as sess:
+            self.assertEqual(sess['_user_id'], 'stable-user-id')
+
+        with self.app.app_context():
+            db = get_db()
+            after = {table: [dict(row) for row in db.execute(f'SELECT * FROM {table}')]
+                     for table in ('user', 'api_key', 'item')}
+            self.assertEqual(before, after)
+            identity = dict(db.execute('SELECT user_id, issuer, subject, email FROM external_identity').fetchone())
+        self.assertEqual(identity['user_id'], 'stable-user-id')
+        self.app.config['IDEAFLOW_OIDC_ENABLED'] = False
+        self.assertEqual(self.client.get('/auth/ideaflow').status_code, 404)
+        self.assertEqual(self.client.get('/dash').status_code, 200)
+        self.assertNotIn('Connected identity', self.client.get('/dash/settings').get_data(as_text=True))
+
+        evidence = os.environ.get('LISTHUB_TEST_EVIDENCE')
+        if evidence:
+            destination = Path(evidence)
+            destination.mkdir(parents=True, exist_ok=True)
+            root = Path(__file__).resolve().parents[1]
+            for name, html in pages.items():
+                # Embed the actual styles so evidence remains viewable offline.
+                html = re.sub(r'<link rel="stylesheet" href="/static/([^"?]+)[^"]*">',
+                              lambda match: '<style>' + (root / 'static' / match[1]).read_text() + '</style>', html)
+                (destination / (name + '.html')).write_text(html)
+            (destination / 'account-journey.json').write_text(json.dumps({
+                'provider': 'Local HTTP stand-in; real Authlib Basic/S256 exchange and Ed25519 verification',
+                'requests': requests_seen, 'persisted_identity': identity,
+                'unchanged_legacy_tables': list(before), 'existing_api_note_response': note.json,
+                'git_discovery': git_evidence, 'noos_callback_user_id': 'stable-user-id',
+                'preserved_session_after_kill_flag': '/dash returned HTTP 200',
+            }, indent=2))
 
     def test_real_ed25519_verification_and_basic_s256_client(self):
         client = auth.oauth.ideaflow

@@ -1,7 +1,9 @@
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
+import re
 import tempfile
 import unittest
 
@@ -30,27 +32,36 @@ class ListHubNginxRouteTest(unittest.TestCase):
 
     def test_patch_applies_cleanly_to_stamped_noos_source(self):
         checkout = os.environ.get("NOOS_CHECKOUT")
-        if not checkout:
-            self.skipTest("set NOOS_CHECKOUT for the source-grounded integration check")
-        checkout = str(Path(checkout).expanduser())
-        base = subprocess.check_output(
-            ["git", "-C", checkout, "show", f"{BASE_COMMIT}:nginx.conf"],
-            text=True,
-        )
+        if checkout:
+            base = subprocess.check_output(
+                ["git", "-C", str(Path(checkout).expanduser()), "show",
+                 f"{BASE_COMMIT}:nginx.conf"],
+                text=True,
+            )
+        else:
+            base = (ROOT / "tests/fixtures/noos-nginx.conf").read_text()
         expected_sha = BASE_SHA_FILE.read_text().strip()
         self.assertEqual(hashlib.sha256(base.encode()).hexdigest(), expected_sha)
 
         with tempfile.TemporaryDirectory() as tmp:
             nginx_path = Path(tmp) / "nginx.conf"
             nginx_path.write_text(base)
-            subprocess.run(
+            applied = subprocess.run(
                 ["patch", "--batch", "--fuzz=0", "-p1", "-i", str(PATCH)],
                 cwd=tmp,
                 check=True,
                 capture_output=True,
                 text=True,
             )
+            self.assertNotIn('offset', applied.stdout.lower())
             patched = nginx_path.read_text()
+
+        addition = '\n'.join(
+            line[1:] for line in PATCH.read_text().splitlines()
+            if line.startswith('+') and not line.startswith('+++')
+        ) + '\n'
+        self.assertEqual(patched.replace(addition, '', 1), base,
+                         'Every existing route must remain byte-for-byte unchanged')
 
         self.assertEqual(patched.count("server_name listhub.globalbr.ai;"), 1)
         self.assertLess(
@@ -72,6 +83,22 @@ class ListHubNginxRouteTest(unittest.TestCase):
         self.assertEqual(patched.count("listen 80 default_server;"), 1)
         self.assertEqual(patched.count("server_name _;"), 1)
         self.assertEqual(patched.count("{"), patched.count("}"))
+
+        evidence = os.environ.get('LISTHUB_TEST_EVIDENCE')
+        if evidence:
+            destination = Path(evidence)
+            destination.mkdir(parents=True, exist_ok=True)
+            (destination / 'nginx.conf.proposed').write_text(patched)
+            (destination / 'routing-validation.json').write_text(json.dumps({
+                'base_commit': BASE_COMMIT,
+                'base_sha256': expected_sha,
+                'existing_routes_byte_identical': patched.replace(addition, '', 1) == base,
+                'preserved_server_names': re.findall(r'server_name\s+([^;]+);', base),
+                'added_host': 'listhub.globalbr.ai',
+                'added_upstream': 'http://172.17.0.1:3200',
+                'applied_to_production': False,
+                'validation_scope': 'Source patch only; nginx runtime and live routing require separate validation',
+            }, indent=2))
 
 
 if __name__ == "__main__":
