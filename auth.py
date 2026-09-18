@@ -3,6 +3,7 @@ import hashlib
 import os
 import secrets
 import sqlite3
+import time
 import urllib.parse
 import urllib.request
 import json
@@ -12,6 +13,7 @@ import bcrypt
 from authlib.integrations.flask_client import OAuth
 from flask import Blueprint, request, redirect, url_for, render_template, flash, jsonify, session, current_app, abort
 from flask_login import login_user, logout_user, login_required, current_user
+from flask_login import user_logged_in, user_logged_out
 from nanoid import generate as nanoid
 
 from db import get_db
@@ -26,6 +28,10 @@ NOOS_INTERNAL_URL = os.environ.get('NOOS_INTERNAL_URL', 'http://localhost:4000')
 NOOS_CLIENT_ID = 'listhub'
 LISTHUB_PUBLIC_URL = os.environ.get('LISTHUB_PUBLIC_URL', 'https://listhub.globalbr.ai')
 _IDEAFLOW_CONTEXTS_KEY = 'ideaflow_oauth_contexts'
+_IDEAFLOW_STATE_PREFIX = '_state_ideaflow_'
+_IDEAFLOW_SESSION_KEY = 'ideaflow_link_session'
+_IDEAFLOW_CONTEXT_TTL = 600
+_IDEAFLOW_MAX_CONTEXTS = 3
 
 
 def ideaflow_oidc_enabled(config):
@@ -39,6 +45,8 @@ def ideaflow_oidc_enabled(config):
 
 def init_oauth(app):
     oauth.init_app(app)
+    user_logged_in.connect(_reset_ideaflow_link_session, app)
+    user_logged_out.connect(_reset_ideaflow_link_session, app)
     if ideaflow_oidc_enabled(app.config):
         oauth.register(
             name='ideaflow',
@@ -49,6 +57,7 @@ def init_oauth(app):
                 'scope': 'openid email profile',
                 'token_endpoint_auth_method': 'client_secret_basic',
                 'code_challenge_method': 'S256',
+                'default_timeout': 5,
             },
         )
 
@@ -62,6 +71,7 @@ def _safe_next_url(value=None):
         and '\\' not in target
         and not parsed.scheme
         and not parsed.netloc
+        and len(target) <= 512
     ):
         return target
     return url_for('views.dashboard')
@@ -86,24 +96,60 @@ def _ideaflow_callback_url():
     return current_app.config['LISTHUB_PUBLIC_URL'] + url_for('auth.ideaflow_callback')
 
 
-def _stash_ideaflow_context(state, context):
-    if not state:
-        return
-    pending = dict(session.get(_IDEAFLOW_CONTEXTS_KEY, {}))
-    pending[state] = context
-    session[_IDEAFLOW_CONTEXTS_KEY] = pending
-
-
-def _pop_ideaflow_context():
-    state = request.args.get('state', '').strip()
-    if not state:
-        return None
-    pending = dict(session.get(_IDEAFLOW_CONTEXTS_KEY, {}))
-    context = pending.pop(state, None)
+def _save_ideaflow_contexts(pending):
     if pending:
         session[_IDEAFLOW_CONTEXTS_KEY] = pending
     else:
         session.pop(_IDEAFLOW_CONTEXTS_KEY, None)
+
+
+def _prune_ideaflow_contexts():
+    now = time.time()
+    pending = {
+        state: context
+        for state, context in session.get(_IDEAFLOW_CONTEXTS_KEY, {}).items()
+        if context.get('expires_at', 0) > now
+        and session.get(_IDEAFLOW_STATE_PREFIX + state, {}).get('exp', 0) > now
+    }
+    pending = dict(sorted(
+        pending.items(), key=lambda item: item[1]['expires_at'],
+    )[-_IDEAFLOW_MAX_CONTEXTS:])
+    for key in list(session):
+        if key.startswith(_IDEAFLOW_STATE_PREFIX) and key[len(_IDEAFLOW_STATE_PREFIX):] not in pending:
+            session.pop(key, None)
+    _save_ideaflow_contexts(pending)
+    return pending
+
+
+def _reset_ideaflow_link_session(sender, **kwargs):
+    session.pop(_IDEAFLOW_SESSION_KEY, None)
+    pending = dict(session.get(_IDEAFLOW_CONTEXTS_KEY, {}))
+    for state, context in list(pending.items()):
+        if context.get('mode') == 'link':
+            pending.pop(state)
+            session.pop(_IDEAFLOW_STATE_PREFIX + state, None)
+    _save_ideaflow_contexts(pending)
+
+
+def _stash_ideaflow_context(state, context):
+    if not state:
+        raise ValueError('Missing Ideaflow authorization state')
+    expires_at = time.time() + _IDEAFLOW_CONTEXT_TTL
+    pending = dict(session.get(_IDEAFLOW_CONTEXTS_KEY, {}))
+    pending[state] = {**context, 'expires_at': expires_at}
+    state_key = _IDEAFLOW_STATE_PREFIX + state
+    session[state_key] = {**session[state_key], 'exp': expires_at}
+    _save_ideaflow_contexts(pending)
+    _prune_ideaflow_contexts()
+
+
+def _pop_ideaflow_context():
+    pending = _prune_ideaflow_contexts()
+    state = request.args.get('state', '').strip()
+    if not state:
+        return None
+    context = pending.pop(state, None)
+    _save_ideaflow_contexts(pending)
     return context
 
 
@@ -339,31 +385,36 @@ def noos_callback():
 # new subject to an existing account.
 
 
-@auth_bp.route('/auth/ideaflow')
-def ideaflow_login():
+def _start_ideaflow_authorization(context):
     client = _ideaflow_client()
     if not client:
         abort(404)
-    response = client.authorize_redirect(_ideaflow_callback_url())
-    state = parse_qs(urlparse(response.headers.get('Location', '')).query).get('state', [''])[0]
-    _stash_ideaflow_context(state, {'mode': 'signin', 'next': _safe_next_url()})
+    _prune_ideaflow_contexts()
+    try:
+        response = client.authorize_redirect(_ideaflow_callback_url())
+        state = parse_qs(urlparse(response.headers.get('Location', '')).query).get('state', [''])[0]
+        _stash_ideaflow_context(state, context)
+    except Exception:
+        _prune_ideaflow_contexts()
+        flash('Ideaflow sign-in is temporarily unavailable. Please try again.', 'error')
+        return redirect(url_for('views.settings') if context['mode'] == 'link' else url_for('auth.login'))
     return response
+
+
+@auth_bp.route('/auth/ideaflow')
+def ideaflow_login():
+    return _start_ideaflow_authorization({'mode': 'signin', 'next': _safe_next_url()})
 
 
 @auth_bp.route('/auth/ideaflow/link')
 @_ideaflow_enabled_required
 @login_required
 def ideaflow_link():
-    client = _ideaflow_client()
-    if not client:
-        abort(404)
-    response = client.authorize_redirect(_ideaflow_callback_url())
-    state = parse_qs(urlparse(response.headers.get('Location', '')).query).get('state', [''])[0]
-    _stash_ideaflow_context(
-        state,
-        {'mode': 'link', 'user_id': current_user.id, 'next': url_for('views.settings')},
-    )
-    return response
+    link_session = session.setdefault(_IDEAFLOW_SESSION_KEY, secrets.token_urlsafe(32))
+    return _start_ideaflow_authorization({
+        'mode': 'link', 'user_id': current_user.id,
+        'auth_session': link_session, 'next': url_for('views.settings'),
+    })
 
 
 @auth_bp.route('/auth/ideaflow/callback')
@@ -376,10 +427,15 @@ def ideaflow_callback():
         flash('Ideaflow sign-in could not be verified.', 'error')
         return redirect(url_for('auth.login'))
     try:
-        token = client.authorize_access_token()
+        token = client.authorize_access_token(claims_options={
+            'iss': {'essential': True, 'value': current_app.config['IDEAFLOW_OIDC_ISSUER']},
+            'aud': {'essential': True, 'value': current_app.config['IDEAFLOW_OIDC_CLIENT_ID']},
+        })
     except Exception:
         flash('Ideaflow sign-in failed or was cancelled.', 'error')
         return redirect(url_for('auth.login'))
+    finally:
+        session.pop(_IDEAFLOW_STATE_PREFIX + request.args.get('state', '').strip(), None)
 
     userinfo = token.get('userinfo') or {}
     issuer = userinfo.get('iss')
@@ -478,7 +534,11 @@ def _complete_ideaflow_signin(context, issuer, subject, email, email_verified, n
 
 def _complete_ideaflow_link(context, issuer, subject, email):
     target_user_id = context.get('user_id')
-    if not target_user_id or not current_user.is_authenticated or current_user.id != target_user_id:
+    if (
+        not target_user_id or not current_user.is_authenticated or current_user.id != target_user_id
+        or not context.get('auth_session')
+        or context['auth_session'] != session.get(_IDEAFLOW_SESSION_KEY)
+    ):
         flash('Linking must finish in the same signed-in ListHub session that started it.', 'error')
         return redirect(url_for('views.settings') if current_user.is_authenticated else url_for('auth.login'))
 

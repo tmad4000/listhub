@@ -13,6 +13,14 @@ and API keys. A new subject never attaches to an existing account by email or
 display name, even if the provider says that email is verified. An existing
 user signs in with a current method and explicitly links Ideaflow in Settings;
 the callback must finish in the same signed-in ListHub session that started it.
+Signing in again or signing out invalidates pending links, including when the
+same account signs back in. The callback validates the canonical issuer and
+requires the ListHub client ID in the ID token audience, even when `azp` matches.
+
+Authorization attempts expire after ten minutes; only the three newest pending
+attempts are retained, together with their PKCE and nonce state. Provider requests
+use a five-second timeout. Discovery failures return to login or Settings with a
+retry message, and failed or cancelled callbacks consume their pending attempt.
 
 The callback trusts `email_verified` only when the claim is the JSON boolean
 `true`. An unverified email may be retained on the external identity for

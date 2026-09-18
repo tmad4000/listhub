@@ -1362,6 +1362,10 @@ Returns: {"key": "mem_abc123...", ...}
 
 Browser sign-in may also offer Ideaflow ID. That OIDC flow preserves local
 ListHub user IDs and sessions and never links accounts by matching email.
+Links must finish in the same authenticated session; signing in again or
+signing out cancels pending links. Authorization attempts expire after ten
+minutes, and only the three newest attempts are retained. Provider failures
+return a retry message; ID tokens must include ListHub in their audience.
 Agents continue to use programmatic registration and Bearer API keys; the
 browser flow does not change these endpoints.
 

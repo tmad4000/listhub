@@ -80,7 +80,7 @@ git push
 | People directory | n/a | ✅ |
 | **Auth** | | |
 | Register (local) | ✅ | ✅ |
-| Login/link via Ideaflow OIDC | n/a | ✅ (kill flag; exact issuer/subject) |
+| Login/link via Ideaflow OIDC | n/a | ✅ (kill flag; exact issuer/subject; audience validation; session-bound links; bounded attempts) |
 | Login via Noos OAuth | n/a | ✅ |
 | Login via local password | n/a | ✅ (fallback) |
 | Create/list/revoke API key | ✅ (revoke is session-only, see listhub-bnr) | ✅ |
