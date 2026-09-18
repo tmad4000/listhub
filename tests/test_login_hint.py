@@ -248,9 +248,13 @@ class LoginHintTests(unittest.TestCase):
         self.app.config['IDEAFLOW_OIDC_ENABLED'] = False
         with self.app.test_request_context('/login/local'):
             self.assertNotIn('ideaflow', enabled_login_methods(self.app.config))
-        self.client.set_cookie(COOKIE, 'ideaflow')
         with self.app.test_request_context('/login/local', headers={'Cookie': f'{COOKIE}=ideaflow'}):
             self.assertIsNone(_login_hint_context()['last_method'])
+            # ...and a login can't record a method that is not offered.
+            from auth import _remember_login_method
+            from flask import make_response
+            response = _remember_login_method(make_response('ok'), 'ideaflow')
+            self.assertEqual(_hint_cookies(response), [])
         # Noos switched off: a stored 'noos' is ignored on the choice screen.
         with patch('auth.NOOS_AUTH_URL', ''):
             with self.app.test_request_context('/login/local', headers={'Cookie': f'{COOKIE}=noos'}):
