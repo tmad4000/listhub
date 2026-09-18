@@ -242,11 +242,35 @@ class LoginHintTests(unittest.TestCase):
             self.assertNotIn('Last used', html, repr(value))
 
     def test_method_disabled_now_is_ignored(self):
-        self.client.set_cookie(COOKIE, 'ideaflow')
+        # A stored method that is no longer offered must not be shown, and must
+        # not be written either.
+        from auth import _login_hint_context, enabled_login_methods
         self.app.config['IDEAFLOW_OIDC_ENABLED'] = False
-        # /login redirects straight to Noos when Ideaflow is off; the local form is the screen.
-        html = self.client.get('/login/local').get_data(as_text=True)
-        self.assertNotIn('Last used', html)
+        with self.app.test_request_context('/login/local'):
+            self.assertNotIn('ideaflow', enabled_login_methods(self.app.config))
+        self.client.set_cookie(COOKIE, 'ideaflow')
+        with self.app.test_request_context('/login/local', headers={'Cookie': f'{COOKIE}=ideaflow'}):
+            self.assertIsNone(_login_hint_context()['last_method'])
+        # Noos switched off: a stored 'noos' is ignored on the choice screen.
+        with patch('auth.NOOS_AUTH_URL', ''):
+            with self.app.test_request_context('/login/local', headers={'Cookie': f'{COOKIE}=noos'}):
+                self.assertNotIn('noos', enabled_login_methods(self.app.config))
+                self.assertIsNone(_login_hint_context()['last_method'])
+
+    def test_register_records_password(self):
+        response = self.client.post('/register', data={
+            'username': 'bobby', 'display_name': 'Bob', 'email': 'b@example.test',
+            'password': 'longenough1'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self._cookie(), 'password')
+
+    def test_failed_register_does_not_record(self):
+        self.client.set_cookie(COOKIE, 'noos')
+        response = self.client.post('/register', data={
+            'username': 'b', 'password': 'short'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(_hint_cookies(response), [])
+        self.assertEqual(self._cookie(), 'noos')
 
     # (f) marker renders next to the right method, only with 2+ methods
     def test_marker_renders_next_to_matching_method_only(self):
