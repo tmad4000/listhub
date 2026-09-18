@@ -1,9 +1,6 @@
 --- a/nginx.conf
 +++ b/nginx.conf
-@@ -269,6 +269,25 @@
-         }
-     }
- 
+@@ -271,0 +272,19 @@
 +    # ListHub - legacy publishing app (host service on port 3200)
 +    server {
 +        listen 80;
@@ -23,6 +20,3 @@
 +        }
 +    }
 +
-     # Default - catch-all for unknown hosts (serve Noos)
-     server {
-         listen 80 default_server;
