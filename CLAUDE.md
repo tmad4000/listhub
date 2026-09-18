@@ -48,7 +48,7 @@ static/style.css — All CSS (dark theme, CSS variables)
 - API endpoints use `@require_api_auth` (Bearer token or session)
 - Admin token (`LISTHUB_ADMIN_TOKEN`) with `X-ListHub-User` header for internal calls
 - Key management endpoints use `@login_required` (session only)
-- **Noos OAuth SSO:** Users can sign in via Noos (`globalbr.ai`). OAuth code flow with `client_id=listhub`. Users are auto-created on first login (linked by `noos_id`). Noos-only users have `password_hash='!noos-oauth'` (no local password). They use API keys for git auth.
+- **Noos OAuth SSO:** Users can sign in via Noos (`globalbr.ai`). OAuth code flow with `client_id=listhub`. The legacy callback resolves `noos_id`, then links by matching email, and creates a user only if neither matches. Existing local passwords are preserved; newly created Noos-only users have `password_hash='!noos-oauth'` (no local password). See [API docs](templates/api_docs.html) for git credentials. Ideaflow uses the separate [identity contract](docs/ideaflow-login.md#identity-contract).
 - Git HTTP Basic Auth accepts both bcrypt passwords and API keys (industry standard PAT pattern)
 
 ### Frontmatter round-trip

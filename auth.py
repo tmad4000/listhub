@@ -229,7 +229,7 @@ def login():
 
 @auth_bp.route('/login/local', methods=['GET', 'POST'])
 def login_local():
-    """Local username/password login (fallback for accounts without Noos)."""
+    """Local password login remains available after linking an external identity."""
     if current_user.is_authenticated:
         return redirect(url_for('views.dashboard'))
 

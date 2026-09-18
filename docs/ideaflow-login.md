@@ -17,6 +17,9 @@ and API keys. A new subject never attaches to an existing account by email or
 display name, even if the provider says that email is verified. Existing-account
 linking follows the [web sign-in instructions](../README.md#web); the callback
 must finish in the same signed-in ListHub session that started it.
+An unlinked subject creates a new local account unless its email matches an
+existing user's email case-insensitively. That collision blocks sign-in and
+directs the user to sign in to the existing account and link from Settings.
 Signing in again or signing out invalidates pending links, including when the
 same account signs back in. The callback validates the canonical issuer and
 requires the ListHub client ID in the ID token audience, even when `azp` matches.
