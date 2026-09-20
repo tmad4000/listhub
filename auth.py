@@ -32,6 +32,13 @@ _IDEAFLOW_STATE_PREFIX = '_state_ideaflow_'
 _IDEAFLOW_SESSION_KEY = 'ideaflow_link_session'
 _IDEAFLOW_CONTEXT_TTL = 600
 _IDEAFLOW_MAX_CONTEXTS = 3
+_IDEAFLOW_PENDING_KEY = 'ideaflow_pending_confirm'
+_IDEAFLOW_PENDING_TTL = 600
+_IDEAFLOW_PENDING_MAX_ATTEMPTS = 5
+_IDEAFLOW_FRESH_AUTH_SKEW = 120
+_IDEAFLOW_CONFIRM_MAX_FAILURES_PER_USER = 10
+_IDEAFLOW_CONFIRM_FAILURE_WINDOW = 600
+_ideaflow_confirm_failures = {}
 
 
 def ideaflow_oidc_enabled(config):
@@ -123,6 +130,7 @@ def _prune_ideaflow_contexts():
 
 def _reset_ideaflow_link_session(sender, **kwargs):
     session.pop(_IDEAFLOW_SESSION_KEY, None)
+    session.pop(_IDEAFLOW_PENDING_KEY, None)
     pending = dict(session.get(_IDEAFLOW_CONTEXTS_KEY, {}))
     for state, context in list(pending.items()):
         if context.get('mode') == 'link':
@@ -381,17 +389,19 @@ def noos_callback():
 
 # Ideaflow ID is an additive OIDC relying party. Existing Noos OAuth, local
 # passwords, API keys, ListHub user IDs, and local sessions remain independent.
-# A link is keyed only by immutable (issuer, subject); email never attaches a
-# new subject to an existing account.
+# A link is keyed only by immutable (issuer, subject). Email never attaches a
+# new subject to an existing account by itself: ListHub has no email
+# verification, so a matching account is confirmed once, in the sign-in flow,
+# with its own password (code-d96).
 
 
-def _start_ideaflow_authorization(context):
+def _start_ideaflow_authorization(context, **authorize_params):
     client = _ideaflow_client()
     if not client:
         abort(404)
     _prune_ideaflow_contexts()
     try:
-        response = client.authorize_redirect(_ideaflow_callback_url())
+        response = client.authorize_redirect(_ideaflow_callback_url(), **authorize_params)
         state = parse_qs(urlparse(response.headers.get('Location', '')).query).get('state', [''])[0]
         _stash_ideaflow_context(state, context)
     except Exception:
@@ -403,18 +413,31 @@ def _start_ideaflow_authorization(context):
 
 @auth_bp.route('/auth/ideaflow')
 def ideaflow_login():
-    return _start_ideaflow_authorization({'mode': 'signin', 'next': _safe_next_url()})
+    """Fast SSO by default. ``?switch=1`` is the explicit "Use another account"
+    action: it sends ``prompt=login`` so the provider shows its sign-in page even
+    when an IdP session exists. Only that one allowlisted value is honoured;
+    nothing else from the query string is forwarded to the provider."""
+    switch = request.args.get('switch') == '1'
+    return _start_ideaflow_authorization(
+        {'mode': 'signin', 'next': _safe_next_url(), 'switch': switch},
+        **({'prompt': 'login'} if switch else {}),
+    )
 
 
 @auth_bp.route('/auth/ideaflow/link')
 @_ideaflow_enabled_required
 @login_required
 def ideaflow_link():
+    """Fallback for accounts that could not be resolved at sign-in. A logged-in
+    local session alone must never authorize binding whichever person holds the
+    IdP session, so this always forces a fresh Ideaflow sign-in (prompt=login)
+    and the callback requires a fresh ``auth_time``."""
     link_session = session.setdefault(_IDEAFLOW_SESSION_KEY, secrets.token_urlsafe(32))
     return _start_ideaflow_authorization({
         'mode': 'link', 'user_id': current_user.id,
         'auth_session': link_session, 'next': url_for('views.settings'),
-    })
+        'started_at': int(time.time()),
+    }, prompt='login')
 
 
 @auth_bp.route('/auth/ideaflow/callback')
@@ -444,13 +467,14 @@ def ideaflow_callback():
     # OIDC defines this claim as a JSON boolean. Strings such as "true" are
     # untrusted legacy/imported data and must not grant verified-email trust.
     email_verified = userinfo.get('email_verified') is True
+    auth_time = userinfo.get('auth_time')
     name = (userinfo.get('name') or userinfo.get('preferred_username') or '').strip()
     if not subject or issuer != current_app.config['IDEAFLOW_OIDC_ISSUER']:
         flash('Ideaflow sign-in could not be verified.', 'error')
         return redirect(url_for('auth.login'))
 
     if context.get('mode') == 'link':
-        return _complete_ideaflow_link(context, issuer, subject, email)
+        return _complete_ideaflow_link(context, issuer, subject, email if email_verified else None, auth_time)
     return _complete_ideaflow_signin(context, issuer, subject, email, email_verified, name)
 
 
@@ -483,32 +507,95 @@ def _unique_oidc_username(db, email, name):
     return candidate
 
 
+def _has_usable_password(user):
+    """A real bcrypt hash. Placeholders such as '!noos-oauth' and
+    '!ideaflow-oidc' mean the account has no local password to check."""
+    return bool(user.password_hash) and user.password_hash.startswith('$2')
+
+
+def _ideaflow_signin_refused(message):
+    flash(message, 'error')
+    return redirect(url_for('auth.login'))
+
+
+def _start_ideaflow_ownership_check(user, issuer, subject, email, name, context):
+    """`user` is None for reason "choose": the matching account(s) cannot be
+    checked with a password (several, none has one, or already connected to
+    another Ideaflow identity), and none of them is proven, so the person is
+    offered only the way out."""
+    session[_IDEAFLOW_PENDING_KEY] = {
+        'user_id': user.id if user else None, 'reason': 'password' if user else 'choose',
+        'issuer': issuer, 'subject': subject, 'email': email, 'name': name,
+        'next': context.get('next'), 'exp': int(time.time()) + _IDEAFLOW_PENDING_TTL,
+        'attempts': 0,
+    }
+    return redirect(url_for('auth.ideaflow_confirm'))
+
+
+def _load_ideaflow_pending_confirm():
+    pending = session.get(_IDEAFLOW_PENDING_KEY)
+    required = ('user_id', 'reason', 'issuer', 'subject', 'email', 'exp', 'attempts')
+    if (
+        not isinstance(pending, dict)
+        or any(key not in pending for key in required)
+        or not isinstance(pending['exp'], int)
+        or pending['exp'] < int(time.time())
+    ):
+        session.pop(_IDEAFLOW_PENDING_KEY, None)
+        return None
+    return dict(pending)
+
+
 def _complete_ideaflow_signin(context, issuer, subject, email, email_verified, name):
     db = get_db()
+    # 1. Exact (issuer, subject) is the whole ballgame for a returning person.
     identity = _find_external_identity(db, issuer, subject)
     if identity:
         return _login_external_identity(db, identity, context)
 
-    # Even a verified matching email is insufficient to establish identity.
-    # Existing users sign in with their current method and explicitly link.
-    if email and db.execute(
-        'SELECT 1 FROM user WHERE lower(email) = ?', (email,)
-    ).fetchone():
-        flash(
-            'A ListHub account with this email already exists. Sign in to that account, '
-            'then link Ideaflow from Settings.',
-            'error',
-        )
-        return redirect(url_for('auth.login'))
+    # 2. A brand new subject whose email matches an existing account. ListHub
+    # has NO email-verification flow, so a typed local email proves nothing
+    # (its creator may be a squatter who knows the password). Even a strictly
+    # verified Ideaflow email is not enough on its own: ownership of the local
+    # account is checked once, in the sign-in flow, with that account's own
+    # password -- never by email alone and never by forcing a Settings detour.
+    if email:
+        matches = db.execute('SELECT * FROM user WHERE lower(email) = ?', (email,)).fetchall()
+        if matches:
+            if not email_verified:
+                return _ideaflow_signin_refused(
+                    'Ideaflow did not verify this email address, so it can’t be matched to an existing '
+                    'ListHub account. Sign in to ListHub another way, then connect Ideaflow from Settings.'
+                )
+            if len(matches) > 1:
+                return _start_ideaflow_ownership_check(None, issuer, subject, email, name, context)
+            target = User(matches[0])
+            if db.execute(
+                'SELECT 1 FROM external_identity WHERE user_id = ? AND issuer = ?',
+                (target.id, issuer),
+            ).fetchone():
+                # May be a squatter who connected their own identity to a row
+                # they registered with the victim's address.
+                return _start_ideaflow_ownership_check(None, issuer, subject, email, name, context)
+            if not _has_usable_password(target):
+                return _start_ideaflow_ownership_check(None, issuer, subject, email, name, context)
+            return _start_ideaflow_ownership_check(target, issuer, subject, email, name, context)
 
-    username = _unique_oidc_username(db, email if email_verified else None, name)
+    # 3. No local account claims this email: a brand new person.
+    return _create_ideaflow_account(
+        db, context, issuer, subject, email, name,
+        local_email=email if email_verified else None,
+    )
+
+
+def _create_ideaflow_account(db, context, issuer, subject, email, name, local_email):
+    username = _unique_oidc_username(db, email if local_email else None, name)
     user_id = nanoid()
-    trusted_email = email if email_verified else None
     try:
         db.execute('BEGIN')
         db.execute(
             'INSERT INTO user (id, username, display_name, email, password_hash) VALUES (?, ?, ?, ?, ?)',
-            (user_id, username, name or username, trusted_email, '!ideaflow-oidc'),
+            (user_id, username, name or username, local_email, '!ideaflow-oidc'),
         )
         db.execute(
             'INSERT INTO external_identity (user_id, issuer, subject, email) VALUES (?, ?, ?, ?)',
@@ -532,7 +619,115 @@ def _complete_ideaflow_signin(context, issuer, subject, email, email_verified, n
     return redirect(_safe_next_url(context.get('next')))
 
 
-def _complete_ideaflow_link(context, issuer, subject, email):
+@auth_bp.route('/auth/ideaflow/confirm', methods=['GET', 'POST'])
+@_ideaflow_enabled_required
+def ideaflow_confirm():
+    """One-time ownership check. Reached only from the Ideaflow callback when a
+    strictly-verified Ideaflow email matches exactly one existing ListHub
+    account that has a local password. The person proves they own THAT account
+    with its password; only then is the Ideaflow identity bound."""
+    pending = _load_ideaflow_pending_confirm()
+    if pending is None:
+        flash('That Ideaflow confirmation expired. Please continue with Ideaflow again.', 'error')
+        return redirect(url_for('auth.login'))
+    db = get_db()
+    if pending['reason'] == 'choose':
+        # No password check is offered; only /auth/ideaflow/confirm/new applies.
+        if request.method == 'GET':
+            return render_template('ideaflow_confirm.html', reason='choose', username='', email=pending['email'])
+        return render_template('ideaflow_confirm.html', reason='choose', username='', email=pending['email']), 400
+    user = User.get(db, pending['user_id'])
+    if not user or not _has_usable_password(user):
+        session.pop(_IDEAFLOW_PENDING_KEY, None)
+        flash('That ListHub account can’t be confirmed with a password.', 'error')
+        return redirect(url_for('auth.login'))
+
+    if request.method == 'GET':
+        return render_template('ideaflow_confirm.html', reason='password', username=user.username, email=pending['email'])
+
+    # The counter in the session cookie is client-held; this per-account cap is
+    # what actually bounds guessing across repeated Ideaflow sign-ins.
+    now = time.time()
+    failures = _ideaflow_confirm_failures.setdefault(user.id, [])
+    failures[:] = [t for t in failures if now - t < _IDEAFLOW_CONFIRM_FAILURE_WINDOW]
+    if len(failures) >= _IDEAFLOW_CONFIRM_MAX_FAILURES_PER_USER:
+        flash('Too many incorrect attempts for this account. Try again in a few minutes.', 'error')
+        return render_template('ideaflow_confirm.html', reason='password', username=user.username, email=pending['email']), 429
+    try:
+        ok = bcrypt.checkpw(request.form.get('password', '').encode(), user.password_hash.encode())
+    except Exception:
+        ok = False
+    if not ok:
+        failures.append(now)
+        pending['attempts'] += 1
+        if pending['attempts'] >= _IDEAFLOW_PENDING_MAX_ATTEMPTS:
+            session.pop(_IDEAFLOW_PENDING_KEY, None)
+            flash('Too many incorrect attempts. Please continue with Ideaflow again.', 'error')
+            return redirect(url_for('auth.login'))
+        session[_IDEAFLOW_PENDING_KEY] = pending
+        flash('Incorrect password.', 'error')
+        return render_template('ideaflow_confirm.html', reason='password', username=user.username, email=pending['email']), 401
+
+    issuer, subject, email = pending['issuer'], pending['subject'], pending['email']
+    context = {'next': pending.get('next')}
+    session.pop(_IDEAFLOW_PENDING_KEY, None)
+
+    # Re-check under the proven password; the DB constraints still guard the commit.
+    existing = _find_external_identity(db, issuer, subject)
+    if existing:
+        if existing['user_id'] == user.id:
+            return _login_external_identity(db, existing, context)
+        return _ideaflow_signin_refused('This Ideaflow account is already connected to a different ListHub account.')
+    if db.execute(
+        'SELECT 1 FROM external_identity WHERE user_id = ? AND issuer = ?', (user.id, issuer),
+    ).fetchone():
+        return _ideaflow_signin_refused('That ListHub account is already connected to a different Ideaflow account.')
+    try:
+        db.execute(
+            'INSERT INTO external_identity (user_id, issuer, subject, email) VALUES (?, ?, ?, ?)',
+            (user.id, issuer, subject, email),
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        return _ideaflow_signin_refused('Ideaflow sign-in conflicted with another request. Please try again.')
+    flash('Ideaflow is now connected to your ListHub account.', 'success')
+    login_user(user, remember=True)
+    return redirect(_safe_next_url(context.get('next')))
+
+
+@auth_bp.route('/auth/ideaflow/confirm/new', methods=['POST'])
+@_ideaflow_enabled_required
+def ideaflow_confirm_new():
+    """"Not your account?" escape hatch. ListHub never verified the matching
+    account's email, so the person whose Ideaflow email is provider-verified must
+    not be locked out by a squatter, a typo, or a forgotten password. A fresh
+    account is created and the existing row is left untouched (its email column
+    is UNIQUE, so the new row keeps no email; the identity row keeps it)."""
+    pending = _load_ideaflow_pending_confirm()
+    session.pop(_IDEAFLOW_PENDING_KEY, None)
+    if pending is None:
+        flash('That Ideaflow confirmation expired. Please continue with Ideaflow again.', 'error')
+        return redirect(url_for('auth.login'))
+    db = get_db()
+    issuer, subject, email = pending['issuer'], pending['subject'], pending['email']
+    context = {'next': pending.get('next')}
+    existing = _find_external_identity(db, issuer, subject)
+    if existing:
+        return _login_external_identity(db, existing, context)
+    return _create_ideaflow_account(
+        db, context, issuer, subject, email, pending.get('name') or '', local_email=None,
+    )
+
+
+@auth_bp.route('/auth/ideaflow/confirm/cancel', methods=['POST'])
+@_ideaflow_enabled_required
+def ideaflow_confirm_cancel():
+    session.pop(_IDEAFLOW_PENDING_KEY, None)
+    return redirect(url_for('auth.login'))
+
+
+def _complete_ideaflow_link(context, issuer, subject, email, auth_time=None):
     target_user_id = context.get('user_id')
     if (
         not target_user_id or not current_user.is_authenticated or current_user.id != target_user_id
@@ -541,6 +736,20 @@ def _complete_ideaflow_link(context, issuer, subject, email):
     ):
         flash('Linking must finish in the same signed-in ListHub session that started it.', 'error')
         return redirect(url_for('views.settings') if current_user.is_authenticated else url_for('auth.login'))
+
+    # This flow forced prompt=login, so the provider session must have been
+    # (re)created for this request; a stale/missing auth_time means the IdP did
+    # not honour it and we would be binding whoever holds the IdP session.
+    started_at = context.get('started_at')
+    if (
+        not isinstance(started_at, int)
+        or isinstance(auth_time, bool)
+        or not isinstance(auth_time, (int, float))
+        or auth_time < started_at - _IDEAFLOW_FRESH_AUTH_SKEW
+        or auth_time > int(time.time()) + _IDEAFLOW_FRESH_AUTH_SKEW
+    ):
+        flash('Ideaflow needs a fresh sign-in to connect an account. Please try connecting again.', 'error')
+        return redirect(url_for('views.settings'))
 
     db = get_db()
     identity = _find_external_identity(db, issuer, subject)

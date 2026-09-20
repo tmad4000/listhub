@@ -14,14 +14,32 @@ come from discovery metadata; see the signed-token coverage in
 The durable key is `(issuer, subject)` in `external_identity`. ListHub keeps
 its existing user IDs, ownership, local sessions, Noos links, local passwords,
 and API keys. A new subject never attaches to an existing account by email or
-display name, even if the provider says that email is verified. Existing-account
-linking follows the [web sign-in instructions](../README.md#web); the callback
-must finish in the same signed-in ListHub session that started it.
-An unlinked subject creates a new local account unless its email matches an
-existing user's email case-insensitively. That collision blocks sign-in and
-directs the user to sign in to the existing account and link from Settings.
-Signing in again or signing out invalidates pending links, including when the
-same account signs back in. The callback validates the canonical issuer and
+display name alone, even if the provider says that email is verified: ListHub has
+no email-verification flow, so a typed local email proves nothing (its creator may
+be a squatter who knows the password). Instead, when a strictly verified Ideaflow
+email matches exactly one existing account that has a local password, sign-in asks
+once for that account's password (`/auth/ideaflow/confirm`: five attempts, ten
+minutes, single use) and then binds the identity automatically. Accounts without a
+local password (Noos-only or Ideaflow-only), several matching accounts, or an account
+already connected to a different Ideaflow identity are never guessed or bound: the
+person gets a page offering only the way out (sign in to the existing account
+another way and use Connect Ideaflow in Settings, or create a new account). An
+unverified Ideaflow email that matches an account is refused with the same
+guidance. The confirmation page also offers **Create a new ListHub account**
+(`/auth/ideaflow/confirm/new`) for a person whose address someone else typed or who forgot that password: it leaves the
+existing account untouched and creates a fresh one (its UNIQUE `user.email` stays
+with the existing row, so the new row has no email; the identity row keeps it). A
+per-account failure cap (ten wrong passwords in ten minutes, in process, per
+gunicorn worker) backs the per-check attempt counter, which lives in the
+client-held session cookie.
+That fallback ([web sign-in instructions](../README.md#web)) always forces a fresh
+Ideaflow sign-in (`prompt=login`), requires a fresh `auth_time`, and must finish in
+the same signed-in ListHub session that started it.
+**Use another Ideaflow account** on the login page (`?switch=1`) sends
+`prompt=login`; no other query parameter is forwarded to the provider.
+An unlinked subject with no matching email creates a new local account.
+Signing in again or signing out invalidates pending links and pending password
+confirmations, including when the same account signs back in. The callback validates the canonical issuer and
 requires the ListHub client ID in the ID token audience, even when `azp` matches.
 
 Authorization attempts expire after ten minutes; only the three newest pending

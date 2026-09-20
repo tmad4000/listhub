@@ -7,14 +7,14 @@
 <div class="setup-section" style="margin-bottom: 24px;">
     <h2 style="font-size: 16px; margin-bottom: 12px;">Connected identity</h2>
     {% if ideaflow_identity %}
-    <p style="font-size: 14px; color: var(--text-muted);">
-        Ideaflow is linked{% if ideaflow_identity.email %} as {{ ideaflow_identity.email }}{% endif %}.
+    <p style="font-size: 14px; color: var(--text-muted);" data-ideaflow-status="connected">
+        Ideaflow is connected{% if ideaflow_identity.email %} as {{ ideaflow_identity.email }}{% endif %}. You can sign in with Ideaflow.
     </p>
     {% else %}
-    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">
-        Link your signed-in ListHub account to an Ideaflow identity. This never merges accounts by email.
+    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;" data-ideaflow-status="not-connected">
+        Ideaflow connects automatically the first time you continue with it using this account's email (you confirm the password once). If your Ideaflow account uses a different email, connect it here; you'll sign in to Ideaflow again so we connect the account you choose. This never merges accounts.
     </p>
-    <a class="btn btn-primary" href="{{ url_for('auth.ideaflow_link') }}">Link Ideaflow</a>
+    <a class="btn btn-primary" href="{{ url_for('auth.ideaflow_link') }}">Connect Ideaflow</a>
     {% endif %}
 </div>
 {% endif %}

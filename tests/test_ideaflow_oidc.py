@@ -39,10 +39,12 @@ class FakeIdeaflowClient:
     def __init__(self, userinfo):
         self.userinfo = userinfo
         self.redirect_uri = None
+        self.calls = []
 
-    def authorize_redirect(self, redirect_uri):
+    def authorize_redirect(self, redirect_uri, **kwargs):
         from flask import redirect
         self.redirect_uri = redirect_uri
+        self.calls.append(kwargs)
         session['_state_ideaflow_test-state'] = {'data': {}, 'exp': time.time() + 3600}
         return redirect(
             'https://id.ideaflow.app/api/auth/oauth2/authorize'
@@ -58,6 +60,7 @@ class IdeaflowOidcTests(unittest.TestCase):
         self.app = create_app()
         self.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
         self.client = self.app.test_client()
+        auth._ideaflow_confirm_failures.clear()
         auth.oauth.ideaflow.server_metadata.clear()
         auth.oauth.ideaflow.server_metadata.update(self._provider_metadata())
         with self.app.app_context():
@@ -108,6 +111,7 @@ class IdeaflowOidcTests(unittest.TestCase):
             'email': 'person@example.test',
             'email_verified': True,
             'name': 'Test Person',
+            'auth_time': int(time.time()),
         }
         claims.update(overrides)
         return claims
@@ -129,6 +133,10 @@ class IdeaflowOidcTests(unittest.TestCase):
         self.assertIn('/auth/noos/login', response.headers['Location'])
         self.assertEqual(self.client.get('/auth/ideaflow').status_code, 404)
         self.assertEqual(self.client.get('/auth/ideaflow/link').status_code, 404)
+        self.assertEqual(self.client.get('/auth/ideaflow/confirm').status_code, 404)
+        self.assertEqual(self.client.post('/auth/ideaflow/confirm').status_code, 404)
+        self.assertEqual(self.client.post('/auth/ideaflow/confirm/new').status_code, 404)
+        self.assertEqual(self.client.post('/auth/ideaflow/confirm/cancel').status_code, 404)
 
     def test_new_subject_creates_local_user_and_exact_identity(self):
         response = self._complete(self.client, self._claims())
@@ -460,7 +468,8 @@ class IdeaflowOidcTests(unittest.TestCase):
         preserved_session = self.app.test_client()
         local_login(preserved_session)
         pages['settings-before-link'] = self.client.get('/dash/settings').get_data(as_text=True)
-        self.assertIn('Link Ideaflow', pages['settings-before-link'])
+        self.assertIn('Connect Ideaflow', pages['settings-before-link'])
+        self.assertIn('data-ideaflow-status="not-connected"', pages['settings-before-link'])
 
         private = Ed25519PrivateKey.generate()
         pem = private.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
@@ -512,22 +521,30 @@ class IdeaflowOidcTests(unittest.TestCase):
             consent = parse_qs(location.query)
             self.assertEqual(consent['code_challenge_method'], ['S256'])
             self.assertEqual(consent['redirect_uri'], ['https://listhub.globalbr.ai/auth/ideaflow/callback'])
+            self.assertEqual(consent.get('prompt'), ['login'] if path.endswith('/link') else None)
             return browser.get('/auth/ideaflow/callback', query_string={
                 'state': consent['state'][0], 'code': 'local-test-code',
             }, follow_redirects=True)
 
         auth.oauth.ideaflow.server_metadata.clear()
         with patch('requests.sessions.Session.send', side_effect=provider_send):
-            # Same email/name must fail closed before an explicit settings link.
+            # A verified Ideaflow email that matches this account asks for its
+            # password once; cancelling changes nothing.
             unlinked = self.app.test_client()
             pages['email-collision'] = oidc(unlinked, '/auth/ideaflow').get_data(as_text=True)
-            self.assertIn('then link Ideaflow from Settings', pages['email-collision'])
+            self.assertIn('Confirm it', pages['email-collision'])
+            self.assertIn('Create a new ListHub account', pages['email-collision'])
+            csrf = re.search(r'name="csrf_token" value="([^"]+)"', pages['email-collision']).group(1)
+            self.assertEqual(unlinked.post('/auth/ideaflow/confirm/cancel', data={'csrf_token': csrf}).status_code, 302)
             with unlinked.session_transaction() as sess:
                 self.assertNotIn('_user_id', sess)
+            with self.app.app_context():
+                self.assertEqual(get_db().execute('SELECT COUNT(*) FROM external_identity').fetchone()[0], 0)
             linked = oidc(self.client, '/auth/ideaflow/link')
             self.assertEqual(linked.status_code, 200)
             pages['settings-linked'] = linked.get_data(as_text=True)
-            self.assertIn('Ideaflow is linked as journey@example.test', pages['settings-linked'])
+            self.assertIn('Ideaflow is connected as journey@example.test', pages['settings-linked'])
+            self.assertIn('data-ideaflow-status="connected"', pages['settings-linked'])
             self.client.get('/logout')
             signed_in = oidc(self.client, '/auth/ideaflow')
             self.assertEqual(signed_in.status_code, 200)
@@ -591,6 +608,324 @@ class IdeaflowOidcTests(unittest.TestCase):
                 'git_discovery': git_evidence, 'noos_callback_user_id': 'stable-user-id',
                 'preserved_session_after_kill_flag': '/dash returned HTTP 200',
             }, indent=2))
+
+    # ---- code-d96: seamless account resolution -------------------------------
+
+    PASSWORD = 'correct-horse-battery'
+
+    def _create_password_user(self, user_id, username, email, password=None):
+        self._create_user(user_id, username, email)
+        with self.app.app_context():
+            db = get_db()
+            db.execute('UPDATE user SET password_hash = ? WHERE id = ?', (
+                bcrypt.hashpw((password or self.PASSWORD).encode(), bcrypt.gensalt(rounds=4)).decode(), user_id,
+            ))
+            db.commit()
+
+    def _session_user(self, browser):
+        with browser.session_transaction() as sess:
+            return sess.get('_user_id')
+
+    def _identity_rows(self):
+        with self.app.app_context():
+            return [dict(r) for r in get_db().execute(
+                'SELECT user_id, subject, email FROM external_identity ORDER BY subject')]
+
+    def _user_count(self):
+        with self.app.app_context():
+            return get_db().execute('SELECT COUNT(*) FROM user').fetchone()[0]
+
+    def _sign_in_to_confirm(self, claims=None, path='/auth/ideaflow', browser=None):
+        browser = browser or self.app.test_client()
+        response = self._complete(browser, claims or self._claims(), path)
+        return browser, response
+
+    def _assert_pending_confirmation(self, response):
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers['Location'].endswith('/auth/ideaflow/confirm'), response.headers['Location'])
+
+    def test_switch_account_sends_prompt_login_only_when_allowlisted(self):
+        fake = FakeIdeaflowClient(self._claims())
+        with patch('auth._ideaflow_client', return_value=fake):
+            for query, expected in (
+                ('', {}),
+                ('?switch=0', {}),
+                ('?switch=true', {}),
+                ('?switch=1', {'prompt': 'login'}),
+                ('?switch=1&prompt=none&max_age=0&login_hint=x%40example.test&scope=admin', {'prompt': 'login'}),
+                ('?prompt=login', {}),
+            ):
+                with self.subTest(query=query):
+                    fake.calls.clear()
+                    browser = self.app.test_client()
+                    self.assertEqual(browser.get('/auth/ideaflow' + query).status_code, 302)
+                    self.assertEqual(fake.calls, [expected])
+        choice = self.app.test_client().get('/login').get_data(as_text=True)
+        self.assertRegex(choice, r'data-login-action="ideaflow-switch" href="/auth/ideaflow\?[^"]*switch=1"')
+
+    def test_verified_matching_email_asks_for_the_password_once_and_links(self):
+        self._create_password_user('existing', 'existing', 'person@example.test')
+        browser, response = self._sign_in_to_confirm()
+        self._assert_pending_confirmation(response)
+        self.assertEqual(self._identity_rows(), [])
+        self.assertIsNone(self._session_user(browser))
+        page = browser.get('/auth/ideaflow/confirm')
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('existing', page.get_data(as_text=True))
+
+        wrong = browser.post('/auth/ideaflow/confirm', data={'password': 'not-it'})
+        self.assertEqual(wrong.status_code, 401)
+        self.assertEqual(self._identity_rows(), [])
+        self.assertIsNone(self._session_user(browser))
+
+        ok = browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD})
+        self.assertEqual(ok.status_code, 302)
+        self.assertEqual(self._session_user(browser), 'existing')
+        self.assertEqual([(r['user_id'], r['subject']) for r in self._identity_rows()], [('existing', 'subject-1')])
+        self.assertEqual(self._user_count(), 1)
+
+        # Never asked again: the exact subject signs straight in.
+        browser.get('/logout')
+        again, response = self._sign_in_to_confirm(browser=self.app.test_client())
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(response.headers['Location'].endswith('/auth/ideaflow/confirm'))
+        self.assertEqual(self._session_user(again), 'existing')
+
+        # A used check cannot be replayed.
+        replay = browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD})
+        self.assertEqual(replay.status_code, 302)
+        self.assertTrue(replay.headers['Location'].endswith('/login'))
+
+    def test_confirmation_is_capped_expires_cancels_and_keeps_safe_next(self):
+        self._create_password_user('existing', 'existing', 'person@example.test')
+
+        browser, response = self._sign_in_to_confirm()
+        for attempt in range(1, auth._IDEAFLOW_PENDING_MAX_ATTEMPTS):
+            self.assertEqual(browser.post('/auth/ideaflow/confirm', data={'password': f'no-{attempt}'}).status_code, 401)
+        last = browser.post('/auth/ideaflow/confirm', data={'password': 'no-final'})
+        self.assertEqual(last.status_code, 302)
+        after = browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD})
+        self.assertTrue(after.headers['Location'].endswith('/login'), 'the right password is refused once the check is spent')
+        self.assertEqual(self._identity_rows(), [])
+        auth._ideaflow_confirm_failures.clear()
+
+        browser, _ = self._sign_in_to_confirm()
+        with browser.session_transaction() as sess:
+            sess[auth._IDEAFLOW_PENDING_KEY] = dict(sess[auth._IDEAFLOW_PENDING_KEY], exp=int(time.time()) - 1)
+        expired = browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD})
+        self.assertTrue(expired.headers['Location'].endswith('/login'))
+        self.assertEqual(self._identity_rows(), [])
+
+        browser, _ = self._sign_in_to_confirm()
+        cancelled = browser.post('/auth/ideaflow/confirm/cancel')
+        self.assertTrue(cancelled.headers['Location'].endswith('/login'))
+        self.assertEqual(browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD}).status_code, 302)
+        self.assertEqual(self._identity_rows(), [])
+        self.assertIsNone(self._session_user(browser))
+
+        browser, _ = self._sign_in_to_confirm(path='/auth/ideaflow?next=/dash/settings')
+        ok = browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD})
+        self.assertEqual(ok.status_code, 302)
+        self.assertTrue(ok.headers['Location'].endswith('/dash/settings'), ok.headers['Location'])
+        with self.app.app_context():
+            get_db().execute('DELETE FROM external_identity')
+            get_db().commit()
+        browser.get('/logout')
+        browser, _ = self._sign_in_to_confirm(path='/auth/ideaflow?next=https://evil.example.test/steal')
+        ok = browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD})
+        self.assertNotIn('evil.example.test', ok.headers['Location'])
+
+    def test_unverified_or_non_boolean_email_claim_never_matches_an_account(self):
+        self._create_password_user('existing', 'existing', 'person@example.test')
+        for verified in (False, 'true', 'True', 1, None):
+            with self.subTest(email_verified=verified):
+                browser, response = self._sign_in_to_confirm(
+                    self._claims(sub=f'sub-{verified!r}', email_verified=verified))
+                self.assertEqual(response.status_code, 302)
+                self.assertTrue(response.headers['Location'].endswith('/login'), response.headers['Location'])
+                self.assertIsNone(self._session_user(browser))
+                self.assertEqual(browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD}).status_code, 302)
+                self.assertIsNone(self._session_user(browser))
+        self.assertEqual(self._identity_rows(), [])
+        self.assertEqual(self._user_count(), 1)
+
+    def _assert_only_the_way_out(self, browser, response):
+        self._assert_pending_confirmation(response)
+        page = browser.get('/auth/ideaflow/confirm').get_data(as_text=True)
+        self.assertNotIn('name="password"', page)
+        self.assertIn('Create a new ListHub account', page)
+        self.assertEqual(browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD}).status_code, 400)
+        self.assertIsNone(self._session_user(browser))
+        self.assertEqual(self._identity_rows(), [] if not getattr(self, '_expected_rows', None) else self._expected_rows)
+
+    def test_passwordless_ambiguous_and_conflicting_accounts_offer_only_the_way_out(self):
+        # Placeholder hash (created by Noos/Ideaflow, not by a password): nothing to confirm with.
+        self._create_user('noos-only', 'noosonly', 'person@example.test')
+        with self.app.app_context():
+            get_db().execute("UPDATE user SET password_hash = '!noos-oauth' WHERE id = 'noos-only'")
+            get_db().commit()
+        browser, response = self._sign_in_to_confirm()
+        self._assert_only_the_way_out(browser, response)
+        self.assertEqual(self._user_count(), 1)
+
+        # Two accounts whose emails differ only by case: never LIMIT 1.
+        self._create_password_user('mixed-a', 'mixeda', 'Person@Example.Test')
+        self._create_password_user('mixed-b', 'mixedb', 'person@example.test-x')
+        with self.app.app_context():
+            get_db().execute("UPDATE user SET email = 'PERSON@example.test' WHERE id = 'mixed-b'")
+            get_db().execute('DELETE FROM user WHERE id = ?', ('noos-only',))
+            get_db().commit()
+        browser, response = self._sign_in_to_confirm(self._claims(sub='ambiguous'))
+        self._assert_only_the_way_out(browser, response)
+
+        # The matching account already belongs to a different Ideaflow subject (for
+        # example a squatter connected their own identity to a row with the victim's
+        # address): the victim is not stranded, and the binding is untouched.
+        with self.app.app_context():
+            get_db().execute('DELETE FROM user WHERE id = ?', ('mixed-b',))
+            get_db().execute(
+                'INSERT INTO external_identity (user_id, issuer, subject, email) VALUES (?, ?, ?, ?)',
+                ('mixed-a', self.app.config['IDEAFLOW_OIDC_ISSUER'], 'someone-else', None),
+            )
+            get_db().commit()
+        self._expected_rows = [{'user_id': 'mixed-a', 'subject': 'someone-else', 'email': None}]
+        browser, response = self._sign_in_to_confirm(self._claims(sub='intruder'))
+        self._assert_only_the_way_out(browser, response)
+        created = browser.post('/auth/ideaflow/confirm/new')
+        self.assertEqual(created.status_code, 302)
+        self.assertNotIn(self._session_user(browser), (None, 'mixed-a'))
+        self.assertEqual(
+            sorted((r['user_id'], r['subject']) for r in self._identity_rows()),
+            sorted([('mixed-a', 'someone-else'), (self._session_user(browser), 'intruder')]),
+        )
+
+        # An exact subject wins outright and never consults the email.
+        self._create_password_user('other', 'other', 'other@example.test')
+        with self.app.app_context():
+            get_db().execute(
+                'INSERT INTO external_identity (user_id, issuer, subject, email) VALUES (?, ?, ?, ?)',
+                ('other', self.app.config['IDEAFLOW_OIDC_ISSUER'], 'exact-sub', None),
+            )
+            get_db().commit()
+        browser, response = self._sign_in_to_confirm(self._claims(sub='exact-sub', email='person@example.test'))
+        self.assertEqual(self._session_user(browser), 'other')
+
+    def test_not_your_account_creates_a_fresh_account_and_leaves_the_existing_one(self):
+        self._create_password_user('squatter', 'squatter', 'person@example.test')
+        browser, response = self._sign_in_to_confirm()
+        self._assert_pending_confirmation(response)
+        page = browser.get('/auth/ideaflow/confirm').get_data(as_text=True)
+        self.assertIn('Create a new ListHub account', page)
+
+        created = browser.post('/auth/ideaflow/confirm/new')
+        self.assertEqual(created.status_code, 302)
+        new_id = self._session_user(browser)
+        self.assertIsNotNone(new_id)
+        self.assertNotEqual(new_id, 'squatter')
+        with self.app.app_context():
+            row = get_db().execute('SELECT * FROM user WHERE id = ?', (new_id,)).fetchone()
+            self.assertIsNone(row['email'], 'the UNIQUE email stays with the untouched account')
+            self.assertEqual(row['password_hash'], '!ideaflow-oidc')
+            squatter = get_db().execute("SELECT email FROM user WHERE id = 'squatter'").fetchone()
+            self.assertEqual(squatter['email'], 'person@example.test')
+        self.assertEqual([(r['user_id'], r['email']) for r in self._identity_rows()], [(new_id, 'person@example.test')])
+        self.assertEqual(self._user_count(), 2)
+
+        replay = browser.post('/auth/ideaflow/confirm/new')
+        self.assertTrue(replay.headers['Location'].endswith('/login'))
+        self.assertEqual(self._user_count(), 2)
+
+    def test_confirmation_posts_require_csrf_and_recheck_bindings(self):
+        self._create_password_user('existing', 'existing', 'person@example.test')
+        self._create_password_user('rival', 'rival', 'rival@example.test')
+        browser, _ = self._sign_in_to_confirm()
+        self.app.config['WTF_CSRF_ENABLED'] = True
+        try:
+            for path in ('/auth/ideaflow/confirm', '/auth/ideaflow/confirm/new', '/auth/ideaflow/confirm/cancel'):
+                self.assertEqual(browser.post(path, data={'password': self.PASSWORD}).status_code, 400, path)
+        finally:
+            self.app.config['WTF_CSRF_ENABLED'] = False
+        self.assertEqual(self._identity_rows(), [])
+        self.assertIsNone(self._session_user(browser))
+        self.assertEqual(self._user_count(), 2)
+
+        # The subject got bound to another account while the check was pending.
+        with self.app.app_context():
+            get_db().execute(
+                'INSERT INTO external_identity (user_id, issuer, subject, email) VALUES (?, ?, ?, ?)',
+                ('rival', self.app.config['IDEAFLOW_OIDC_ISSUER'], 'subject-1', None),
+            )
+            get_db().commit()
+        response = browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD})
+        self.assertTrue(response.headers['Location'].endswith('/login'))
+        self.assertIsNone(self._session_user(browser))
+        self.assertEqual([r['user_id'] for r in self._identity_rows()], ['rival'])
+
+    def test_password_failures_are_capped_per_account_on_the_server(self):
+        self._create_password_user('existing', 'existing', 'person@example.test')
+        for i in range(auth._IDEAFLOW_CONFIRM_MAX_FAILURES_PER_USER):
+            browser, _ = self._sign_in_to_confirm()
+            self.assertEqual(browser.post('/auth/ideaflow/confirm', data={'password': f'wrong-{i}'}).status_code, 401)
+        browser, _ = self._sign_in_to_confirm()
+        blocked = browser.post('/auth/ideaflow/confirm', data={'password': self.PASSWORD})
+        self.assertEqual(blocked.status_code, 429)
+        self.assertEqual(self._identity_rows(), [])
+        self.assertIsNone(self._session_user(browser))
+
+    def test_explicit_connect_forces_a_fresh_ideaflow_sign_in(self):
+        self._create_password_user('linker', 'linker', 'linker@example.test')
+        now = int(time.time())
+        cases = (
+            ('missing', {'auth_time': None}, False),
+            ('stale', {'auth_time': now - 3600}, False),
+            ('milliseconds', {'auth_time': now * 1000}, False),
+            ('far future', {'auth_time': now + 36000}, False),
+            ('boolean', {'auth_time': True}, False),
+            ('string', {'auth_time': str(now)}, False),
+            ('unverified email', {'auth_time': now, 'email_verified': False}, True),
+            ('fresh', {'auth_time': now, 'email_verified': True}, True),
+        )
+        for label, extra, should_link in cases:
+            with self.subTest(label):
+                browser = self.app.test_client()
+                self._session_login(browser, 'linker')
+                claims = self._claims(sub='connect-' + label.replace(' ', '-'), **extra)
+                fake = FakeIdeaflowClient(claims)
+                with patch('auth._ideaflow_client', return_value=fake):
+                    browser.get('/auth/ideaflow/link')
+                    self.assertEqual(fake.calls, [{'prompt': 'login'}])
+                    browser.get('/auth/ideaflow/callback?state=test-state&code=fake')
+                rows = [r for r in self._identity_rows() if r['subject'] == claims['sub']]
+                self.assertEqual(bool(rows), should_link)
+                if rows:
+                    self.assertEqual(rows[0]['email'], None if label == 'unverified email' else 'person@example.test')
+                    with self.app.app_context():
+                        get_db().execute('DELETE FROM external_identity')
+                        get_db().commit()
+
+    def test_settings_shows_connected_state_instead_of_connect(self):
+        self._create_password_user('linker', 'linker', 'linker@example.test')
+        self._session_login(self.client, 'linker')
+        before = self.client.get('/dash/settings').get_data(as_text=True)
+        self.assertIn('data-ideaflow-status="not-connected"', before)
+        self.assertIn('Connect Ideaflow', before)
+        self._complete(self.client, self._claims(sub='settings-sub'), '/auth/ideaflow/link')
+        after = self.client.get('/dash/settings').get_data(as_text=True)
+        self.assertIn('data-ideaflow-status="connected"', after)
+        self.assertNotIn('Connect Ideaflow', after)
+
+    def test_cancelled_authorization_changes_nothing_and_keeps_the_pending_check(self):
+        self._create_password_user('existing', 'existing', 'person@example.test')
+        browser, _ = self._sign_in_to_confirm()
+        fake = FakeIdeaflowClient(self._claims())
+        with patch('auth._ideaflow_client', return_value=fake):
+            browser.get('/auth/ideaflow?switch=1')
+            with patch.object(fake, 'authorize_access_token', side_effect=Exception('access_denied')):
+                cancelled = browser.get('/auth/ideaflow/callback?state=test-state&error=access_denied')
+        self.assertTrue(cancelled.headers['Location'].endswith('/login'))
+        self.assertEqual(self._identity_rows(), [])
+        self.assertIsNone(self._session_user(browser))
+        self.assertEqual(self._user_count(), 1)
 
     def test_real_ed25519_verification_and_basic_s256_client(self):
         client = auth.oauth.ideaflow
