@@ -60,11 +60,14 @@ account preserves its password and git credentials.
 
 The sign-in screens label the method last used successfully on this browser
 (**Last used**) whenever two or more methods are offered. After a completed login
-(the local password handler, the validated Noos callback, or a validated Ideaflow
-callback that signs a user in) the server sets the `listhub_last_login` cookie
+(the local password handler, the validated Noos callback, a validated Ideaflow
+callback that signs a user in, or a completed Ideaflow ownership check or
+**Create a new account** confirmation) the server sets the `listhub_last_login` cookie
 (HttpOnly, SameSite=Lax, one year) holding only `password`, `noos`, or
-`ideaflow`. Clicking a button, failed or cancelled attempts, restoring an existing
-session, and Ideaflow linking from Settings never write or clear it. The value is
+`ideaflow`. Clicking a button (including **Use another Ideaflow account**), reaching or
+failing the ownership check, cancelling it, failed or cancelled attempts,
+restoring an existing session, and Ideaflow linking from Settings never write or
+clear it. The value is
 ignored unless it is one of the methods currently enabled, and it never contains
 tokens, emails, or user IDs. It does not change account mapping or sessions.
 

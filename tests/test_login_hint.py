@@ -31,7 +31,8 @@ class FakeIdeaflowClient:
         self.userinfo = userinfo
         self.fail = fail
 
-    def authorize_redirect(self, redirect_uri):
+    def authorize_redirect(self, redirect_uri, **kwargs):
+        self.last_authorize_kwargs = kwargs
         from flask import redirect
         session['_state_ideaflow_test-state'] = {'data': {}, 'exp': time.time() + 3600}
         return redirect('https://id.ideaflow.app/api/auth/oauth2/authorize?state=test-state')
@@ -188,6 +189,72 @@ class LoginHintTests(unittest.TestCase):
         self.assertEqual(_hint_cookies(response), [])
         self.assertIsNone(self._cookie())
 
+    # seamless-accounts (code-d96): the new Ideaflow login paths
+    def _make_password_user(self, user_id, username, email, password='correct-horse'):
+        with self.app.app_context():
+            db = get_db()
+            pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+            db.execute(
+                'INSERT INTO user (id, username, display_name, email, password_hash) VALUES (?, ?, ?, ?, ?)',
+                (user_id, username, username, email, pw),
+            )
+            db.commit()
+
+    def _ideaflow_to_confirm(self, browser, sub='sub-confirm', email='match@example.test'):
+        claims = {
+            'iss': self.app.config['IDEAFLOW_OIDC_ISSUER'], 'sub': sub, 'email': email,
+            'email_verified': True, 'name': 'Match', 'auth_time': int(time.time()),
+        }
+        response = self._ideaflow_callback(client=browser, userinfo=claims)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers['Location'].endswith('/auth/ideaflow/confirm'), response.headers['Location'])
+        return response
+
+    def test_confirm_password_success_records_ideaflow(self):
+        self._make_password_user('u2', 'matcher', 'match@example.test')
+        self._noos_callback()
+        self.client.get('/logout')
+        self.assertEqual(self._cookie(), 'noos')
+        response = self._ideaflow_to_confirm(self.client)
+        # Reaching the confirmation page is not a login: the old hint stands.
+        self.assertEqual(_hint_cookies(response), [])
+        self.assertEqual(self._cookie(), 'noos')
+        wrong = self.client.post('/auth/ideaflow/confirm', data={'password': 'nope'})
+        self.assertEqual(wrong.status_code, 401)
+        self.assertEqual(_hint_cookies(wrong), [])
+        self.assertEqual(self._cookie(), 'noos')
+        ok = self.client.post('/auth/ideaflow/confirm', data={'password': 'correct-horse'})
+        self.assertEqual(ok.status_code, 302)
+        self.assertEqual(self._cookie(), 'ideaflow')
+
+    def test_confirm_new_account_and_cancel(self):
+        self._make_password_user('u2', 'matcher', 'match@example.test')
+        self._password_login()
+        self.client.get('/logout')
+        self.assertEqual(self._cookie(), 'password')
+        self._ideaflow_to_confirm(self.client)
+        cancel = self.client.post('/auth/ideaflow/confirm/cancel')
+        self.assertEqual(_hint_cookies(cancel), [])
+        self.assertEqual(self._cookie(), 'password')
+        self._ideaflow_to_confirm(self.client, sub='sub-confirm-2')
+        created = self.client.post('/auth/ideaflow/confirm/new')
+        self.assertEqual(created.status_code, 302)
+        self.assertEqual(self._cookie(), 'ideaflow')
+        with self.app.app_context():
+            self.assertEqual(get_db().execute('SELECT COUNT(*) FROM user').fetchone()[0], 3)
+
+    def test_choice_page_keeps_the_switch_link_and_marks_only_continue(self):
+        self._ideaflow_callback(userinfo={
+            'iss': self.app.config['IDEAFLOW_OIDC_ISSUER'], 'sub': 'sub-mark',
+            'email': 'mark@example.test', 'email_verified': True,
+        })
+        self.client.get('/logout')
+        html = self.client.get('/login').get_data(as_text=True)
+        self.assertRegex(html, r'data-login-action="ideaflow-switch" href="/auth/ideaflow\?[^"]*switch=1"')
+        self.assertEqual(html.count('Last used'), 1)
+        self.assertTrue(_link_text(html, 'Continue with Ideaflow').endswith('Last used'))
+        self.assertNotIn('Last used', _link_text(html, 'Use another Ideaflow account'))
+
     # (c) restoring an existing session is not a fresh login
     def test_session_restore_does_not_record(self):
         with self.client.session_transaction() as sess:
@@ -202,7 +269,7 @@ class LoginHintTests(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['_user_id'] = 'u1'
             sess['_fresh'] = True
-        claims = {'iss': self.app.config['IDEAFLOW_OIDC_ISSUER'], 'sub': 'sub-link'}
+        claims = {'iss': self.app.config['IDEAFLOW_OIDC_ISSUER'], 'sub': 'sub-link', 'auth_time': int(time.time())}
         with patch('auth._ideaflow_client', return_value=FakeIdeaflowClient(userinfo=claims)):
             self.client.get('/auth/ideaflow/link')
             response = self.client.get('/auth/ideaflow/callback?state=test-state&code=fake')

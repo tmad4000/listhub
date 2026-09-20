@@ -729,7 +729,7 @@ def ideaflow_confirm():
         return _ideaflow_signin_refused('Ideaflow sign-in conflicted with another request. Please try again.')
     flash('Ideaflow is now connected to your ListHub account.', 'success')
     login_user(user, remember=True)
-    return redirect(_safe_next_url(context.get('next')))
+    return _remember_login_method(redirect(_safe_next_url(context.get('next'))), 'ideaflow')
 
 
 @auth_bp.route('/auth/ideaflow/confirm/new', methods=['POST'])
