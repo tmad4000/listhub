@@ -1361,7 +1361,8 @@ Content-Type: application/json
 Returns: {"key": "mem_abc123...", ...}
 
 Browser sign-in may also offer Ideaflow ID. That OIDC flow preserves local
-ListHub user IDs and sessions and never links accounts by matching email.
+ListHub user IDs and sessions and never links accounts by email alone: a matching
+account is confirmed once with its own password.
 Links must finish in the same authenticated session; signing in again or
 signing out cancels pending links. Authorization attempts expire after ten
 minutes, and only the three newest attempts are retained. Provider failures

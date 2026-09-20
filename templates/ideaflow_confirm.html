@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Confirm your account — ListHub{% endblock %}
+{% block content %}
+<div class="auth-card">
+    <h1>Confirm it's your account</h1>
+    {% if reason == 'choose' %}
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">
+        Ideaflow confirmed <strong>{{ email }}</strong>, and ListHub already has an account using that address, but it can't be confirmed with a password here (there may be several, it may have no password, or it may already be connected to another Ideaflow account). If it's yours, sign in to it with its usual method and choose Connect Ideaflow in Settings. Otherwise you can create a new ListHub account.
+    </p>
+    {% else %}
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">
+        Ideaflow confirmed <strong>{{ email }}</strong>, and a ListHub account (<strong>{{ username }}</strong>) already uses that address. ListHub never verified it, so confirm the account is yours once with its password and you won't be asked again.
+    </p>
+    <form method="post" action="{{ url_for('auth.ideaflow_confirm') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="password">Password for {{ username }}</label>
+            <input type="password" id="password" name="password" autocomplete="current-password" autofocus required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 12px;">Confirm and connect Ideaflow</button>
+    </form>
+    {% endif %}
+    <p style="color: var(--text-muted); font-size: 13px; margin: 8px 0 12px;">
+        Not your account? Someone else may have typed your address, or you may have forgotten the password.
+    </p>
+    <form method="post" action="{{ url_for('auth.ideaflow_confirm_new') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn" style="width: 100%; margin-bottom: 12px;" data-ideaflow-action="new-account">Create a new ListHub account</button>
+    </form>
+    <form method="post" action="{{ url_for('auth.ideaflow_confirm_cancel') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn" style="width: 100%;">Cancel</button>
+    </form>
+</div>
+{% endblock %}
