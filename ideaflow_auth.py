@@ -60,6 +60,8 @@ def login():
 
 @ideaflow_bp.route('/auth/ideaflow/switch-account')
 def switch_account():
+    from auth import invalidate_pending_auth
+    invalidate_pending_auth()
     logout_user()
     session['ideaflow_signed_out'] = True
     return start(choose=True)
@@ -130,18 +132,22 @@ def link():
     return response
 
 
+def login_fallback(pending=None):
+    return redirect(url_for('auth.login', auto='off', next=local_next((pending or {}).get('next'))))
+
+
 @ideaflow_bp.route('/auth/ideaflow/callback')
 def callback():
     pending = session.pop('ideaflow_pending', None)
     if not pending or time.time() - pending['created'] > 300 or not request.args.get('state') or not secrets.compare_digest(request.args['state'], pending['state']):
         flash('Sign-in expired. Please try again.', 'error')
-        return redirect('/login?auto=off')
+        return login_fallback(pending)
     if request.args.get('error'):
         if pending['silent']:
             session['ideaflow_auto_attempted'] = True
         else:
             flash('Sign-in was cancelled or unavailable.', 'error')
-        return redirect('/login?auto=off')
+        return login_fallback(pending)
     try:
         claims = exchange(request.args['code'], pending, config())
         if pending.get('link_user_id'):
@@ -170,4 +176,4 @@ def callback():
         flash(str(error), 'error')
     except Exception:
         flash('Ideaflow sign-in could not finish. Please try again.', 'error')
-    return redirect('/login?auto=off')
+    return login_fallback(pending)

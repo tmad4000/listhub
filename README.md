@@ -81,7 +81,7 @@ git push
 | **Auth** | | |
 | Register (local) | ❌ | ✅ |
 | Login via Ideaflow ID (OIDC, silent SSO, explicit account link) | n/a | ✅ |
-| Login via Noos OAuth | n/a | ✅ |
+| Login via Noos OAuth (explicit authenticated linking) | n/a | ✅ |
 | Login via local password | n/a | ✅ (fallback) |
 | Create/list/revoke API key | ✅ (revoke is session-only, see listhub-bnr) | ✅ |
 | Bootstrap token (password → API key) | ✅ | ❌ |
@@ -124,6 +124,6 @@ Set `LISTHUB_IDEAFLOW_CONFIG` to a mode-600 server-only JSON file with the regis
 
 The login route first attempts `prompt=none` once per local session. Normal sign-in then uses the shared provider; sign-out suppresses silent re-entry and the next sign-in chooses an account. Switch account explicitly invokes that chooser. OAuth requests use a single-use five-minute state, nonce and S256 PKCE; ID tokens require signature, issuer, audience, expiry and nonce validation.
 
-Identity mappings key on issuer and subject, preserving ListHub IDs, content, API keys and git repos. Existing accounts are never linked on email alone. Sign in with existing Noos/local credentials, then choose **Connect Ideaflow account**; the selected identity can map to only that local account. Old Noos callbacks and agent registration/API authentication remain supported.
+Identity mappings key on issuer and subject, preserving ListHub IDs, content, API keys and git repos. Existing accounts are never linked on email alone. Sign in with existing Noos/local credentials, then choose **Connect Ideaflow account**; the selected identity can map to only that local account. Unmapped Noos identities also require explicit authenticated linking when an email matches an existing account: sign in with existing credentials, then choose **Connect Noos account**. Already mapped Noos identities and new Noos accounts remain supported, as do agent registration/API authentication. Sign-out and account switch invalidate pending callbacks for both providers.
 
 Validate: `.venv/bin/python -m unittest discover -s tests -v`.
