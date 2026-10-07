@@ -80,6 +80,7 @@ git push
 | People directory | n/a | ✅ |
 | **Auth** | | |
 | Register (local) | ❌ | ✅ |
+| Login via Ideaflow ID (OIDC, silent SSO, explicit account link) | n/a | ✅ |
 | Login via Noos OAuth | n/a | ✅ |
 | Login via local password | n/a | ✅ (fallback) |
 | Create/list/revoke API key | ✅ (revoke is session-only, see listhub-bnr) | ✅ |
@@ -116,3 +117,13 @@ ssh noos-prod "cd /home/ubuntu/listhub && git pull origin main && sudo systemctl
 - **[docs/history-pre-sidebar.md](docs/history-pre-sidebar.md)** — state of ListHub before the three-section sidebar shipped; Google Sites / Wikispaces / sub-wiki context.
 - **[docs/investor-blurb.md](docs/investor-blurb.md)** — intro blurbs (short/medium/long) for investors forwarding the IdeaFlow Memory pitch to portfolio founders.
 - **`/mockups/`** — design mockups served at `https://listhub.globalbr.ai/mockups/`. Includes the agent-first web standard page, the company LLM wiki pitch pages, and the IdeaFlow Memory brand direction.
+
+## Shared Ideaflow sign-in
+
+Set `LISTHUB_IDEAFLOW_CONFIG` to a mode-600 server-only JSON file with the registered `issuer`, `client_id`, `client_secret` and `redirect_uris` (the sole callback must be `https://listhub.globalbr.ai/auth/ideaflow/callback`). No client secret goes to a browser. Without this setting the existing Noos login remains active.
+
+The login route first attempts `prompt=none` once per local session. Normal sign-in then uses the shared provider; sign-out suppresses silent re-entry and the next sign-in chooses an account. Switch account explicitly invokes that chooser. OAuth requests use a single-use five-minute state, nonce and S256 PKCE; ID tokens require signature, issuer, audience, expiry and nonce validation.
+
+Identity mappings key on issuer and subject, preserving ListHub IDs, content, API keys and git repos. Existing accounts are never linked on email alone. Sign in with existing Noos/local credentials, then choose **Connect Ideaflow account**; the selected identity can map to only that local account. Old Noos callbacks and agent registration/API authentication remain supported.
+
+Validate: `.venv/bin/python -m unittest discover -s tests -v`.

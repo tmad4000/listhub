@@ -88,6 +88,7 @@
 <p>Noos-authenticated users don't have a local password. For git access (clone/push), create an API key in Settings and use it as your git password:</p>
 <div class="code-block"><code>git clone https://yourname:mem_your_api_key@listhub.globalbr.ai/git/yourname.git</code></div>
 
+<h3>Browser shared sign-in</h3><p>Browser users sign in with Ideaflow. Existing ListHub accounts connect through the account menu after a Noos or local-password sign-in. Agent registration, Bearer API keys, scopes and content permissions remain unchanged.</p>
 <h3>Register a new account (no auth required)</h3>
 <p><code>POST /api/v1/auth/register</code> — no authentication required</p>
 <p>Create a new ListHub account and receive an API key in a single call. This is the recommended way for AI agents and integrations to self-onboard — no browser, no human intervention needed.</p>

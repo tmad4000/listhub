@@ -92,6 +92,12 @@ def api_has_scope(scope):
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('views.dashboard'))
+    from ideaflow_auth import enabled, start
+    if enabled():
+        if request.args.get('auto') != 'off' and not session.get('ideaflow_auto_attempted') and not session.get('ideaflow_signed_out'):
+            session['ideaflow_auto_attempted'] = True
+            return start(silent=True)
+        return render_template('ideaflow_login.html')
     return redirect(url_for('auth.noos_login'))
 
 
@@ -126,6 +132,7 @@ def login_local():
 @login_required
 def logout():
     logout_user()
+    session['ideaflow_signed_out'] = True
     return redirect(url_for('views.landing'))
 
 
