@@ -1,4 +1,4 @@
-"""Independent first-party OIDC login; legacy Noos identity remains unchanged."""
+"""First-party OIDC login with explicit linking to existing ListHub accounts."""
 import base64
 import hashlib
 import json

@@ -1356,13 +1356,10 @@ Authorization: Bearer mem_abc123...
 
 ## Browser identity linking
 
-Ideaflow ID and Noos login never attach an unmapped identity by email alone.
-Authenticate to the existing ListHub account, then use Connect Ideaflow account
-or Connect Noos account in the account menu. POST /auth/noos/login starts an
-explicit Noos connection using the browser session and a CSRF token.
-Already mapped Noos identities continue to work. Sign-out and account switch
-invalidate pending authentication callbacks. Agent registration and Bearer
-API authentication do not require browser identity linking.
+Browser identity route contracts: https://listhub.globalbr.ai/api/docs#browser-identity
+Sign-in and existing-account setup:
+https://github.com/tmad4000/listhub/blob/main/README.md#shared-ideaflow-sign-in
+Use the programmatic registration and Bearer API authentication above for agents.
 
 ## Private content blocks (hide per-section content from non-owners)
 

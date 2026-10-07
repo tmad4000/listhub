@@ -12,7 +12,7 @@ ListHub is a place to create, share, and publish lists, notes, and documents. It
 ## Quick Start
 
 ### Web
-Visit https://listhub.globalbr.ai and sign up, or sign in with Noos OAuth.
+Visit https://listhub.globalbr.ai and choose **Sign in**. See [Shared Ideaflow sign-in](#shared-ideaflow-sign-in) for account setup and existing-account access.
 
 ### API
 ```bash
@@ -79,7 +79,7 @@ git push
 | User profile page | n/a | ✅ |
 | People directory | n/a | ✅ |
 | **Auth** | | |
-| Register (local) | ❌ | ✅ |
+| Register (local) | ✅ | ✅ |
 | Login via Ideaflow ID (OIDC, silent SSO, explicit account link) | n/a | ✅ |
 | Login via Noos OAuth (explicit authenticated linking) | n/a | ✅ |
 | Login via local password | n/a | ✅ (fallback) |
@@ -120,10 +120,10 @@ ssh noos-prod "cd /home/ubuntu/listhub && git pull origin main && sudo systemctl
 
 ## Shared Ideaflow sign-in
 
-Set `LISTHUB_IDEAFLOW_CONFIG` to a mode-600 server-only JSON file with the registered `issuer`, `client_id`, `client_secret` and `redirect_uris` (the sole callback must be `https://listhub.globalbr.ai/auth/ideaflow/callback`). No client secret goes to a browser. Without this setting the existing Noos login remains active.
+Set `LISTHUB_IDEAFLOW_CONFIG` to a mode-600 server-only JSON file with `issuer` set to `https://id.ideaflow.app/api/auth`, the registered `client_id` and `client_secret`, and a `redirect_uris` array whose first entry is the registered callback `https://listhub.globalbr.ai/auth/ideaflow/callback`. No client secret goes to a browser. Without this setting the existing Noos login remains active.
 
-The login route first attempts `prompt=none` once per local session. Normal sign-in then uses the shared provider; sign-out suppresses silent re-entry and the next sign-in chooses an account. Switch account explicitly invokes that chooser. OAuth requests use a single-use five-minute state, nonce and S256 PKCE; ID tokens require signature, issuer, audience, expiry and nonce validation.
+When configured, the login route attempts `prompt=none` unless silent sign-in has already been attempted or the user has signed out in this session. A successful Ideaflow sign-in clears those flags. If silent sign-in cannot finish, the page offers **Sign in with Ideaflow** and existing-account help. Sign-out ends the ListHub session, suppresses silent re-entry and makes the next Ideaflow sign-in choose an account; it does not end the shared provider session in other apps. **Switch account** ends the ListHub session and immediately invokes that chooser. OAuth requests use a single-use five-minute state, nonce and S256 PKCE; ID tokens require signature, issuer, audience, expiry and nonce validation.
 
-Identity mappings key on issuer and subject, preserving ListHub IDs, content, API keys and git repos. Existing accounts are never linked on email alone. Sign in with existing Noos/local credentials, then choose **Connect Ideaflow account**; the selected identity can map to only that local account. Unmapped Noos identities also require explicit authenticated linking when an email matches an existing account: sign in with existing credentials, then choose **Connect Noos account**. Already mapped Noos identities and new Noos accounts remain supported, as do agent registration/API authentication. Sign-out and account switch invalidate pending callbacks for both providers.
+New Ideaflow identities require a verified email to create a ListHub account. Identity mappings key on issuer and subject, preserving ListHub IDs, content, local passwords, API keys and git repos. Existing accounts are never linked on email alone. Sign in with existing Noos/local credentials, then choose **Connect Ideaflow account**; the selected identity can map to only that local account. Unmapped Noos identities also require explicit authenticated linking when an email matches an existing account: sign in with existing credentials, then choose **Connect Noos account**. Already mapped Noos identities and new Noos accounts remain supported. Use **Existing account help** on the configured sign-in page to reach Noos or local-password login. Agent registration/API authentication remains unchanged. Sign-out and account switch invalidate pending callbacks for both providers.
 
 Validate: `.venv/bin/python -m unittest discover -s tests -v`.
