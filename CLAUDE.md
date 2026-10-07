@@ -8,7 +8,7 @@ ListHub is a personal knowledge/list management app. Users create items (notes, 
 
 ## Stack
 - **Backend:** Flask + SQLite + Gunicorn
-- **Auth:** bcrypt passwords, SHA-256 API keys, Flask-Login sessions, Noos OAuth SSO
+- **Auth:** See [README — Shared Ideaflow sign-in](README.md#shared-ideaflow-sign-in) for browser identity behavior and configuration; API and git auth patterns are below.
 - **Search:** SQLite FTS5
 - **Git:** Smart HTTP backend with bare repos, plumbing-based DB→git sync
 - **Frontend:** Server-rendered Jinja2 templates, dark theme, no JS framework
@@ -20,7 +20,8 @@ ListHub is a personal knowledge/list management app. Users create items (notes, 
 app.py          — Flask app factory, blueprint registration
 api.py          — REST API (/api/v1/*)
 views.py        — Web UI routes + /api/docs
-auth.py         — Auth blueprint, API key decorator, admin token, Noos OAuth
+auth.py         — Local/Noos auth, API key decorator, admin token
+ideaflow_auth.py — Ideaflow ID OIDC blueprint
 models.py       — User model
 db.py           — SQLite connection, schema, FTS reindexing
 git_backend.py  — Git Smart HTTP (clone/push), repo init, hook install
@@ -48,7 +49,7 @@ static/style.css — All CSS (dark theme, CSS variables)
 - API endpoints use `@require_api_auth` (Bearer token or session)
 - Admin token (`LISTHUB_ADMIN_TOKEN`) with `X-ListHub-User` header for internal calls
 - Key management endpoints use `@login_required` (session only)
-- **Noos OAuth SSO:** Users can sign in via Noos (`globalbr.ai`). OAuth code flow with `client_id=listhub`. Users are auto-created on first login (linked by `noos_id`). Noos-only users have `password_hash='!noos-oauth'` (no local password). They use API keys for git auth.
+- **Browser identity:** [README — Shared Ideaflow sign-in](README.md#shared-ideaflow-sign-in) owns sign-in, explicit linking and account-switch behavior. See `tests/test_ideaflow_auth.py` and `tests/test_identity_preservation.py` for the identity and compatibility regressions.
 - Git HTTP Basic Auth accepts both bcrypt passwords and API keys (industry standard PAT pattern)
 
 ### Frontmatter round-trip
@@ -116,6 +117,7 @@ ssh -i ~/.ssh/lightsail-noos.pem ubuntu@3.216.129.34 "cd /home/ubuntu/listhub &&
 - `LISTHUB_DB` — SQLite database path
 - `LISTHUB_BASE_URL` — Base URL for hook API calls (default: `http://localhost:3200`)
 - `LISTHUB_PUBLIC_URL` — Public-facing URL for OAuth callbacks (default: `https://listhub.globalbr.ai`)
+- `LISTHUB_IDEAFLOW_CONFIG` — See [README — Shared Ideaflow sign-in](README.md#shared-ideaflow-sign-in) for configuration
 - `NOOS_AUTH_URL` — Noos OAuth provider URL (default: `https://globalbr.ai`)
 
 ## Deploy Workflow (git pull)

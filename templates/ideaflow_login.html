@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Sign in — ListHub{% endblock %}
+{% block content %}
+<div class="auth-card"><h1>Sign in to ListHub</h1><p>One Ideaflow account. Your ListHub pages and permissions stay here.</p><a class="btn btn-primary" href="{{ url_for('ideaflow.login', next=request.args.get('next', '/dash')) }}">Sign in with Ideaflow</a><p>New here? Create an account on the next screen.</p><details><summary>Existing account help</summary><p>If you have not connected your old account, <a href="{{ url_for('auth.noos_login') }}">sign in with Noos</a> or <a href="{{ url_for('auth.login_local') }}">use your ListHub password</a>, then connect Ideaflow from your account menu.</p></details></div>
+{% endblock %}

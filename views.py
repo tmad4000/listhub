@@ -1354,6 +1354,13 @@ Authorization: Bearer mem_abc123...
 - GET /api/v1/search?q=query — full-text search
 - PUT /api/v1/items/by-slug/:slug — create or update by slug
 
+## Browser identity linking
+
+Browser identity route contracts: https://listhub.globalbr.ai/api/docs#browser-identity
+Sign-in and existing-account setup:
+https://github.com/tmad4000/listhub/blob/main/README.md#shared-ideaflow-sign-in
+Use the programmatic registration and Bearer API authentication above for agents.
+
 ## Private content blocks (hide per-section content from non-owners)
 
 Any item can contain HTML comment blocks that are rendered for the owner but

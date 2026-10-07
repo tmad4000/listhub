@@ -12,7 +12,7 @@ ListHub is a place to create, share, and publish lists, notes, and documents. It
 ## Quick Start
 
 ### Web
-Visit https://listhub.globalbr.ai and sign up, or sign in with Noos OAuth.
+Visit https://listhub.globalbr.ai and choose **Sign in**. See [Shared Ideaflow sign-in](#shared-ideaflow-sign-in) for account setup and existing-account access.
 
 ### API
 ```bash
@@ -79,8 +79,9 @@ git push
 | User profile page | n/a | ✅ |
 | People directory | n/a | ✅ |
 | **Auth** | | |
-| Register (local) | ❌ | ✅ |
-| Login via Noos OAuth | n/a | ✅ |
+| Register (local) | ✅ | ✅ |
+| Login via Ideaflow ID (OIDC, silent SSO, explicit account link) | n/a | ✅ |
+| Login via Noos OAuth (explicit authenticated linking) | n/a | ✅ |
 | Login via local password | n/a | ✅ (fallback) |
 | Create/list/revoke API key | ✅ (revoke is session-only, see listhub-bnr) | ✅ |
 | Bootstrap token (password → API key) | ✅ | ❌ |
@@ -116,3 +117,13 @@ ssh noos-prod "cd /home/ubuntu/listhub && git pull origin main && sudo systemctl
 - **[docs/history-pre-sidebar.md](docs/history-pre-sidebar.md)** — state of ListHub before the three-section sidebar shipped; Google Sites / Wikispaces / sub-wiki context.
 - **[docs/investor-blurb.md](docs/investor-blurb.md)** — intro blurbs (short/medium/long) for investors forwarding the IdeaFlow Memory pitch to portfolio founders.
 - **`/mockups/`** — design mockups served at `https://listhub.globalbr.ai/mockups/`. Includes the agent-first web standard page, the company LLM wiki pitch pages, and the IdeaFlow Memory brand direction.
+
+## Shared Ideaflow sign-in
+
+Set `LISTHUB_IDEAFLOW_CONFIG` to a mode-600 server-only JSON file with `issuer` set to `https://id.ideaflow.app/api/auth`, the registered `client_id` and `client_secret`, and a `redirect_uris` array whose first entry is the registered callback `https://listhub.globalbr.ai/auth/ideaflow/callback`. No client secret goes to a browser. Without this setting the existing Noos login remains active.
+
+When configured, the login route attempts `prompt=none` unless silent sign-in has already been attempted or the user has signed out in this session. A successful Ideaflow sign-in clears those flags. If silent sign-in cannot finish, the page offers **Sign in with Ideaflow** and existing-account help. Sign-out ends the ListHub session, suppresses silent re-entry and makes the next Ideaflow sign-in choose an account; it does not end the shared provider session in other apps. **Switch account** ends the ListHub session and immediately invokes that chooser. OAuth requests use a single-use five-minute state, nonce and S256 PKCE; ID tokens require signature, issuer, audience, expiry and nonce validation.
+
+New Ideaflow identities require a verified email to create a ListHub account. Identity mappings key on issuer and subject, preserving ListHub IDs, content, local passwords, API keys and git repos. Existing accounts are never linked on email alone. Sign in with existing Noos/local credentials, then choose **Connect Ideaflow account**; the selected identity can map to only that local account. Unmapped Noos identities also require explicit authenticated linking when an email matches an existing account: sign in with existing credentials, then choose **Connect Noos account**. Already mapped Noos identities and new Noos accounts remain supported. Use **Existing account help** on the configured sign-in page to reach Noos or local-password login. Agent registration/API authentication remains unchanged. Sign-out and account switch invalidate pending callbacks for both providers.
+
+Validate: `.venv/bin/python -m unittest discover -s tests -v`.

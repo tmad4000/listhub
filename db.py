@@ -82,6 +82,12 @@ def init_db():
     );
     """)
 
+    conn.execute("""CREATE TABLE IF NOT EXISTS ideaflow_identity (
+        issuer TEXT NOT NULL, subject TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES user(id),
+        PRIMARY KEY(issuer, subject), UNIQUE(issuer, user_id)
+    )""")
+
     # FTS5 virtual table for full-text search
     cur = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='item_fts'"

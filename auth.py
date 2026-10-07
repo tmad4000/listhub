@@ -92,6 +92,12 @@ def api_has_scope(scope):
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('views.dashboard'))
+    from ideaflow_auth import enabled, start
+    if enabled():
+        if request.args.get('auto') != 'off' and not session.get('ideaflow_auto_attempted') and not session.get('ideaflow_signed_out'):
+            session['ideaflow_auto_attempted'] = True
+            return start(silent=True)
+        return render_template('ideaflow_login.html')
     return redirect(url_for('auth.noos_login'))
 
 
@@ -122,20 +128,33 @@ def login_local():
     return render_template('login.html')
 
 
+def invalidate_pending_auth():
+    session.pop('ideaflow_pending', None)
+    session.pop('oauth_state', None)
+    session.pop('noos_link_user_id', None)
+
+
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    invalidate_pending_auth()
     logout_user()
+    session['ideaflow_signed_out'] = True
     return redirect(url_for('views.landing'))
 
 
-@auth_bp.route('/auth/noos/login')
+@auth_bp.route('/auth/noos/login', methods=['GET', 'POST'])
 def noos_login():
     """Redirect to Noos OAuth authorize page."""
     if not NOOS_AUTH_URL:
         flash('Noos login is not configured.', 'error')
         return redirect(url_for('auth.login'))
 
+    if request.method == 'POST' and not current_user.is_authenticated:
+        return redirect(url_for('auth.login_local'))
+    session.pop('noos_link_user_id', None)
+    if request.method == 'POST':
+        session['noos_link_user_id'] = current_user.id
     state = secrets.token_urlsafe(32)
     session['oauth_state'] = state
 
@@ -153,6 +172,8 @@ def noos_login():
 @auth_bp.route('/auth/noos/callback')
 def noos_callback():
     """Handle Noos OAuth callback — exchange code for user info, find or create user."""
+    link_user_id = session.pop('noos_link_user_id', None)
+    saved_state = session.pop('oauth_state', None)
     error = request.args.get('error')
     if error:
         flash(f'Noos login failed: {error}', 'error')
@@ -162,7 +183,6 @@ def noos_callback():
     state = request.args.get('state')
 
     # Verify state
-    saved_state = session.pop('oauth_state', None)
     if not state or state != saved_state:
         flash('Login failed: state mismatch.', 'error')
         return redirect(url_for('auth.login'))
@@ -195,56 +215,58 @@ def noos_callback():
         flash('Noos login failed: no user ID returned.', 'error')
         return redirect(url_for('auth.login'))
 
-    db = get_db()
-
-    # 1. Try to find existing ListHub user linked by noos_id
-    user = User.get_by_noos_id(db, noos_id)
-
-    # 2. If not linked, try to match by email
-    if not user and noos_email:
-        user = User.get_by_email(db, noos_email)
-        if user:
-            # Link existing account to Noos
-            db.execute("UPDATE user SET noos_id = ? WHERE id = ?", (noos_id, user.id))
-            db.commit()
-
-    # 3. Auto-create a new ListHub account
-    if not user:
-        # Generate username from email or name
-        base_username = noos_email.split('@')[0] if noos_email else noos_name.lower().replace(' ', '')
-        base_username = ''.join(c for c in base_username if c.isalnum())[:20]
-        if not base_username or len(base_username) < 2:
-            base_username = 'user'
-
-        # Ensure uniqueness
-        username = base_username
-        suffix = 1
-        while User.get_by_username(db, username):
-            username = f'{base_username}{suffix}'
-            suffix += 1
-
-        user_id = nanoid()
-        # No password — Noos-only user. Set a placeholder hash that can never match.
-        placeholder_hash = '!noos-oauth'
-
-        db.execute(
-            "INSERT INTO user (id, username, display_name, email, password_hash, noos_id) VALUES (?, ?, ?, ?, ?, ?)",
-            (user_id, username, noos_name or username, noos_email or None, placeholder_hash, noos_id)
-        )
-        db.commit()
-
-        # Create git repo for the new user
-        try:
-            from git_backend import init_user_repo
-            init_user_repo(username)
-        except Exception:
-            pass
-
-        user = User.get(db, user_id)
+    try:
+        user = resolve_noos_user(noos_id, noos_email, noos_name, link_user_id)
+    except ValueError as error:
+        flash(str(error), 'error')
+        return redirect(url_for('auth.login', auto='off'))
 
     login_user(user, remember=True)
     next_page = request.args.get('next')
     return redirect(next_page or url_for('views.dashboard'))
+
+
+def resolve_noos_user(noos_id, noos_email, noos_name, link_user_id=None):
+    db = get_db()
+    db.execute('BEGIN IMMEDIATE')
+    try:
+        user = User.get_by_noos_id(db, noos_id)
+        if link_user_id:
+            if not current_user.is_authenticated or current_user.id != link_user_id:
+                raise ValueError('Sign in to the original ListHub account again before linking')
+            local = User.get(db, link_user_id)
+            if (user and user.id != link_user_id) or (local.noos_id and local.noos_id != noos_id):
+                raise ValueError('This account is already connected to another Noos identity')
+            db.execute('UPDATE user SET noos_id=? WHERE id=?', (noos_id, link_user_id))
+            db.commit()
+            return User.get(db, link_user_id)
+        if user:
+            db.commit()
+            return user
+        if noos_email and db.execute('SELECT id FROM user WHERE lower(email)=lower(?)', (noos_email,)).fetchone():
+            raise ValueError('Existing ListHub account requires explicit linking. Sign in with your existing credentials, then connect Noos from your account menu.')
+        base_username = noos_email.split('@')[0] if noos_email else noos_name.lower().replace(' ', '')
+        base_username = ''.join(c for c in base_username if c.isalnum())[:20]
+        if len(base_username) < 2:
+            base_username = 'user'
+        username, suffix = base_username, 1
+        while User.get_by_username(db, username):
+            username, suffix = f'{base_username}{suffix}', suffix + 1
+        user_id = nanoid()
+        db.execute(
+            'INSERT INTO user (id, username, display_name, email, password_hash, noos_id) VALUES (?, ?, ?, ?, ?, ?)',
+            (user_id, username, noos_name or username, noos_email or None, '!noos-oauth', noos_id)
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    try:
+        from git_backend import init_user_repo
+        init_user_repo(username)
+    except Exception:
+        pass
+    return User.get(db, user_id)
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])

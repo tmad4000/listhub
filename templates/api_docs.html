@@ -83,9 +83,15 @@
 
 <p>API keys can be created from <a href="/dash/settings">Settings</a>, via the token endpoint below, or via the key management endpoints. Keys have scopes (<code>read</code>, <code>write</code>) that control access. The raw key is shown only once at creation time.</p>
 
-<h3>Noos SSO</h3>
-<p>ListHub supports single sign-on via <a href="https://globalbr.ai">Noos</a>. Click "Sign in with Noos" on the login page to authenticate with your Noos account. On first login, a ListHub account is automatically created and linked to your Noos identity.</p>
-<p>Noos-authenticated users don't have a local password. For git access (clone/push), create an API key in Settings and use it as your git password:</p>
+<h3 id="browser-identity">Browser shared sign-in</h3>
+<p>See <a href="https://github.com/tmad4000/listhub/blob/main/README.md#shared-ideaflow-sign-in">README — Shared Ideaflow sign-in</a> for provider configuration, existing-account linking and sign-out behavior.</p>
+<p>Browser identity routes use session cookies rather than Bearer API keys. POST connection requests require an authenticated ListHub session and a CSRF token:</p>
+<ul>
+    <li><code>POST /auth/ideaflow/link</code> — start an Ideaflow identity connection (requires Ideaflow configuration).</li>
+    <li><code>POST /auth/noos/login</code> — start a Noos identity connection.</li>
+    <li><code>GET /auth/ideaflow/switch-account</code> — leave the ListHub session and start the provider account chooser (requires Ideaflow configuration).</li>
+</ul>
+<p>For git access (clone/push) without a local password, create an API key in Settings and use it as your git password.</p>
 <div class="code-block"><code>git clone https://yourname:mem_your_api_key@listhub.globalbr.ai/git/yourname.git</code></div>
 
 <h3>Register a new account (no auth required)</h3>

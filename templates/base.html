@@ -34,7 +34,12 @@
                             <a href="{{ url_for('views.api_docs') }}">API Docs</a>
                             <a href="{{ url_for('views.settings') }}">Settings</a>
                             <div class="nav-dropdown-divider"></div>
-                            <a href="{{ url_for('auth.logout') }}">Logout</a>
+                            <form method="post" action="{{ url_for('auth.noos_login') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn">Connect Noos account</button></form>
+                            {% if ideaflow_enabled %}
+                            <form method="post" action="{{ url_for('ideaflow.link') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn">Connect Ideaflow account</button></form>
+                            <a href="{{ url_for('ideaflow.switch_account') }}">Switch account</a>
+                            {% endif %}
+                            <a href="{{ url_for('auth.logout') }}">Sign out</a>
                         </div>
                     </div>
                 {% else %}

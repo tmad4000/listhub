@@ -8,6 +8,7 @@ from flask_wtf.csrf import CSRFProtect
 from db import init_db, get_db, close_db
 from models import User
 from auth import auth_bp
+from ideaflow_auth import ideaflow_bp, enabled as ideaflow_enabled
 from api import api_bp
 from views import views_bp
 from git_backend import git_bp
@@ -37,6 +38,8 @@ def create_app():
 
     # Register blueprints
     app.register_blueprint(auth_bp)
+    app.register_blueprint(ideaflow_bp)
+    app.context_processor(lambda: {"ideaflow_enabled": ideaflow_enabled()})
     app.register_blueprint(api_bp)
     app.register_blueprint(views_bp)
     app.register_blueprint(git_bp)
