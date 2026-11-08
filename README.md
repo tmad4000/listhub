@@ -78,6 +78,7 @@ git push
 | Explore public items | n/a | ✅ |
 | User profile page | n/a | ✅ |
 | People directory | n/a | ✅ |
+| Link previews (og/twitter meta per item; private items neutral or 404) | n/a | ✅ |
 | **Auth** | | |
 | Register (local) | ✅ | ✅ |
 | Login via Ideaflow ID (OIDC, silent SSO, explicit account link) | n/a | ✅ |

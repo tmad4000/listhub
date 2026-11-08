@@ -7,7 +7,15 @@
     <title>{% block title %}ListHub{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
     <link rel="stylesheet" href="{{ url_for('static', filename='sidebar.css') }}?v=11-featured">
-    <meta name="description" content="ListHub - A publishing and sharing layer for notes, lists, and knowledge. Agent-native REST API for programmatic access. Register, create, search, and collaborate.">
+    <meta name="description" content="{% block description %}ListHub - A publishing and sharing layer for notes, lists, and knowledge. Agent-native REST API for programmatic access. Register, create, search, and collaborate.{% endblock %}">
+    <meta property="og:site_name" content="ListHub">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
+    <meta property="og:description" content="{{ self.description() }}">
+    <meta property="og:url" content="{{ public_url }}{{ request.path }}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ self.og_title() }}">
+    <meta name="twitter:description" content="{{ self.description() }}">
     <link rel="api" href="/api/docs" title="API Documentation">
     <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM-readable site description">
     <script defer src="{{ url_for('static', filename='webmcp.js') }}"></script>

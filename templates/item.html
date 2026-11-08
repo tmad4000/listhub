@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% from '_badges.html' import visibility_badge %}
 {% block title %}{{ item.title or item.slug }} — @{{ profile_user.username }} — ListHub{% endblock %}
+{% block og_title %}{{ item.title or item.slug }} — @{{ profile_user.username }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block description %}{{ preview_description }}{% endblock %}
 {% block content %}
 
 {% if breadcrumbs %}

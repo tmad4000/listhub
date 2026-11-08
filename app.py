@@ -7,7 +7,7 @@ from flask_wtf.csrf import CSRFProtect
 
 from db import init_db, get_db, close_db
 from models import User
-from auth import auth_bp
+from auth import auth_bp, LISTHUB_PUBLIC_URL
 from ideaflow_auth import ideaflow_bp, enabled as ideaflow_enabled
 from api import api_bp
 from views import views_bp
@@ -39,7 +39,8 @@ def create_app():
     # Register blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(ideaflow_bp)
-    app.context_processor(lambda: {"ideaflow_enabled": ideaflow_enabled()})
+    app.context_processor(lambda: {"ideaflow_enabled": ideaflow_enabled(),
+                                   "public_url": LISTHUB_PUBLIC_URL.rstrip("/")})
     app.register_blueprint(api_bp)
     app.register_blueprint(views_bp)
     app.register_blueprint(git_bp)
