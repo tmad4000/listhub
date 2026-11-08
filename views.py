@@ -1,3 +1,4 @@
+import html as html_lib
 import os
 import re
 import subprocess
@@ -95,6 +96,29 @@ def strip_private_blocks(text):
     if not text:
         return text
     return _PRIVATE_BLOCK_RE.sub('', text)
+
+
+PUBLIC_PREVIEW_VISIBILITIES = ('public', 'public_edit', 'unlisted')
+NEUTRAL_ITEM_DESCRIPTION = 'A list or note on ListHub.'
+
+
+def preview_description(item, limit=200):
+    """Plain-text link-preview description for an item.
+
+    Only items anyone with the link may read get a content excerpt (private
+    blocks stripped). Private and shared items get a neutral description so
+    the page markup never carries their content into a preview.
+    """
+    if item['visibility'] not in PUBLIC_PREVIEW_VISIBILITIES:
+        return NEUTRAL_ITEM_DESCRIPTION
+    html_text = render_md(item['content'], is_owner=False)
+    text = html_lib.unescape(re.sub(r'<[^>]+>', ' ', html_text))
+    text = ' '.join(text.split())
+    if not text:
+        return NEUTRAL_ITEM_DESCRIPTION
+    if len(text) > limit:
+        text = text[:limit].rsplit(' ', 1)[0].rstrip(' ,.;:') + '…'
+    return text
 
 
 def render_md(text, is_owner=False):
@@ -1067,7 +1091,8 @@ def public_item(username, slug):
         raw_content=raw_content,
         is_owner=is_owner,
         can_edit=can_edit,
-        breadcrumbs=item_breadcrumbs
+        breadcrumbs=item_breadcrumbs,
+        preview_description=preview_description(item),
     )
 
 
