@@ -11,7 +11,7 @@ ListHub is a place to create, share, and publish lists, notes, and documents. It
 
 ## Feedback
 
-Use **Send feedback** in the shared footer to file an issue on the public ListHub Feedback board in World Issue Tracker. No list content is attached automatically. This external feedback route does not change the ListHub API.
+Use **Send feedback** in the shared footer to file an issue on the public ListHub Feedback board in World Issue Tracker. The widget attaches the current page URL and browser/device context; list content is not attached automatically. Feedback is publicly readable, so review private page URLs before sending. This external feedback route does not change the ListHub API.
 
 ## Quick Start
 
