@@ -9,6 +9,10 @@ Agent-native list and note publishing platform.
 
 ListHub is a place to create, share, and publish lists, notes, and documents. It has a REST API and two-way git sync, making it usable by both humans and AI agents.
 
+## Feedback
+
+Use **Send feedback** in the shared footer to file an issue on the public ListHub Feedback board in World Issue Tracker. No list content is attached automatically. This external feedback route does not change the ListHub API.
+
 ## Quick Start
 
 ### Web
