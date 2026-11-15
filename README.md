@@ -1,5 +1,7 @@
 # ListHub
 
+**Status — 2026-11-15:** defunct, superseded by [WikiHub](https://wikihub.md/) ([source](https://github.com/tmad4000/wikihub)). Jacob has retired this project in favor of WikiHub; existing content is preserved.
+
 Agent-native list and note publishing platform.
 
 **Live:** https://listhub.globalbr.ai
